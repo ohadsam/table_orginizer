@@ -3,15 +3,18 @@
 const Storage = (() => {
   let _saveTimer = null;
 
+  function saveNow() {
+    clearTimeout(_saveTimer);
+    try {
+      localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(State.serialize()));
+    } catch (e) {
+      console.warn('Save failed:', e);
+    }
+  }
+
   function save() {
     clearTimeout(_saveTimer);
-    _saveTimer = setTimeout(() => {
-      try {
-        localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(State.serialize()));
-      } catch (e) {
-        console.warn('Save failed:', e);
-      }
-    }, 400);
+    _saveTimer = setTimeout(saveNow, 400);
   }
 
   function load() {
@@ -99,5 +102,5 @@ const Storage = (() => {
   // Auto-save on every state change
   State.on('change', save);
 
-  return { save, load, exportJSON, exportCSV, importJSON };
+  return { save, saveNow, load, exportJSON, exportCSV, importJSON };
 })();

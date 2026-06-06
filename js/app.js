@@ -84,6 +84,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === '0')                   Canvas.fitAll();
   });
 
+  /* ── Persist to localStorage before the page unloads ── */
+  window.addEventListener('beforeunload', () => {
+    Storage.saveNow();
+  });
+
   /* ── Show welcome if empty ── */
   if (!hasData) {
     UI.toast('ברוכים הבאים! התחל בהגדרת האירוע ➜ ⚙️', 'info', 6000);

@@ -22,6 +22,7 @@ const Modals = (() => {
     document.getElementById('tableLockRow').style.display = 'none';
     document.getElementById('btnDuplicateTable').style.display = 'none';
     syncShapeBtns(_tableShapeEdit);
+    renderTablePresets();
     UI.openModal('modalAddTable');
   }
 
@@ -42,7 +43,33 @@ const Modals = (() => {
     document.getElementById('tableLockRow').style.display = '';
     document.getElementById('btnDuplicateTable').style.display = '';
     syncShapeBtns(_tableShapeEdit);
+    renderTablePresets();
     UI.openModal('modalAddTable');
+  }
+
+  function renderTablePresets() {
+    const wrap = document.getElementById('tablePresetBtns');
+    if (!wrap) return;
+    const presets = State.get().tablePresets || [];
+    const shapeIcon = { circle: '⭕', rectangle: '▭', square: '⬜' };
+    if (!presets.length) {
+      wrap.innerHTML = '<small style="color:#90a4ae">אין תבניות — הגדר בהגדרות ⚙️</small>';
+      return;
+    }
+    wrap.innerHTML = presets.map((p, i) =>
+      `<button class="preset-btn" data-preset="${i}" title="${shapeIcon[p.shape]||''} ${p.seats} מושבים · ${p.width}×${p.height}">${p.name}<br><small>${p.seats} מושבים</small></button>`
+    ).join('');
+    wrap.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const p = presets[parseInt(btn.dataset.preset)];
+        if (!p) return;
+        _tableShapeEdit = p.shape;
+        syncShapeBtns(_tableShapeEdit);
+        document.getElementById('tableSeats').value  = p.seats;
+        document.getElementById('tableWidth').value  = p.width  || '';
+        document.getElementById('tableHeight').value = p.height || '';
+      });
+    });
   }
 
   function syncShapeBtns(shape) {
@@ -185,6 +212,8 @@ const Modals = (() => {
     document.getElementById('guestAdults').value   = 2;
     document.getElementById('guestChildren').value = 0;
     document.getElementById('guestNotes').value    = '';
+    const addBtn = document.getElementById('btnConfirmGuestAndAdd');
+    if (addBtn) addBtn.style.display = '';
     renderGuestTagsSelector();
     renderProximitySelector();
     UI.openModal('modalAddGuest');
@@ -202,6 +231,8 @@ const Modals = (() => {
     document.getElementById('guestAdults').value   = g.adults;
     document.getElementById('guestChildren').value = g.children;
     document.getElementById('guestNotes').value    = g.notes || '';
+    const addBtn = document.getElementById('btnConfirmGuestAndAdd');
+    if (addBtn) addBtn.style.display = 'none';  // only for new guests
     renderGuestTagsSelector();
     renderProximitySelector();
     UI.openModal('modalAddGuest');
@@ -248,22 +279,29 @@ const Modals = (() => {
     });
   }
 
-  function confirmGuest() {
+  function doSaveGuest() {
     const name     = document.getElementById('guestName').value.trim();
     const adults   = Math.max(0, parseInt(document.getElementById('guestAdults').value)   || 0);
     const children = Math.max(0, parseInt(document.getElementById('guestChildren').value) || 0);
     const notes    = document.getElementById('guestNotes').value.trim();
-    if (!name) { UI.toast('נא להזין שם', 'warning'); return; }
-    if (adults + children === 0) { UI.toast('נא להזין לפחות אדם אחד', 'warning'); return; }
+    if (!name) { UI.toast('נא להזין שם', 'warning'); return false; }
+    if (adults + children === 0) { UI.toast('נא להזין לפחות אדם אחד', 'warning'); return false; }
     const tags      = [..._selectedTags];
     const proximity = [..._selectedProx];
-
     if (_editingGuestId) {
       State.updateGuest(_editingGuestId, { name, adults, children, tags, proximity, notes });
     } else {
       State.addGuest({ name, adults, children, tags, proximity, notes });
     }
-    UI.closeModal('modalAddGuest');
+    return true;
+  }
+
+  function confirmGuest() {
+    if (doSaveGuest()) UI.closeModal('modalAddGuest');
+  }
+
+  function confirmGuestAndAdd() {
+    if (doSaveGuest()) openAddGuest();   // re-opens with cleared fields
   }
 
   /* ═══════════════════ SHAPE MODAL ═══════════════════ */
@@ -323,23 +361,33 @@ const Modals = (() => {
   function showOverflowModal(guest, table, overflow) {
     const body = document.getElementById('overflowModalBody');
     const foot = document.getElementById('overflowModalFooter');
-    // Free seats at the target table, excluding this guest if they're already seated there.
     const occExclGuest = State.getTableGuests(table.id)
       .filter(g => g.id !== guest.id)
       .reduce((s, g) => s + g.total, 0);
     const free = Math.max(0, table.seats - occExclGuest);
 
+    const hasAdultsAndKids = guest.adults > 0 && guest.children > 0;
+    const adultsHereFit    = hasAdultsAndKids && guest.adults  <= free;
+    const kidsHereFit      = hasAdultsAndKids && guest.children <= free && !adultsHereFit;
+
     body.innerHTML = `
       <p>שולחן <strong>${table.number}</strong> מכיל ${table.seats} מושבים, ${free} פנויים.</p>
-      <p>בקבוצה "<strong>${UI.escHtml(guest.name)}</strong>" יש <strong>${guest.total} אנשים</strong> — חריגה של <strong>${overflow}</strong>.</p>
-      ${free > 0 ? `<p>אפשר לפצל: ${free} כאן, והשאר (${guest.total - free}) יישארו כרטיס נפרד בצד.</p>` : ''}`;
+      <p>בקבוצה "<strong>${UI.escHtml(guest.name)}</strong>" יש <strong>${guest.adults} מבוגרים + ${guest.children} ילדים (${guest.total})</strong> — חריגה של <strong>${overflow}</strong>.</p>
+      ${free > 0 ? `<p>אפשר לפצל: ${free} כאן, והשאר (${guest.total - free}) יישארו כרטיס נפרד.</p>` : ''}
+      ${adultsHereFit ? `<p>פיצול חכם: <strong>מבוגרים (${guest.adults}) כאן</strong>, ילדים (${guest.children}) בכרטיס נפרד.</p>` : ''}
+      ${kidsHereFit   ? `<p>פיצול חכם: <strong>ילדים (${guest.children}) כאן</strong>, מבוגרים (${guest.adults}) בכרטיס נפרד.</p>` : ''}`;
 
-    const splitBtn = free > 0
-      ? `<button class="btn btn-primary" id="btnOverflowSplit">פצל: ${free} כאן</button>` : '';
+    const splitByCountBtn = free > 0
+      ? `<button class="btn btn-primary" id="btnOverflowSplit">פצל לפי כמות: ${free} כאן</button>` : '';
+    const splitAdultsBtn = adultsHereFit
+      ? `<button class="btn btn-secondary" id="btnOverflowAdults">מבוגרים כאן, ילדים בנפרד</button>` : '';
+    const splitKidsBtn = kidsHereFit
+      ? `<button class="btn btn-secondary" id="btnOverflowKids">ילדים כאן, מבוגרים בנפרד</button>` : '';
+
     foot.innerHTML = `
-      ${splitBtn}
+      ${splitByCountBtn}${splitAdultsBtn}${splitKidsBtn}
       <button class="btn btn-secondary" id="btnOverflowForce">שבץ הכל בכל זאת</button>
-      <button class="btn btn-ghost" id="btnOverflowCancel">ביטול</button>`;
+      <button class="btn btn-ghost"     id="btnOverflowCancel">ביטול</button>`;
 
     document.getElementById('btnOverflowForce').onclick = () => {
       State.assignGuest(guest.id, table.id);
@@ -348,6 +396,29 @@ const Modals = (() => {
     };
     const sb = document.getElementById('btnOverflowSplit');
     if (sb) sb.onclick = () => { splitGuestAtTable(guest, table, free); UI.closeModal('modalOverflow'); };
+
+    const sa = document.getElementById('btnOverflowAdults');
+    if (sa) sa.onclick = () => {
+      // Adults stay here, children become a new card
+      State.updateGuest(guest.id, { adults: guest.adults, children: 0 });
+      State.assignGuest(guest.id, table.id);
+      State.addGuest({ name: guest.name + ' (ילדים)', adults: 0, children: guest.children,
+        tags: [...(guest.tags||[])], proximity: [...(guest.proximity||[])],
+        notes: guest.notes || '', splitOf: guest.id });
+      UI.toast(`מבוגרים שובצו לשולחן ${table.number}; ילדים נותרו ברשימה`, 'success', 4000);
+      UI.closeModal('modalOverflow');
+    };
+    const sk = document.getElementById('btnOverflowKids');
+    if (sk) sk.onclick = () => {
+      // Children stay here, adults become a new card
+      State.updateGuest(guest.id, { adults: 0, children: guest.children });
+      State.assignGuest(guest.id, table.id);
+      State.addGuest({ name: guest.name + ' (מבוגרים)', adults: guest.adults, children: 0,
+        tags: [...(guest.tags||[])], proximity: [...(guest.proximity||[])],
+        notes: guest.notes || '', splitOf: guest.id });
+      UI.toast(`ילדים שובצו לשולחן ${table.number}; מבוגרים נותרו ברשימה`, 'success', 4000);
+      UI.closeModal('modalOverflow');
+    };
     document.getElementById('btnOverflowCancel').onclick = () => UI.closeModal('modalOverflow');
     UI.openModal('modalOverflow');
   }
@@ -384,6 +455,7 @@ const Modals = (() => {
     document.getElementById('settingFriendsSeats').value  = s.settings.defaultFriendsSeats;
     document.getElementById('settingDefaultShape').value  = s.settings.defaultShape;
     renderTagsManager();
+    renderPresetManager();
     UI.openModal('modalSettings');
   }
 
@@ -402,6 +474,28 @@ const Modals = (() => {
           State.removeTag(btn.dataset.tag);
           renderTagsManager();
         }
+      });
+    });
+  }
+
+  function renderPresetManager() {
+    const wrap = document.getElementById('presetManager');
+    if (!wrap) return;
+    const presets = State.get().tablePresets || [];
+    const shapeLabel = { circle: 'עגול', rectangle: 'מלבן', square: 'ריבוע' };
+    wrap.innerHTML = presets.length === 0
+      ? '<p style="color:#90a4ae;font-size:13px;margin-bottom:6px">אין תבניות מוגדרות</p>'
+      : presets.map((p, i) => `
+        <div class="preset-item">
+          <span class="preset-item-name">${UI.escHtml(p.name)}</span>
+          <span class="preset-item-detail">${shapeLabel[p.shape] || p.shape} · ${p.seats} מושבים · ${p.width}×${p.height}</span>
+          <button class="btn-icon-xs btn-remove-preset" data-idx="${i}" title="מחק תבנית">✕</button>
+        </div>`).join('');
+    wrap.querySelectorAll('.btn-remove-preset').forEach(btn => {
+      btn.addEventListener('click', () => {
+        State.removeTablePreset(parseInt(btn.dataset.idx));
+        renderPresetManager();
+        renderTablePresets();
       });
     });
   }
@@ -459,6 +553,7 @@ const Modals = (() => {
 
     // Guest modal
     document.getElementById('btnConfirmGuest')?.addEventListener('click', confirmGuest);
+    document.getElementById('btnConfirmGuestAndAdd')?.addEventListener('click', confirmGuestAndAdd);
     document.getElementById('guestName')?.addEventListener('keydown', e => { if (e.key === 'Enter') confirmGuest(); });
     document.getElementById('btnAddNewTag')?.addEventListener('click', () => {
       const inp = document.getElementById('newTagInput');
@@ -492,6 +587,28 @@ const Modals = (() => {
       const val = inp.value.trim();
       if (val) { State.addTag(val); inp.value = ''; renderTagsManager(); }
     });
+    // Preset manager
+    document.getElementById('btnAddPreset')?.addEventListener('click', () => {
+      const name   = document.getElementById('presetName').value.trim();
+      const shape  = document.getElementById('presetShape').value;
+      const seats  = Math.max(1, parseInt(document.getElementById('presetSeats').value) || 10);
+      const wVal   = parseInt(document.getElementById('presetWidth').value);
+      const hVal   = parseInt(document.getElementById('presetHeight').value);
+      if (!name) { UI.toast('נא להזין שם לתבנית', 'warning'); return; }
+      const sz = CONFIG.TABLE_SIZES[shape] || CONFIG.TABLE_SIZES.circle;
+      State.addTablePreset({
+        name, shape, seats,
+        width:  wVal ? Math.max(60, wVal) : sz.width,
+        height: hVal ? Math.max(60, hVal) : (shape === 'circle' || shape === 'square' ? (wVal || sz.width) : sz.height)
+      });
+      document.getElementById('presetName').value   = '';
+      document.getElementById('presetWidth').value  = '';
+      document.getElementById('presetHeight').value = '';
+      renderPresetManager();
+      renderTablePresets();
+      UI.toast('התבנית נוספה ✓', 'success', 1500);
+    });
+
     document.getElementById('btnResetBoard')?.addEventListener('click', () => {
       if (UI.confirmDialog('לנקות את כל השולחנות והמוזמנים? (ההגדרות והתגיות יישמרו)')) {
         State.resetBoard();
@@ -509,8 +626,9 @@ const Modals = (() => {
       UI.closeModal('modalAutoAssign');
     });
 
-    State.on('eventChanged', updateEventHeader);
-    State.on('dataLoaded',   updateEventHeader);
+    State.on('eventChanged',   updateEventHeader);
+    State.on('dataLoaded',     updateEventHeader);
+    State.on('presetsChanged', renderTablePresets);
     updateEventHeader();
   }
 
@@ -520,6 +638,6 @@ const Modals = (() => {
     openEditItem, openAddGuest, openEditGuest,
     openAddShape, openSettings, openAutoAssign,
     handleGuestDrop, updateEventHeader,
-    renderTagsManager
+    renderTagsManager, renderPresetManager, renderTablePresets
   };
 })();

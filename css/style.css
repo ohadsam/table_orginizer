@@ -603,6 +603,43 @@ textarea.input { resize: vertical; min-height: 60px; }
 
 /* ── Overflow modal items ── */
 #overflowModalBody p { margin-bottom: 6px; font-size: 13px; }
+#overflowModalFooter { flex-wrap: wrap; gap: 6px; }
+
+/* ── Table preset buttons (add-table modal) ── */
+.preset-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.preset-btn {
+  background: #f0f4ff;
+  border: 1.5px solid #c5cae9;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  line-height: 1.3;
+  text-align: center;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+  color: var(--primary-dk);
+}
+.preset-btn small { display: block; color: var(--text-light); font-size: 10px; }
+.preset-btn:hover { background: #c5cae9; border-color: var(--primary); }
+
+/* ── Preset manager (settings modal) ── */
+.preset-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.preset-item:last-child { border-bottom: none; }
+.preset-item-name   { font-weight: 600; min-width: 90px; }
+.preset-item-detail { color: var(--text-light); flex: 1; font-size: 12px; }
+.add-preset-form    { margin-top: 8px; }
+.preset-form-row    { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
 
 /* ── Print plan modal ── */
 .print-plan-preview {

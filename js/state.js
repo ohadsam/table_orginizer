@@ -17,6 +17,12 @@ const State = (() => {
       items: [],
       guests: [],
       tags: [...CONFIG.DEFAULT_TAGS],
+      tablePresets: [
+        { name: 'שולחן עגול',   shape: 'circle',    seats: 10, width: 130, height: 130 },
+        { name: 'שולחן מלבן',   shape: 'rectangle', seats: 14, width: 210, height: 110 },
+        { name: 'שולחן ארוך',    shape: 'rectangle', seats: 24, width: 320, height: 110 },
+        { name: 'שולחן ריבועי',  shape: 'square',    seats:  8, width: 130, height: 130 }
+      ],
       _nextItemId: 1,
       _nextGuestId: 1,
       _nextTableNum: 1
@@ -136,6 +142,17 @@ const State = (() => {
       emit('tagsChanged');
     }
   }
+  /* ── table presets ── */
+  function addTablePreset(preset) {
+    _state.tablePresets.push(preset);
+    emit('presetsChanged');
+  }
+  function removeTablePreset(idx) {
+    if (idx >= 0 && idx < _state.tablePresets.length)
+      _state.tablePresets.splice(idx, 1);
+    emit('presetsChanged');
+  }
+
   function removeTag(tag) {
     _state.tags = _state.tags.filter(t => t !== tag);
     _state.guests.forEach(g => { g.tags = (g.tags || []).filter(t => t !== tag); });
@@ -155,9 +172,10 @@ const State = (() => {
       event:    { ...def.event,    ...(data.event    || {}) },
       settings: { ...def.settings, ...(data.settings || {}) },
       canvas:   { ...def.canvas,   ...(data.canvas   || {}) },
-      items:   Array.isArray(data.items)   ? data.items   : def.items,
-      guests:  Array.isArray(data.guests)  ? data.guests  : def.guests,
-      tags:    Array.isArray(data.tags)    ? data.tags    : def.tags
+      items:        Array.isArray(data.items)        ? data.items        : def.items,
+      guests:       Array.isArray(data.guests)       ? data.guests       : def.guests,
+      tags:         Array.isArray(data.tags)         ? data.tags         : def.tags,
+      tablePresets: Array.isArray(data.tablePresets) ? data.tablePresets : def.tablePresets
     };
     _state.guests.forEach(g => { g.total = (g.adults || 0) + (g.children || 0); });
     emit('dataLoaded');
@@ -195,6 +213,7 @@ const State = (() => {
     addItem, updateItem, removeItem, duplicateItem,
     addGuest, updateGuest, removeGuest, assignGuest,
     nextTableNumber,
+    addTablePreset, removeTablePreset,
     addTag, removeTag,
     serialize, deserialize, resetBoard,
     setEventField, setSetting, setCanvasView
