@@ -107,6 +107,7 @@ const Guests = (() => {
   State.on('guestUpdated',  render);
   State.on('guestRemoved',  render);
   State.on('guestAssigned', render);
+  State.on('itemRemoved',   render);   // table deleted → re-render displaced guests
   State.on('tagsChanged',   () => { renderTagFilter(); render(); });
   State.on('dataLoaded',    () => { renderTagFilter(); render(); });
 
