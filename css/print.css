@@ -1,0 +1,153 @@
+/* ════════════════════════════════════════════
+   Print Styles — A4 optimized
+════════════════════════════════════════════ */
+
+@media print {
+  /* Hide all non-print elements */
+  .app-header,
+  .sidebar,
+  .canvas-area,
+  .canvas-controls,
+  .canvas-viewport,
+  .toast-container,
+  #btnMobileSidebar,
+  .modal-overlay,
+  .app-layout { display: none !important; }
+
+  /* Show correct print area based on mode */
+  body[data-print-mode="plan"] #printPlanArea { display: block !important; }
+  body[data-print-mode="list"] #printListArea { display: block !important; }
+
+  /* Default: show plan if mode not set */
+  body:not([data-print-mode]) #printPlanArea { display: block !important; }
+  body:not([data-print-mode]) #printListArea { display: none !important; }
+
+  body {
+    background: #fff;
+    overflow: visible;
+    height: auto;
+    direction: rtl;
+    font-family: 'Arial', sans-serif;
+  }
+
+  /* ── Print areas ── */
+  #printPlanArea,
+  #printListArea {
+    display: none;
+    direction: rtl;
+    background: #fff;
+    color: #000;
+    font-size: 12pt;
+    line-height: 1.5;
+    padding: 0;
+    margin: 0;
+  }
+
+  /* ── Print header ── */
+  .print-header {
+    text-align: center;
+    margin-bottom: 18pt;
+    padding-bottom: 10pt;
+    border-bottom: 2pt solid #5c6bc0;
+    break-inside: avoid;
+  }
+  .print-header h1 { font-size: 22pt; margin-bottom: 4pt; color: #3949ab; }
+  .print-subtitle  { font-size: 14pt; color: #555; margin-bottom: 4pt; }
+  .print-meta      { font-size: 11pt; color: #666; margin-bottom: 2pt; }
+
+  .print-stats {
+    display: flex;
+    justify-content: center;
+    gap: 20pt;
+    font-size: 11pt;
+    margin-top: 8pt;
+    flex-wrap: wrap;
+  }
+  .print-stats span { color: #444; }
+  .print-stats strong { color: #3949ab; }
+
+  /* ── Table cards grid ── */
+  .print-tables-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10pt;
+  }
+
+  .print-table-card {
+    border: 1.5pt solid #ccc;
+    border-radius: 6pt;
+    padding: 8pt;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .print-table-card.empty { border-color: #bbb; background: #fafafa; }
+  .print-table-card.ok    { border-color: #81c784; background: #f9fff9; }
+  .print-table-card.over  { border-color: #e57373; background: #fff8f8; }
+
+  .print-table-header {
+    display: flex;
+    align-items: baseline;
+    gap: 5pt;
+    margin-bottom: 5pt;
+    border-bottom: 1pt solid #eee;
+    padding-bottom: 4pt;
+    flex-wrap: wrap;
+  }
+  .print-table-num   { font-size: 13pt; font-weight: 700; color: #3949ab; }
+  .print-table-label { font-size: 10pt; color: #555; flex: 1; }
+  .print-table-occ   { font-size: 9pt; color: #777; margin-right: auto; }
+
+  .print-guest-list {
+    list-style: none;
+    margin: 0; padding: 0;
+    font-size: 9.5pt;
+  }
+  .print-guest-list li {
+    padding: 2pt 0;
+    border-bottom: .5pt dotted #eee;
+    display: flex;
+    justify-content: space-between;
+  }
+  .print-guest-list li:last-child { border-bottom: none; }
+  .print-guest-list small { color: #888; font-size: 8pt; }
+
+  /* ── Guest list table ── */
+  .print-guest-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10pt;
+    margin-top: 10pt;
+  }
+  .print-guest-table thead tr {
+    background: #5c6bc0;
+    color: #fff;
+  }
+  .print-guest-table th,
+  .print-guest-table td {
+    padding: 5pt 8pt;
+    text-align: right;
+    border: .5pt solid #ccc;
+  }
+  .print-guest-table tbody tr.even { background: #f9f9f9; }
+  .print-guest-table tbody tr.odd  { background: #ffffff; }
+  .print-guest-table tfoot .totals-row {
+    background: #e8eaf6;
+    font-weight: 700;
+    border-top: 2pt solid #5c6bc0;
+  }
+
+  /* Page breaks */
+  .print-guest-table thead { display: table-header-group; }
+  .print-guest-table tfoot { display: table-footer-group; }
+  .print-guest-table tr    { break-inside: avoid; page-break-inside: avoid; }
+
+  /* Page settings */
+  @page {
+    size: A4 portrait;
+    margin: 15mm 12mm;
+  }
+  @page :first { margin-top: 10mm; }
+}
+
+/* Screen preview styles (non-print) */
+.print-only { display: none; }

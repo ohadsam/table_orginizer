@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="מארגן הושבה - תוכנית הושבה לאירועים">
+  <title>מארגן הושבה 🎉</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/print.css">
+</head>
+<body>
+
+<!-- ═══════════════════ HEADER ═══════════════════ -->
+<header class="app-header">
+  <div class="header-brand">
+    <span style="font-size:20px">🎉</span>
+    <span class="app-title">מארגן הושבה</span>
+  </div>
+  <div class="header-center">
+    <div id="eventNameDisplay">לחץ להגדרת האירוע</div>
+    <div id="eventTypeDisplay"></div>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-icon" id="btnSettings"   title="הגדרות אירוע (⚙️)">⚙️</button>
+    <button class="btn btn-icon" id="btnExport"     title="ייצוא JSON">📤</button>
+    <button class="btn btn-icon" id="btnImport"     title="ייבוא JSON">📥</button>
+    <button class="btn btn-icon" id="btnPrintPlan"  title="הדפס / PDF תוכנית הושבה">🖨️</button>
+    <button class="btn btn-icon" id="btnPrintList"  title="הדפס / PDF רשימת מוזמנים">📋</button>
+  </div>
+</header>
+
+<!-- ═══════════════════ LAYOUT ═══════════════════ -->
+<div class="app-layout">
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar" id="sidebar">
+
+    <!-- Stats -->
+    <div class="stats-bar">
+      <div class="stat-item">
+        <span class="stat-value" id="statTotal">0</span>
+        <span class="stat-label">מוזמנים</span>
+      </div>
+      <div class="stat-item success">
+        <span class="stat-value" id="statSeated">0</span>
+        <span class="stat-label">משובצים</span>
+      </div>
+      <div class="stat-item warning">
+        <span class="stat-value" id="statPending">0</span>
+        <span class="stat-label">ממתינים</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value" id="statTables">0</span>
+        <span class="stat-label">שולחנות</span>
+      </div>
+    </div>
+
+    <!-- Add to hall -->
+    <div class="panel">
+      <div class="panel-header">הוסף לאולם</div>
+      <div class="add-items-grid">
+        <button class="btn-add-item" data-add-item="table"      title="הוסף שולחן">
+          <span class="item-icon">⬭</span><span>שולחן</span>
+        </button>
+        <button class="btn-add-item" data-add-item="dancefloor" title="רחבת ריקודים">
+          <span class="item-icon">🕺</span><span>רחבה</span>
+        </button>
+        <button class="btn-add-item" data-add-item="dj"         title="עמדת DJ">
+          <span class="item-icon">🎵</span><span>DJ</span>
+        </button>
+        <button class="btn-add-item" data-add-item="door"       title="דלת כניסה">
+          <span class="item-icon">🚪</span><span>כניסה</span>
+        </button>
+        <button class="btn-add-item" data-add-item="shape"      title="צורה חופשית">
+          <span class="item-icon">⬛</span><span>צורה</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Guests -->
+    <div class="panel guests-panel">
+      <div class="panel-header">
+        <span>מוזמנים</span>
+        <div class="panel-actions">
+          <button class="btn btn-sm btn-primary"   id="btnAddGuest">+ הוסף</button>
+          <button class="btn btn-sm btn-secondary" id="btnAutoAssign">⚡ שיבוץ</button>
+        </div>
+      </div>
+      <div class="guests-search">
+        <input type="text" id="guestSearch" placeholder="🔍 חיפוש מוזמנים..." class="input-search" autocomplete="off">
+      </div>
+      <div class="tags-filter" id="tagsFilter"></div>
+      <div class="guests-list"  id="guestsList"></div>
+    </div>
+
+  </aside><!-- /sidebar -->
+
+  <!-- ── CANVAS AREA ── -->
+  <main class="canvas-area">
+
+    <!-- Canvas controls -->
+    <div class="canvas-controls">
+      <button class="btn btn-sm btn-secondary" id="btnZoomIn"    title="הגדל (+)">🔍+</button>
+      <button class="btn btn-sm btn-secondary" id="btnZoomOut"   title="הקטן (-)">🔍−</button>
+      <button class="btn btn-sm btn-secondary" id="btnZoomFit"   title="התאם לתוכן (0)">⊞ התאם</button>
+      <button class="btn btn-sm btn-secondary" id="btnZoomReset" title="איפוס תצוגה">↺</button>
+      <span class="zoom-level" id="zoomLevel">60%</span>
+      <button class="btn btn-sm btn-secondary" id="btnToggleGrid" title="הצג/הסתר רשת">⊟ רשת</button>
+      <span style="flex:1"></span>
+      <small style="color:#90a4ae;font-size:11px">גרור לשינוי מיקום · גלגלת לזום · לחץ פריט לבחירה · Del למחיקה</small>
+    </div>
+
+    <!-- Viewport -->
+    <div class="canvas-viewport" id="canvasViewport">
+      <div class="canvas-room" id="canvasRoom"></div>
+    </div>
+
+  </main>
+
+</div><!-- /app-layout -->
+
+<!-- Mobile sidebar toggle -->
+<button id="btnMobileSidebar" title="פתח תפריט">☰</button>
+
+<!-- ═══════════════════ MODALS ═══════════════════ -->
+
+<!-- Add/Edit Table -->
+<div class="modal-overlay" id="modalAddTable">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="tableModalTitle">הוסף שולחן</h2>
+      <button class="modal-close" data-close-modal="modalAddTable">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>צורת שולחן</label>
+        <div class="shape-selector" id="tableShapeSelector">
+          <button class="shape-btn active" data-shape="circle">⭕ עגול</button>
+          <button class="shape-btn"        data-shape="rectangle">▭ מלבן</button>
+          <button class="shape-btn"        data-shape="square">⬜ ריבוע</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>מספר מושבים</label>
+        <input type="number" id="tableSeats" class="input" value="10" min="1" max="50" autofocus>
+      </div>
+      <div class="form-group">
+        <label>מספר שולחן <small style="font-weight:400;color:#90a4ae">(ריק = אוטומטי)</small></label>
+        <input type="number" id="tableNumber" class="input" placeholder="אוטומטי" min="1">
+      </div>
+      <div class="form-group">
+        <label>תווית / שם</label>
+        <input type="text" id="tableLabel" class="input" placeholder="לדוגמא: שולחן הורים">
+      </div>
+      <div class="form-group">
+        <label>גודל (פיקסלים) <small style="font-weight:400;color:#90a4ae">(ריק = ברירת מחדל)</small></label>
+        <div class="size-row">
+          <input type="number" id="tableWidth"  class="input" placeholder="רוחב"  min="60">
+          <span class="size-sep">×</span>
+          <input type="number" id="tableHeight" class="input" placeholder="גובה"  min="60">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary"   id="btnConfirmTable">שמור שולחן</button>
+      <button class="btn btn-ghost"     data-close-modal="modalAddTable">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit non-table item -->
+<div class="modal-overlay" id="modalEditItem">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="editItemTitle">עריכת פריט</h2>
+      <button class="modal-close" data-close-modal="modalEditItem">✕</button>
+    </div>
+    <div class="modal-body" id="editItemBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="btnConfirmEditItem">שמור</button>
+      <button class="btn btn-danger"  id="btnDeleteEditItem">מחק</button>
+      <button class="btn btn-ghost"   data-close-modal="modalEditItem">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add shape -->
+<div class="modal-overlay" id="modalAddShape">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>הוסף צורה</h2>
+      <button class="modal-close" data-close-modal="modalAddShape">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>סוג צורה</label>
+        <div class="shape-selector" id="shapeSelectorBtns">
+          <button class="shape-btn active" data-shape="rectangle">▭ מלבן</button>
+          <button class="shape-btn"        data-shape="square">⬜ ריבוע</button>
+          <button class="shape-btn"        data-shape="circle">⭕ עגול</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>גודל (פיקסלים)</label>
+        <div class="size-row">
+          <input type="number" id="shapeWidth"  class="input" value="110" min="40">
+          <span class="size-sep">×</span>
+          <input type="number" id="shapeHeight" class="input" value="110" min="40">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>צבע</label>
+        <input type="color" id="shapeColor" class="input" value="#e0e0e0" style="height:40px;padding:4px">
+      </div>
+      <div class="form-group">
+        <label>תווית</label>
+        <input type="text" id="shapeLabel" class="input" placeholder="תיאור...">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="btnConfirmShape">הוסף</button>
+      <button class="btn btn-ghost"   data-close-modal="modalAddShape">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Guest -->
+<div class="modal-overlay" id="modalAddGuest">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="guestModalTitle">הוסף מוזמן</h2>
+      <button class="modal-close" data-close-modal="modalAddGuest">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>שם המוזמן / משפחה</label>
+        <input type="text" id="guestName" class="input" placeholder="לדוגמא: משפחת כהן" autofocus autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label>מבוגרים</label>
+        <input type="number" id="guestAdults" class="input" value="2" min="0">
+      </div>
+      <div class="form-group">
+        <label>ילדים</label>
+        <input type="number" id="guestChildren" class="input" value="0" min="0">
+      </div>
+      <div class="form-group">
+        <label>תגיות</label>
+        <div class="tags-selector" id="guestTagsSelector"></div>
+        <div class="add-tag-inline">
+          <input type="text" id="newTagInput" class="input" placeholder="תגית חדשה...">
+          <button class="btn btn-sm btn-secondary" id="btnAddNewTag">+</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>הערות</label>
+        <textarea id="guestNotes" class="input" rows="2" placeholder="הערות נוספות..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="btnConfirmGuest">שמור</button>
+      <button class="btn btn-ghost"   data-close-modal="modalAddGuest">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- Event Settings -->
+<div class="modal-overlay" id="modalSettings">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>⚙️ הגדרות אירוע</h2>
+      <button class="modal-close" data-close-modal="modalSettings">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="settings-section-title">פרטי האירוע</div>
+      <div class="form-group">
+        <label>שם האירוע</label>
+        <input type="text" id="settingEventName" class="input" placeholder="לדוגמא: חתונת כהן">
+      </div>
+      <div class="form-group">
+        <label>סוג האירוע</label>
+        <select id="settingEventType" class="input">
+          <option value="wedding">חתונה</option>
+          <option value="bar_mitzvah">בר מצווה</option>
+          <option value="bat_mitzvah">בת מצווה</option>
+          <option value="birthday">יום הולדת</option>
+          <option value="other">אחר</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>תאריך</label>
+        <input type="date" id="settingEventDate" class="input">
+      </div>
+      <div class="form-group">
+        <label>שם האולם / מקום</label>
+        <input type="text" id="settingVenue" class="input" placeholder="שם האולם">
+      </div>
+      <hr class="settings-divider">
+      <div class="settings-section-title">ברירות מחדל לשולחנות</div>
+      <div class="form-group">
+        <label>מושבים — שולחן הורים</label>
+        <input type="number" id="settingParentsSeats" class="input" min="1" max="30">
+      </div>
+      <div class="form-group">
+        <label>מושבים — שולחן חברים</label>
+        <input type="number" id="settingFriendsSeats" class="input" min="1" max="30">
+      </div>
+      <div class="form-group">
+        <label>צורת שולחן ברירת מחדל</label>
+        <select id="settingDefaultShape" class="input">
+          <option value="circle">עגול</option>
+          <option value="rectangle">מלבן</option>
+          <option value="square">ריבוע</option>
+        </select>
+      </div>
+      <hr class="settings-divider">
+      <div class="settings-section-title">ניהול תגיות</div>
+      <div class="tags-manager" id="tagsManager"></div>
+      <div class="add-tag-inline">
+        <input type="text" id="newTagManagerInput" class="input" placeholder="תגית חדשה...">
+        <button class="btn btn-sm btn-primary" id="btnAddTagManager">+ הוסף</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="btnSaveSettings">שמור</button>
+      <button class="btn btn-ghost"   data-close-modal="modalSettings">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- Auto-assign -->
+<div class="modal-overlay" id="modalAutoAssign">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>⚡ שיבוץ אוטומטי</h2>
+      <button class="modal-close" data-close-modal="modalAutoAssign">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="autoAssignInfo"></div>
+      <p style="font-size:13px;margin-bottom:12px;color:#607d8b">
+        המערכת תנסה לשבץ את המוזמנים לשולחנות לפי תגיות וכמויות.
+        מוזמנים עם אותן תגיות יושבצו לאותו שולחן במידת האפשר.
+      </p>
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="autoAssignSplit" checked>
+          <span>פצל קבוצות גדולות בין שולחנות אם אין מקום</span>
+        </label>
+      </div>
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="autoAssignKeepExisting">
+          <span>שמור שיבוצים קיימים</span>
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="btnConfirmAutoAssign">⚡ שבץ!</button>
+      <button class="btn btn-ghost"   data-close-modal="modalAutoAssign">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- Overflow -->
+<div class="modal-overlay" id="modalOverflow">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>⚠️ חריגת כמות</h2>
+      <button class="modal-close" data-close-modal="modalOverflow">✕</button>
+    </div>
+    <div class="modal-body" id="overflowModalBody"></div>
+    <div class="modal-footer" id="overflowModalFooter"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════ UTILITIES ═══════════════════ -->
+<div class="toast-container" id="toastContainer"></div>
+<input type="file" id="importFileInput" accept=".json" style="display:none">
+
+<!-- Hidden print areas -->
+<div id="printPlanArea" class="print-only"></div>
+<div id="printListArea" class="print-only"></div>
+
+<!-- ═══════════════════ SCRIPTS ═══════════════════ -->
+<script src="js/config.js"></script>
+<script src="js/state.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/canvas.js"></script>
+<script src="js/drag.js"></script>
+<script src="js/items.js"></script>
+<script src="js/guests.js"></script>
+<script src="js/modals.js"></script>
+<script src="js/autoassign.js"></script>
+<script src="js/print.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>

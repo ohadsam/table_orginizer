@@ -1,0 +1,71 @@
+'use strict';
+
+const Storage = (() => {
+  let _saveTimer = null;
+
+  function save() {
+    clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(() => {
+      try {
+        localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(State.serialize()));
+      } catch (e) {
+        console.warn('Save failed:', e);
+      }
+    }, 400);
+  }
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(CONFIG.STORAGE_KEY);
+      if (raw) {
+        State.deserialize(JSON.parse(raw));
+        return true;
+      }
+    } catch (e) {
+      console.warn('Load failed:', e);
+    }
+    return false;
+  }
+
+  function exportJSON() {
+    const data = State.serialize();
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const name = (data.event.name || 'תוכנית_הושבה').replace(/\s+/g, '_');
+    const date = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `${name}_${date}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    UI.toast('הקובץ יוצא בהצלחה ✓', 'success');
+  }
+
+  function importJSON(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const data = JSON.parse(e.target.result);
+          State.deserialize(data);
+          save();
+          UI.toast('הנתונים יובאו בהצלחה ✓', 'success');
+          resolve(data);
+        } catch (err) {
+          UI.toast('שגיאה בקריאת הקובץ', 'error');
+          reject(err);
+        }
+      };
+      reader.onerror = () => { UI.toast('שגיאה בפתיחת הקובץ', 'error'); reject(reader.error); };
+      reader.readAsText(file);
+    });
+  }
+
+  // Auto-save on every state change
+  State.on('change', save);
+
+  return { save, load, exportJSON, importJSON };
+})();
