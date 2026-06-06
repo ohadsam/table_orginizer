@@ -74,6 +74,17 @@ const State = (() => {
     _state.items.splice(idx, 1);
     emit('itemRemoved', id);
   }
+  function duplicateItem(id) {
+    const src = getItem(id);
+    if (!src) return null;
+    const copy = JSON.parse(JSON.stringify(src));
+    delete copy.id;
+    copy.x = (src.x || 0) + 40;
+    copy.y = (src.y || 0) + 40;
+    copy.locked = false;                       // copies start unlocked
+    if (copy.type === 'table') copy.number = nextTableNumber();
+    return addItem(copy);                       // emits itemAdded → renders
+  }
 
   /* ── guests ── */
   function addGuest(guest) {
@@ -167,15 +178,25 @@ const State = (() => {
     _state.canvas.panY = panY;
   }
 
+  /* ── reset board (keeps event settings + tags) ── */
+  function resetBoard() {
+    _state.items  = [];
+    _state.guests = [];
+    _state._nextItemId  = 1;
+    _state._nextGuestId = 1;
+    _state._nextTableNum = 1;
+    emit('dataLoaded');   // triggers full re-render
+  }
+
   return {
     get, on, emit,
     getItem, getGuest, getTables,
     getTableGuests, getTableOccupancy, getStats,
-    addItem, updateItem, removeItem,
+    addItem, updateItem, removeItem, duplicateItem,
     addGuest, updateGuest, removeGuest, assignGuest,
     nextTableNumber,
     addTag, removeTag,
-    serialize, deserialize,
+    serialize, deserialize, resetBoard,
     setEventField, setSetting, setCanvasView
   };
 })();

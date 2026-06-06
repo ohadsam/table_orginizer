@@ -16,6 +16,11 @@ const Modals = (() => {
     document.getElementById('tableLabel').value   = preset?.label || '';
     document.getElementById('tableWidth').value   = '';
     document.getElementById('tableHeight').value  = '';
+    document.getElementById('tableQty').value      = 1;
+    document.getElementById('tableLock').checked   = false;
+    document.getElementById('tableQtyRow').style.display  = '';
+    document.getElementById('tableLockRow').style.display = 'none';
+    document.getElementById('btnDuplicateTable').style.display = 'none';
     syncShapeBtns(_tableShapeEdit);
     UI.openModal('modalAddTable');
   }
@@ -32,6 +37,10 @@ const Modals = (() => {
     document.getElementById('tableLabel').value   = item.label || '';
     document.getElementById('tableWidth').value   = item.width;
     document.getElementById('tableHeight').value  = item.height;
+    document.getElementById('tableLock').checked  = !!item.locked;
+    document.getElementById('tableQtyRow').style.display  = 'none';
+    document.getElementById('tableLockRow').style.display = '';
+    document.getElementById('btnDuplicateTable').style.display = '';
     syncShapeBtns(_tableShapeEdit);
     UI.openModal('modalAddTable');
   }
@@ -48,26 +57,44 @@ const Modals = (() => {
     const label  = document.getElementById('tableLabel').value.trim();
     const wVal   = parseInt(document.getElementById('tableWidth').value);
     const hVal   = parseInt(document.getElementById('tableHeight').value);
+    const locked = document.getElementById('tableLock').checked;
 
     if (_editingTableId) {
       const item = State.getItem(_editingTableId);
-      const updates = { shape: _tableShapeEdit, seats, label };
+      const updates = { shape: _tableShapeEdit, seats, label, locked };
       if (number) updates.number = number;
       if (wVal)   updates.width  = Math.max(60, wVal);
       if (hVal)   updates.height = Math.max(60, hVal);
       State.updateItem(_editingTableId, updates);
     } else {
       const sz = CONFIG.TABLE_SIZES[_tableShapeEdit] || CONFIG.TABLE_SIZES.circle;
-      Items.addTable({
-        shape:  _tableShapeEdit,
-        seats,  label,
-        number: number || undefined,
-        width:  wVal ? Math.max(60, wVal) : sz.width,
-        height: hVal ? Math.max(60, hVal) : (_tableShapeEdit === 'circle' || _tableShapeEdit === 'square' ? (wVal || sz.width) : sz.height),
-        x: 400 + Math.random() * 200, y: 300 + Math.random() * 200
-      });
+      const qty = Math.max(1, Math.min(50, parseInt(document.getElementById('tableQty').value) || 1));
+      const w   = wVal ? Math.max(60, wVal) : sz.width;
+      const h   = hVal ? Math.max(60, hVal)
+                       : (_tableShapeEdit === 'circle' || _tableShapeEdit === 'square' ? (wVal || sz.width) : sz.height);
+      // Lay multiple tables out in a tidy grid near the centre of the view.
+      const cols = Math.ceil(Math.sqrt(qty));
+      const gapX = w + 50, gapY = h + 60;
+      const baseX = 350, baseY = 280;
+      for (let i = 0; i < qty; i++) {
+        const r = Math.floor(i / cols), c = i % cols;
+        Items.addTable({
+          shape:  _tableShapeEdit,
+          seats,  label,
+          number: (qty === 1 && number) ? number : undefined,
+          width:  w, height: h,
+          x: baseX + c * gapX, y: baseY + r * gapY
+        });
+      }
     }
     UI.closeModal('modalAddTable');
+  }
+
+  function duplicateTable() {
+    if (!_editingTableId) return;
+    const copy = State.duplicateItem(_editingTableId);
+    UI.closeModal('modalAddTable');
+    if (copy) { Items.selectItem(copy.id); UI.toast('השולחן שוכפל ✓', 'success', 1800); }
   }
 
   /* ═══════════════════ EDIT NON-TABLE ITEM ═══════════════════ */
@@ -137,19 +164,29 @@ const Modals = (() => {
     }
   }
 
+  function duplicateEditItem() {
+    if (!_editingItemId) return;
+    const copy = State.duplicateItem(_editingItemId);
+    UI.closeModal('modalEditItem');
+    if (copy) { Items.selectItem(copy.id); UI.toast('הפריט שוכפל ✓', 'success', 1800); }
+  }
+
   /* ═══════════════════ ADD/EDIT GUEST ═══════════════════ */
   let _editingGuestId   = null;
   let _selectedTags     = new Set();
+  let _selectedProx     = new Set();
 
   function openAddGuest() {
     _editingGuestId = null;
     _selectedTags   = new Set();
+    _selectedProx   = new Set();
     document.getElementById('guestModalTitle').textContent = 'הוסף מוזמן';
     document.getElementById('guestName').value     = '';
     document.getElementById('guestAdults').value   = 2;
     document.getElementById('guestChildren').value = 0;
     document.getElementById('guestNotes').value    = '';
     renderGuestTagsSelector();
+    renderProximitySelector();
     UI.openModal('modalAddGuest');
     setTimeout(() => document.getElementById('guestName')?.focus(), 100);
   }
@@ -159,13 +196,34 @@ const Modals = (() => {
     if (!g) return;
     _editingGuestId = id;
     _selectedTags   = new Set(g.tags || []);
+    _selectedProx   = new Set(g.proximity || []);
     document.getElementById('guestModalTitle').textContent = 'עריכת מוזמן';
     document.getElementById('guestName').value     = g.name;
     document.getElementById('guestAdults').value   = g.adults;
     document.getElementById('guestChildren').value = g.children;
     document.getElementById('guestNotes').value    = g.notes || '';
     renderGuestTagsSelector();
+    renderProximitySelector();
     UI.openModal('modalAddGuest');
+  }
+
+  function renderProximitySelector() {
+    const wrap = document.getElementById('guestProximitySelector');
+    if (!wrap) return;
+    wrap.innerHTML = Object.entries(CONFIG.PROXIMITY).map(([key, def]) => {
+      const on = _selectedProx.has(key);
+      return `<button class="prox-select-btn ${on ? 'active' : ''}" data-prox="${key}">${def.icon} ${def.label}</button>`;
+    }).join('');
+    wrap.querySelectorAll('.prox-select-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const k = btn.dataset.prox;
+        // nearDance and farDance are mutually exclusive
+        if (k === 'nearDance' && !_selectedProx.has(k)) _selectedProx.delete('farDance');
+        if (k === 'farDance'  && !_selectedProx.has(k)) _selectedProx.delete('nearDance');
+        _selectedProx.has(k) ? _selectedProx.delete(k) : _selectedProx.add(k);
+        renderProximitySelector();
+      });
+    });
   }
 
   function renderGuestTagsSelector() {
@@ -197,12 +255,13 @@ const Modals = (() => {
     const notes    = document.getElementById('guestNotes').value.trim();
     if (!name) { UI.toast('נא להזין שם', 'warning'); return; }
     if (adults + children === 0) { UI.toast('נא להזין לפחות אדם אחד', 'warning'); return; }
-    const tags = [..._selectedTags];
+    const tags      = [..._selectedTags];
+    const proximity = [..._selectedProx];
 
     if (_editingGuestId) {
-      State.updateGuest(_editingGuestId, { name, adults, children, tags, notes });
+      State.updateGuest(_editingGuestId, { name, adults, children, tags, proximity, notes });
     } else {
-      State.addGuest({ name, adults, children, tags, notes });
+      State.addGuest({ name, adults, children, tags, proximity, notes });
     }
     UI.closeModal('modalAddGuest');
   }
@@ -264,21 +323,54 @@ const Modals = (() => {
   function showOverflowModal(guest, table, overflow) {
     const body = document.getElementById('overflowModalBody');
     const foot = document.getElementById('overflowModalFooter');
+    // Free seats at the target table, excluding this guest if they're already seated there.
+    const occExclGuest = State.getTableGuests(table.id)
+      .filter(g => g.id !== guest.id)
+      .reduce((s, g) => s + g.total, 0);
+    const free = Math.max(0, table.seats - occExclGuest);
+
     body.innerHTML = `
-      <p>שולחן <strong>${table.number}</strong> מכיל ${table.seats} מושבים ותפוס ב-${State.getTableOccupancy(table.id)}.</p>
-      <p>לא ניתן למקם את כל <strong>${guest.total} האנשים</strong> מהקבוצה "<strong>${UI.escHtml(guest.name)}</strong>".</p>
-      <p>החריגה היא <strong>${overflow}</strong> אנשים.</p>`;
+      <p>שולחן <strong>${table.number}</strong> מכיל ${table.seats} מושבים, ${free} פנויים.</p>
+      <p>בקבוצה "<strong>${UI.escHtml(guest.name)}</strong>" יש <strong>${guest.total} אנשים</strong> — חריגה של <strong>${overflow}</strong>.</p>
+      ${free > 0 ? `<p>אפשר לפצל: ${free} כאן, והשאר (${guest.total - free}) יישארו כרטיס נפרד בצד.</p>` : ''}`;
+
+    const splitBtn = free > 0
+      ? `<button class="btn btn-primary" id="btnOverflowSplit">פצל: ${free} כאן</button>` : '';
     foot.innerHTML = `
-      <button class="btn btn-primary" id="btnOverflowForce">שבץ בכל זאת</button>
-      <button class="btn btn-secondary" id="btnOverflowCancel">ביטול</button>`;
+      ${splitBtn}
+      <button class="btn btn-secondary" id="btnOverflowForce">שבץ הכל בכל זאת</button>
+      <button class="btn btn-ghost" id="btnOverflowCancel">ביטול</button>`;
 
     document.getElementById('btnOverflowForce').onclick = () => {
       State.assignGuest(guest.id, table.id);
-      UI.toast(`${guest.name} שובצו לשולחן ${table.number} (חריגה!)`, 'warning');
+      UI.toast(`${UI.escHtml(guest.name)} שובצו לשולחן ${table.number} (חריגה!)`, 'warning');
       UI.closeModal('modalOverflow');
     };
+    const sb = document.getElementById('btnOverflowSplit');
+    if (sb) sb.onclick = () => { splitGuestAtTable(guest, table, free); UI.closeModal('modalOverflow'); };
     document.getElementById('btnOverflowCancel').onclick = () => UI.closeModal('modalOverflow');
     UI.openModal('modalOverflow');
+  }
+
+  // Seat `free` people from this guest at the table; the remainder becomes a new card left in the pool.
+  function splitGuestAtTable(guest, table, free) {
+    const aHere = Math.min(guest.adults, free);
+    const cHere = free - aHere;
+    const aRest = guest.adults   - aHere;
+    const cRest = guest.children - cHere;
+    State.updateGuest(guest.id, { adults: aHere, children: cHere });
+    State.assignGuest(guest.id, table.id);
+    if (aRest + cRest > 0) {
+      State.addGuest({
+        name: guest.name + ' (המשך)',
+        adults: aRest, children: cRest,
+        tags: [...(guest.tags || [])],
+        proximity: [...(guest.proximity || [])],
+        notes: guest.notes || '',
+        splitOf: guest.id
+      });
+    }
+    UI.toast(`פוצל: ${free} בשולחן ${table.number}, השאר נותר ברשימה`, 'success', 4000);
   }
 
   /* ═══════════════════ EVENT SETTINGS ═══════════════════ */
@@ -337,11 +429,14 @@ const Modals = (() => {
 
   /* ═══════════════════ AUTO-ASSIGN ═══════════════════ */
   function openAutoAssign() {
-    const stats = State.getStats();
+    const stats   = State.getStats();
+    const free    = State.getTables().filter(t => !t.locked && State.getTableOccupancy(t.id) < t.seats).length;
+    const lockedN = State.getTables().filter(t => t.locked).length;
+    const withProx = State.get().guests.filter(g => (g.proximity || []).length).length;
     document.getElementById('autoAssignInfo').innerHTML =
-      `<p>מוזמנים לא משובצים: <strong>${stats.pendingGuests}</strong> | שולחנות פנויים: <strong>${
-        State.getTables().filter(t => State.getTableOccupancy(t.id) < t.seats).length
-      }</strong></p>`;
+      `<p>מוזמנים לא משובצים: <strong>${stats.pendingGuests}</strong> | שולחנות פנויים: <strong>${free}</strong>${
+        lockedN ? ` | נעולים: <strong>${lockedN}</strong>` : ''}${
+        withProx ? ` | עם העדפת קרבה: <strong>${withProx}</strong>` : ''}</p>`;
     UI.openModal('modalAutoAssign');
   }
 
@@ -355,10 +450,12 @@ const Modals = (() => {
       });
     });
     document.getElementById('btnConfirmTable')?.addEventListener('click', confirmTable);
+    document.getElementById('btnDuplicateTable')?.addEventListener('click', duplicateTable);
 
     // Edit item modal
     document.getElementById('btnConfirmEditItem')?.addEventListener('click', confirmEditItem);
     document.getElementById('btnDeleteEditItem')?.addEventListener('click', deleteEditItem);
+    document.getElementById('btnDuplicateItem')?.addEventListener('click', duplicateEditItem);
 
     // Guest modal
     document.getElementById('btnConfirmGuest')?.addEventListener('click', confirmGuest);
@@ -395,12 +492,20 @@ const Modals = (() => {
       const val = inp.value.trim();
       if (val) { State.addTag(val); inp.value = ''; renderTagsManager(); }
     });
+    document.getElementById('btnResetBoard')?.addEventListener('click', () => {
+      if (UI.confirmDialog('לנקות את כל השולחנות והמוזמנים? (ההגדרות והתגיות יישמרו)')) {
+        State.resetBoard();
+        UI.closeModal('modalSettings');
+        UI.toast('הלוח נוקה', 'info');
+      }
+    });
 
     // Auto-assign
     document.getElementById('btnConfirmAutoAssign')?.addEventListener('click', () => {
       const split = document.getElementById('autoAssignSplit').checked;
       const keep  = document.getElementById('autoAssignKeepExisting').checked;
-      AutoAssign.run({ allowSplit: split, keepExisting: keep });
+      const prox  = document.getElementById('autoAssignProximity').checked;
+      AutoAssign.run({ allowSplit: split, keepExisting: keep, respectProximity: prox });
       UI.closeModal('modalAutoAssign');
     });
 

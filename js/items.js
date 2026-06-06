@@ -10,16 +10,16 @@ const Items = (() => {
     const seats   = opts.seats   || 10;
     const sz      = CONFIG.TABLE_SIZES[shape] || CONFIG.TABLE_SIZES.circle;
     const number  = opts.number  != null ? opts.number : State.nextTableNumber();
-    const item = State.addItem({
+    // State.addItem emits 'itemAdded' → the listener below calls renderItem.
+    return State.addItem({
       type: 'table', shape,
       seats, number,
+      locked: false,
       label: opts.label || '',
       x: opts.x || 400, y: opts.y || 300,
       width: opts.width || sz.width,
       height: opts.height || sz.height
     });
-    renderItem(item);
-    return item;
   }
 
   function addSpecialItem(type, opts = {}) {
@@ -32,7 +32,8 @@ const Items = (() => {
       default: return;
     }
     if (typeof sz === 'object' && !sz.width) sz = { width: sz, height: sz };
-    const item = State.addItem({
+    // State.addItem emits 'itemAdded' → the listener below calls renderItem.
+    return State.addItem({
       type,
       shape: opts.shape || 'rectangle',
       label: opts.label || label,
@@ -42,8 +43,6 @@ const Items = (() => {
       width: opts.width   || (typeof sz === 'object' ? sz.width  : sz),
       height: opts.height || (typeof sz === 'object' ? sz.height : sz)
     });
-    renderItem(item);
-    return item;
   }
 
   /* ═══════════════════════════════ RENDER ═══════════════════════════════ */
@@ -160,6 +159,10 @@ const Items = (() => {
       svgInner += `<text x="${cx}" y="${cy - 18}" text-anchor="middle" font-size="8" fill="#777">${occupancy}/${item.seats}</text>`;
     }
 
+    if (item.locked) {
+      svgInner += `<text x="${W - 4}" y="14" text-anchor="end" font-size="13">🔒</text>`;
+    }
+
     return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" overflow="visible" xmlns="http://www.w3.org/2000/svg">${svgInner}</svg>`;
   }
 
@@ -232,6 +235,16 @@ const Items = (() => {
     if (on && el) el.classList.add('drop-target');
   }
 
+  /* ── Flash an item (used by "focus on table") ── */
+  function flashItem(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove('flash');
+    void el.offsetWidth;          // restart CSS animation
+    el.classList.add('flash');
+    setTimeout(() => el.classList.remove('flash'), 1300);
+  }
+
   /* ── State sync ── */
   State.on('itemAdded',   item => renderItem(item));
   State.on('itemUpdated', item => refreshItem(item.id));
@@ -250,6 +263,6 @@ const Items = (() => {
     addTable, addSpecialItem,
     renderItem, refreshItem, renderAll, removeItemEl,
     selectItem, getSelected, deselectAll,
-    highlightTable, tableColor
+    highlightTable, flashItem, tableColor
   };
 })();

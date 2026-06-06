@@ -44,6 +44,38 @@ const Storage = (() => {
     UI.toast('הקובץ יוצא בהצלחה ✓', 'success');
   }
 
+  function exportCSV() {
+    const state = State.get();
+    const guests = [...state.guests].sort((a, b) => {
+      const ta = a.tableId ? (State.getItem(a.tableId)?.number ?? 9999) : 99999;
+      const tb = b.tableId ? (State.getItem(b.tableId)?.number ?? 9999) : 99999;
+      return ta - tb || a.name.localeCompare(b.name, 'he');
+    });
+    const esc = v => {
+      const s = String(v ?? '');
+      return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    const header = ['שם', 'מבוגרים', 'ילדים', 'סהכ', 'תגיות', 'שולחן'];
+    const rows = guests.map(g => [
+      g.name, g.adults, g.children, g.total,
+      (g.tags || []).join('; '),
+      g.tableId ? (State.getItem(g.tableId)?.number ?? '') : ''
+    ].map(esc).join(','));
+    const csv = '﻿' + [header.join(','), ...rows].join('\r\n');  // BOM → Hebrew opens in Excel
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const name = (state.event.name || 'רשימת_מוזמנים').replace(/\s+/g, '_');
+    a.href = url;
+    a.download = `${name}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    UI.toast('רשימת המוזמנים יוצאה ל-CSV ✓', 'success');
+  }
+
   function importJSON(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -67,5 +99,5 @@ const Storage = (() => {
   // Auto-save on every state change
   State.on('change', save);
 
-  return { save, load, exportJSON, importJSON };
+  return { save, load, exportJSON, exportCSV, importJSON };
 })();

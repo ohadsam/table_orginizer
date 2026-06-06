@@ -21,9 +21,12 @@
     <div id="eventTypeDisplay"></div>
   </div>
   <div class="header-actions">
+    <button class="btn btn-icon" id="btnUndo"       title="בטל (Ctrl+Z)" disabled>↩️</button>
+    <button class="btn btn-icon" id="btnRedo"       title="שחזר (Ctrl+Y)" disabled>↪️</button>
     <button class="btn btn-icon" id="btnSettings"   title="הגדרות אירוע (⚙️)">⚙️</button>
     <button class="btn btn-icon" id="btnExport"     title="ייצוא JSON">📤</button>
     <button class="btn btn-icon" id="btnImport"     title="ייבוא JSON">📥</button>
+    <button class="btn btn-icon" id="btnExportCsv"  title="ייצוא רשימה ל-CSV/אקסל">📊</button>
     <button class="btn btn-icon" id="btnPrintPlan"  title="הדפס / PDF תוכנית הושבה">🖨️</button>
     <button class="btn btn-icon" id="btnPrintList"  title="הדפס / PDF רשימת מוזמנים">📋</button>
   </div>
@@ -160,9 +163,20 @@
           <input type="number" id="tableHeight" class="input" placeholder="גובה"  min="60">
         </div>
       </div>
+      <div class="form-group" id="tableQtyRow">
+        <label>כמות שולחנות ליצירה</label>
+        <input type="number" id="tableQty" class="input" value="1" min="1" max="50">
+      </div>
+      <div class="form-group" id="tableLockRow" style="display:none">
+        <label class="checkbox-label">
+          <input type="checkbox" id="tableLock">
+          <span>🔒 נעל שולחן (השיבוץ האוטומטי לא ישנה אותו)</span>
+        </label>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-primary"   id="btnConfirmTable">שמור שולחן</button>
+      <button class="btn btn-secondary" id="btnDuplicateTable" style="display:none">📑 שכפל</button>
       <button class="btn btn-ghost"     data-close-modal="modalAddTable">ביטול</button>
     </div>
   </div>
@@ -177,9 +191,10 @@
     </div>
     <div class="modal-body" id="editItemBody"></div>
     <div class="modal-footer">
-      <button class="btn btn-primary" id="btnConfirmEditItem">שמור</button>
-      <button class="btn btn-danger"  id="btnDeleteEditItem">מחק</button>
-      <button class="btn btn-ghost"   data-close-modal="modalEditItem">ביטול</button>
+      <button class="btn btn-primary"   id="btnConfirmEditItem">שמור</button>
+      <button class="btn btn-secondary" id="btnDuplicateItem">📑 שכפל</button>
+      <button class="btn btn-danger"    id="btnDeleteEditItem">מחק</button>
+      <button class="btn btn-ghost"     data-close-modal="modalEditItem">ביטול</button>
     </div>
   </div>
 </div>
@@ -253,6 +268,10 @@
         </div>
       </div>
       <div class="form-group">
+        <label>העדפת מיקום <small style="font-weight:400;color:#90a4ae">(לשיבוץ אוטומטי חכם)</small></label>
+        <div class="prox-selector" id="guestProximitySelector"></div>
+      </div>
+      <div class="form-group">
         <label>הערות</label>
         <textarea id="guestNotes" class="input" rows="2" placeholder="הערות נוספות..."></textarea>
       </div>
@@ -323,6 +342,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-primary" id="btnSaveSettings">שמור</button>
+      <button class="btn btn-danger"  id="btnResetBoard">🗑 נקה לוח</button>
       <button class="btn btn-ghost"   data-close-modal="modalSettings">ביטול</button>
     </div>
   </div>
@@ -345,6 +365,12 @@
         <label class="checkbox-label">
           <input type="checkbox" id="autoAssignSplit" checked>
           <span>פצל קבוצות גדולות בין שולחנות אם אין מקום</span>
+        </label>
+      </div>
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="autoAssignProximity" checked>
+          <span>התחשב בהעדפות מיקום (קרבה לרחבה/כניסה)</span>
         </label>
       </div>
       <div class="form-group">
@@ -393,6 +419,7 @@
 <script src="js/modals.js"></script>
 <script src="js/autoassign.js"></script>
 <script src="js/print.js"></script>
+<script src="js/history.js"></script>
 <script src="js/app.js"></script>
 
 </body>

@@ -44,6 +44,15 @@ const CONFIG = Object.freeze({
 
   DEFAULT_TAGS: ['משפחה','חברים','עבודה','שכנים','VIP','ילדים'],
 
+  // Seating proximity preferences (used by smart auto-assign)
+  PROXIMITY: {
+    nearDance:    { label: 'קרוב לרחבה',  icon: '🕺', target: 'dancefloor', want: 'near' },
+    farDance:     { label: 'רחוק מהרחבה', icon: '🤫', target: 'dancefloor', want: 'far'  },
+    nearEntrance: { label: 'קרוב לכניסה', icon: '🚪', target: 'door',       want: 'near' }
+  },
+
+  LOCK_COLOR: '#ff8f00',
+
   EVENT_TYPES: {
     wedding:     'חתונה',
     bar_mitzvah: 'בר מצווה',

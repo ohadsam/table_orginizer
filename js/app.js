@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
   Canvas.init();
   Guests.init();
   Modals.init();
+  History.init();
 
   /* ── Render existing items if loaded ── */
   // Items.renderAll() is already triggered by State.on('dataLoaded') in items.js
@@ -30,13 +31,15 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('importFileInput')?.addEventListener('change', async e => {
     const file = e.target.files[0];
     if (!file) return;
+    // State.deserialize (inside importJSON) emits 'dataLoaded' → views re-render automatically.
     await Storage.importJSON(file);
-    Items.renderAll();
-    Guests.render();
     e.target.value = '';
   });
+  document.getElementById('btnExportCsv')?.addEventListener('click', () => Storage.exportCSV());
   document.getElementById('btnPrintPlan')?.addEventListener('click', () => Print.printPlan());
   document.getElementById('btnPrintList')?.addEventListener('click', () => Print.printList());
+  document.getElementById('btnUndo')?.addEventListener('click', () => History.undo());
+  document.getElementById('btnRedo')?.addEventListener('click', () => History.redo());
   document.getElementById('eventNameDisplay')?.addEventListener('click', () => Modals.openSettings());
 
   /* ── Sidebar: add items ── */
@@ -71,8 +74,11 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ── Keyboard shortcuts ── */
   document.addEventListener('keydown', e => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
-    if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); Storage.save(); UI.toast('נשמר ✓','success',1500); }
-    if ((e.ctrlKey || e.metaKey) && e.key === 'e') { e.preventDefault(); Storage.exportJSON(); }
+    const ctrl = e.ctrlKey || e.metaKey;
+    if (ctrl && e.key.toLowerCase() === 'z' && !e.shiftKey) { e.preventDefault(); History.undo(); return; }
+    if (ctrl && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) { e.preventDefault(); History.redo(); return; }
+    if (ctrl && e.key.toLowerCase() === 's') { e.preventDefault(); Storage.save(); UI.toast('נשמר ✓','success',1500); return; }
+    if (ctrl && e.key.toLowerCase() === 'e') { e.preventDefault(); Storage.exportJSON(); return; }
     if (e.key === '+' || e.key === '=') Canvas.setZoom(State.get().canvas.zoom + CONFIG.ZOOM_STEP);
     if (e.key === '-')                   Canvas.setZoom(State.get().canvas.zoom - CONFIG.ZOOM_STEP);
     if (e.key === '0')                   Canvas.fitAll();

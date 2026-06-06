@@ -179,5 +179,26 @@ const Canvas = (() => {
     return State.get().settings.showGrid ? Math.round(val / g) * g : val;
   }
 
-  return { init, applyTransform, setZoom, fitAll, viewportToCanvas, canvasToViewport, getTableUnder, snapToGrid };
+  /* ── Center the viewport on a specific item and flash it ── */
+  function focusOnItem(id) {
+    const it = State.getItem(id);
+    if (!it) return;
+    const vr = viewport.getBoundingClientRect();
+    zoom = Math.max(0.6, Math.min(CONFIG.MAX_ZOOM, zoom));   // comfortable reading zoom
+    panX = vr.width  / 2 - it.x * zoom;
+    panY = vr.height / 2 - it.y * zoom;
+    applyTransform();
+    Items.flashItem(id);
+  }
+
+  /* ── Jump to the table a guest is seated at ── */
+  function focusGuestTable(guestId) {
+    const g = State.getGuest(guestId);
+    if (!g) return;
+    if (!g.tableId) { UI.toast('המוזמן עדיין לא שובץ לשולחן', 'info', 1800); return; }
+    focusOnItem(g.tableId);
+  }
+
+  return { init, applyTransform, setZoom, fitAll, viewportToCanvas, canvasToViewport,
+           getTableUnder, snapToGrid, focusOnItem, focusGuestTable };
 })();

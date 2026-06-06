@@ -115,16 +115,21 @@ const Drag = (() => {
   let ghostEl   = null;
   let dragGuest = null;
   let hoveredId = null;
+  let startX = 0, startY = 0, moved = false;
+  const CLICK_THRESHOLD = 6;   // px — below this a press counts as a click, not a drag
 
   function bindGuestDrag(el, guestId) {
     el.addEventListener('pointerdown', e => {
       if (e.button !== 0 && e.pointerType === 'mouse') return;
+      if (e.target.closest('button')) return;   // let card buttons handle their own clicks
       const guest = State.getGuest(guestId);
       if (!guest) return;
       dragGuest = guest;
+      startX = e.clientX; startY = e.clientY; moved = false;
       ghostEl = document.createElement('div');
       ghostEl.className = 'guest-ghost';
       ghostEl.innerHTML = `<strong>${UI.escHtml(guest.name)}</strong><br><small>${guest.total} אנשים</small>`;
+      ghostEl.style.display = 'none';            // shown only once the user actually drags
       document.body.appendChild(ghostEl);
       moveGhost(e.clientX, e.clientY);
       document.addEventListener('pointermove', onDragGuestMove);
@@ -142,7 +147,12 @@ const Drag = (() => {
 
   function onDragGuestMove(e) {
     if (!ghostEl) return;
+    if (!moved && Math.hypot(e.clientX - startX, e.clientY - startY) > CLICK_THRESHOLD) {
+      moved = true;
+      ghostEl.style.display = '';              // reveal ghost once dragging begins
+    }
     moveGhost(e.clientX, e.clientY);
+    if (!moved) return;
     const table = Canvas.getTableUnder(e.clientX, e.clientY);
     if (table && table.id !== hoveredId) {
       Items.highlightTable(hoveredId, false);
@@ -162,14 +172,18 @@ const Drag = (() => {
     if (ghostEl) { ghostEl.remove(); ghostEl = null; }
     if (!dragGuest) return;
 
-    const table = Canvas.getTableUnder(e.clientX, e.clientY);
     Items.highlightTable(hoveredId, false);
     hoveredId = null;
-
-    if (table) {
-      Modals.handleGuestDrop(dragGuest.id, table.id);
-    }
+    const guestId = dragGuest.id;
     dragGuest = null;
+
+    if (!moved) {
+      // A tap/click (not a drag) → jump to this guest's table.
+      Canvas.focusGuestTable(guestId);
+      return;
+    }
+    const table = Canvas.getTableUnder(e.clientX, e.clientY);
+    if (table) Modals.handleGuestDrop(guestId, table.id);
   }
 
   function cancelGuestDrag() {

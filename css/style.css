@@ -304,6 +304,12 @@ input, select, textarea { font-family: inherit; }
 .canvas-item:active, .canvas-item.dragging { cursor: grabbing; opacity: .9; z-index: 10; }
 .canvas-item.selected { outline: 2px dashed var(--primary); outline-offset: 2px; z-index: 5; }
 .canvas-item.drop-target { outline: 3px solid var(--success); outline-offset: 2px; z-index: 6; }
+.canvas-item.flash { animation: item-flash 1.3s ease; z-index: 7; }
+@keyframes item-flash {
+  0%, 100% { outline: 0 solid rgba(255,143,0,0); outline-offset: 2px; }
+  25%      { outline: 4px solid rgba(255,143,0,.95); outline-offset: 4px; }
+  60%      { outline: 4px solid rgba(255,143,0,.6);  outline-offset: 4px; }
+}
 .canvas-item svg { display: block; }
 
 /* Special items */
@@ -357,6 +363,8 @@ input, select, textarea { font-family: inherit; }
 .btn-sm        { padding: 4px 10px; font-size: 12px; }
 .btn-icon      { padding: 5px 8px; background: rgba(255,255,255,.18); color: #fff; border: none; border-radius: 6px; font-size: 13px; }
 .btn-icon:hover { background: rgba(255,255,255,.30); }
+.btn-icon:disabled { opacity: .35; cursor: default; }
+.btn-icon:disabled:hover { background: rgba(255,255,255,.18); }
 .btn-icon-xs   { padding: 2px 5px; background: transparent; border: none; border-radius: 4px; font-size: 13px; opacity: .7; }
 .btn-icon-xs:hover { opacity: 1; background: var(--bg); }
 
@@ -478,6 +486,26 @@ textarea.input { resize: vertical; min-height: 60px; }
 .add-tag-inline { display: flex; gap: 6px; margin-top: 6px; }
 .add-tag-inline .input { flex: 1; }
 
+/* Proximity selector (guest modal) */
+.prox-selector { display: flex; flex-wrap: wrap; gap: 6px; }
+.prox-select-btn {
+  padding: 5px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg);
+  font-size: 12px;
+  color: var(--text);
+  transition: all .15s;
+}
+.prox-select-btn.active {
+  border-color: var(--primary);
+  background: #e8eaf6;
+  color: var(--primary-dk);
+  font-weight: 600;
+}
+/* Proximity badge on guest cards */
+.prox-badge { font-size: 12px; margin-inline-start: 2px; }
+
 /* Tags manager (settings) */
 .tags-manager { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 .tag-manager-item { display: inline-flex; align-items: center; gap: 4px; }
@@ -558,14 +586,19 @@ textarea.input { resize: vertical; min-height: 60px; }
   .canvas-area { width: 100%; }
   .add-items-grid { grid-template-columns: repeat(5, 1fr); }
   .modal { max-width: 98vw; }
-  .btn-icon span { display: none; }
+  /* Header keeps all actions but compacts them; the row scrolls if it must. */
+  .header-center { overflow: hidden; }
+  #eventNameDisplay { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .header-actions { gap: 2px; overflow-x: auto; max-width: 62vw; }
+  .btn-icon { padding: 5px 6px; font-size: 14px; }
 }
 
-@media (max-width: 420px) {
+@media (max-width: 480px) {
   .add-items-grid { grid-template-columns: repeat(5, 1fr); gap: 3px; }
   .btn-add-item { padding: 6px 2px; font-size: 9px; }
   .item-icon { font-size: 15px; }
-  .header-actions .btn-icon:nth-child(n+4) { display: none; }
+  .app-title { display: none; }                 /* keep just the 🎉 brand icon */
+  .header-actions { max-width: 72vw; }
 }
 
 /* ── Overflow modal items ── */
