@@ -11,7 +11,6 @@ const Items = (() => {
     const GAP  = 30;
     const hw   = w / 2, hh = h / 2;
 
-    // Estimate viewport center in canvas coordinates, excluding sidebar overlap.
     const vpEl = document.getElementById('canvasViewport');
     const sbEl = document.getElementById('sidebar');
     const vpR  = vpEl ? vpEl.getBoundingClientRect() : null;
@@ -24,14 +23,11 @@ const Items = (() => {
     const vpH  = vpR ? vpR.height : (window.innerHeight - 52);
     const vCx  = canvasAreaW / 2;
     const vCy  = vpH / 2;
-    // Visible canvas bounds (right/bottom edge in canvas coords)
     const visMaxX = (canvasAreaW - panX) / zoom;
     const visMaxY = (vpH         - panY) / zoom;
-    // Clamp ideal center to visible viewport; never below item half-size + GAP
     const startX = Math.max(hw + GAP, Math.min((vCx - panX) / zoom, visMaxX - hw - GAP));
     const startY = Math.max(hh + GAP, Math.min((vCy - panY) / zoom, visMaxY - hh - GAP));
 
-    // Obstacles: bounding boxes of every existing item
     const obs = State.get().items.map(i => ({
       cx: i.x, cy: i.y, hw: i.width / 2, hh: i.height / 2
     }));
@@ -45,7 +41,6 @@ const Items = (() => {
 
     if (clear(startX, startY)) return { x: startX, y: startY };
 
-    // Spiral outward in rings until a free spot is found
     const step = Math.max(w, h) + GAP;
     for (let radius = step; radius < 4000; radius += step) {
       for (let a = 0; a < Math.PI * 2; a += Math.PI / 6) {
@@ -55,7 +50,6 @@ const Items = (() => {
       }
     }
 
-    // Last-resort fallback: stack below all existing items
     const baseY = obs.reduce((m, o) => Math.max(m, o.cy + o.hh), startY);
     return { x: startX, y: baseY + hh + GAP };
   }
@@ -74,6 +68,7 @@ const Items = (() => {
       locked: false,
       label: opts.label || '',
       color: opts.color || null,
+      fontSize: opts.fontSize || null,
       x: pos.x, y: pos.y,
       width: w, height: h
     });
@@ -107,6 +102,29 @@ const Items = (() => {
     return item;
   }
 
+  /* ═══════════════════════════════ RENUMBER ═══════════════════════════════ */
+
+  function renumberTables() {
+    const tables = State.getTables();
+    if (!tables.length) { UI.toast('אין שולחנות למספור', 'info', 1800); return; }
+
+    // Sort by visual position: top-to-bottom rows, then right-to-left within a row (RTL hall)
+    const ROW_SNAP = 60;
+    const sorted = [...tables].sort((a, b) => {
+      const rowDiff = a.y - b.y;
+      if (Math.abs(rowDiff) > ROW_SNAP) return rowDiff;
+      return b.x - a.x; // RTL: rightmost (larger x) gets lower number in each row
+    });
+
+    Guests.startBatch();
+    sorted.forEach((t, i) => {
+      if (t.number !== i + 1) State.updateItem(t.id, { number: i + 1 });
+    });
+    Guests.endBatch();
+
+    UI.toast(`שולחנות מוספרו מחדש 1–${sorted.length} ✓`, 'success', 2000);
+  }
+
   /* ═══════════════════════════════ RENDER ═══════════════════════════════ */
 
   function renderItem(item) {
@@ -118,19 +136,16 @@ const Items = (() => {
       el.dataset.type = item.type;
       room().appendChild(el);
 
-      // Content area (SVG or special HTML)
       const content = document.createElement('div');
       content.className = 'item-content';
       el.appendChild(content);
 
-      // Resize handle — created once
       const rh = document.createElement('div');
       rh.className = 'resize-handle';
       rh.title = 'גרור לשינוי גודל הפריט';
       rh.textContent = '↔';
       el.appendChild(rh);
 
-      // Bind drag/resize/click ONCE
       Drag.bindItemDrag(el, item.id);
       Drag.bindResizeDrag(rh, item.id);
       el.addEventListener('click', e => { e.stopPropagation(); selectItem(item.id); });
@@ -142,7 +157,18 @@ const Items = (() => {
         else Modals.openEditItem(item.id);
       });
 
-      // Action button (⋮) — top-left corner, shown on hover/select
+      // Hover tooltip (tables only)
+      if (item.type === 'table') {
+        el.addEventListener('mouseenter', e => {
+          const cur = State.getItem(item.id);
+          if (cur) _showTooltip(cur, e.clientX, e.clientY);
+        });
+        el.addEventListener('mousemove', e => {
+          if (_tooltip && _tooltip.style.display !== 'none') _posTooltip(e.clientX, e.clientY);
+        });
+        el.addEventListener('mouseleave', _hideTooltip);
+      }
+
       const actionBtn = document.createElement('button');
       actionBtn.className = 'item-action-btn';
       actionBtn.title = 'פעולות (שכפל / מחק / צבע / טקסט)';
@@ -155,7 +181,6 @@ const Items = (() => {
       });
       el.appendChild(actionBtn);
 
-      // Right-click opens the same context menu
       el.addEventListener('contextmenu', e => {
         e.preventDefault();
         e.stopPropagation();
@@ -169,7 +194,6 @@ const Items = (() => {
     el.style.width   = item.width  + 'px';
     el.style.height  = item.height + 'px';
 
-    // Update only the content div (keeps drag/resize handlers intact)
     const content = el.querySelector('.item-content');
     if (content) {
       content.innerHTML = item.type === 'table'
@@ -192,23 +216,83 @@ const Items = (() => {
     State.get().items.forEach(renderItem);
   }
 
-  /* ── SVG table ── */
+  /* ── Hover tooltip ── */
+  let _tooltip = null;
+
+  function _getTooltip() {
+    if (!_tooltip) {
+      _tooltip = document.createElement('div');
+      _tooltip.className = 'table-hover-tooltip';
+      document.body.appendChild(_tooltip);
+    }
+    return _tooltip;
+  }
+
+  function _showTooltip(item, clientX, clientY) {
+    const tip    = _getTooltip();
+    const guests = State.getTableGuests(item.id);
+    const occ    = State.getTableOccupancy(item.id);
+    let html = `<div class="tooltip-title">שולחן ${item.number || '?'}${item.label ? ' — ' + UI.escHtml(item.label) : ''}</div>`;
+    html += `<div class="tooltip-sub">${occ}/${item.seats} מושבים אוכלוסו</div>`;
+    if (!guests.length) {
+      html += `<div class="tooltip-empty">אין מוזמנים משובצים</div>`;
+    } else {
+      const MAX = 14;
+      html += guests.slice(0, MAX).map(g =>
+        `<div class="tooltip-guest-row">
+          <span>${UI.escHtml(g.name)}</span>
+          <span class="tooltip-guest-count">${g.adults}${g.children ? '+' + g.children : ''}</span>
+        </div>`
+      ).join('');
+      if (guests.length > MAX)
+        html += `<div class="tooltip-more">ועוד ${guests.length - MAX} נוספים…</div>`;
+    }
+    tip.innerHTML = html;
+    tip.style.display = 'block';
+    _posTooltip(clientX, clientY);
+  }
+
+  function _posTooltip(cx, cy) {
+    const tip = _tooltip;
+    if (!tip) return;
+    const tw = tip.offsetWidth  || 200;
+    const th = tip.offsetHeight || 100;
+    let x = cx + 18, y = cy + 10;
+    if (x + tw > window.innerWidth  - 8) x = cx - tw - 10;
+    if (y + th > window.innerHeight - 8) y = cy - th - 8;
+    tip.style.left = Math.max(4, x) + 'px';
+    tip.style.top  = Math.max(4, y) + 'px';
+  }
+
+  function _hideTooltip() {
+    if (_tooltip) _tooltip.style.display = 'none';
+  }
+
+  /* ── SVG table (with scaled fonts and guest rows) ── */
   function buildTableSVG(item) {
     const W = item.width, H = item.height;
-    const guests     = State.getTableGuests(item.id);
-    const occupancy  = State.getTableOccupancy(item.id);
-    const hasSpace   = occupancy <= item.seats;
-    const bgColor    = item.color || tableColor(occupancy, item.seats);
-    const R_seat     = CONFIG.SEAT_RADIUS;
+    const guests    = State.getTableGuests(item.id);
+    const occupancy = State.getTableOccupancy(item.id);
+    const hasSpace  = occupancy <= item.seats;
+    const bgColor   = item.color || tableColor(occupancy, item.seats);
+    const R_seat    = CONFIG.SEAT_RADIUS;
+    const minDim    = Math.min(W, H);
+
+    // Scaled font sizes (base calibrated at 130px table)
+    const scale     = minDim / 130;
+    const numFont   = item.fontSize || Math.max(10, Math.min(24, Math.round(15 * scale)));
+    const labelFont = Math.max(7,  Math.min(14, Math.round(10 * scale)));
+    const guestFont = Math.max(6,  Math.min(11, Math.round(8  * scale)));
+    const occuFont  = Math.max(6,  Math.min(9,  Math.round(7  * scale)));
+    const lineH     = guestFont + 2.5;
 
     let svgInner = '';
-    let guestNames = guests.map(g => UI.escHtml(g.name)).join(', ');
-    if (guestNames.length > 40) guestNames = guestNames.slice(0, 37) + '…';
 
     if (item.shape === 'circle') {
-      const sR  = Math.min(W, H) / 2 - R_seat - 2;   // seat centres just inside SVG edge
-      const r   = Math.max(10, sR - R_seat - 4);      // table body radius
-      const cx  = W / 2, cy = H / 2;
+      const sR = Math.min(W, H) / 2 - R_seat - 2;
+      const r  = Math.max(10, sR - R_seat - 4);
+      const cx = W / 2, cy = H / 2;
+
       svgInner += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${bgColor}" stroke="#888" stroke-width="1.5"/>`;
       for (let i = 0; i < item.seats; i++) {
         const ang  = (i / item.seats) * 2 * Math.PI - Math.PI / 2;
@@ -217,32 +301,77 @@ const Items = (() => {
         const fill = i < occupancy ? (hasSpace ? CONFIG.COLORS.seatOccupied : CONFIG.COLORS.seatOver) : CONFIG.COLORS.seatEmpty;
         svgInner += `<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="${R_seat}" fill="${fill}" stroke="#fff" stroke-width="1.2"/>`;
       }
-      // Table number
-      svgInner += `<text x="${cx}" y="${cy - 8}" text-anchor="middle" dominant-baseline="middle" font-size="15" font-weight="700" fill="#333">${item.number || ''}</text>`;
-      // Seat count — clearly readable text
-      svgInner += `<text x="${cx}" y="${cy + 10}" text-anchor="middle" dominant-baseline="middle" font-size="8" fill="#546e7a">${item.seats} מושבים</text>`;
-      if (item.label) svgInner += `<text x="${cx}" y="${cy + 19}" text-anchor="middle" font-size="8" fill="#555">${UI.escHtml(item.label)}</text>`;
-      if (guestNames) svgInner += `<text x="${cx}" y="${cy + (item.label ? 29 : 19)}" text-anchor="middle" font-size="7" fill="#666">${guestNames}</text>`;
-      svgInner += `<text x="${cx}" y="${cy - 21}" text-anchor="middle" font-size="7" fill="#888">${occupancy}/${item.seats}</text>`;
+
+      // Occupancy ratio (small, top of circle body)
+      svgInner += `<text x="${cx}" y="${cy - r + occuFont + 1}" text-anchor="middle" font-size="${occuFont}" fill="#888">${occupancy}/${item.seats}</text>`;
+
+      // Table number — large, bold, prominent
+      const numY = cy - (item.label ? numFont * 0.45 : numFont * 0.2);
+      svgInner += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="#1a237e">${item.number || ''}</text>`;
+
+      // Label below number (with visual gap)
+      let textY;
+      if (item.label) {
+        textY = numY + numFont * 0.65 + labelFont * 0.35 + 3;
+        svgInner += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${labelFont}" font-weight="600" fill="#37474f">${UI.escHtml(item.label)}</text>`;
+        textY += labelFont * 0.65 + 3;
+      } else {
+        textY = numY + numFont * 0.6 + 2;
+      }
+
+      // Guest names — one per line; reserve one slot for overflow indicator if needed
+      const rawMaxG = Math.max(0, Math.floor((cy + r - 5 - textY) / lineH));
+      const maxG = (guests.length > rawMaxG) ? Math.max(0, rawMaxG - 1) : rawMaxG;
+      guests.slice(0, maxG).forEach(g => {
+        const nm = g.name.length > 12 ? g.name.slice(0, 11) + '…' : g.name;
+        svgInner += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${guestFont}" fill="#546e7a">${UI.escHtml(nm)}</text>`;
+        textY += lineH;
+      });
+      const extra = guests.length - maxG;
+      if (extra > 0) svgInner += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${occuFont}" fill="#90a4ae">+${extra}</text>`;
+
     } else {
       // Rectangle / square
       const pad = R_seat + 4;
       const rw  = W - pad * 2, rh = H - pad * 2;
       svgInner += `<rect x="${pad}" y="${pad}" width="${rw}" height="${rh}" rx="6" fill="${bgColor}" stroke="#888" stroke-width="1.5"/>`;
-      const seats = distributeRectSeats(item.seats, rw, rh);
+      const seatsArr = distributeRectSeats(item.seats, rw, rh);
       let sIdx = 0;
-      for (const [sx, sy] of seats) {
+      for (const [sx, sy] of seatsArr) {
         const fill = sIdx < occupancy ? (hasSpace ? CONFIG.COLORS.seatOccupied : CONFIG.COLORS.seatOver) : CONFIG.COLORS.seatEmpty;
         svgInner += `<circle cx="${(pad + sx).toFixed(1)}" cy="${(pad + sy).toFixed(1)}" r="${R_seat}" fill="${fill}" stroke="#fff" stroke-width="1.2"/>`;
         sIdx++;
       }
       const cx = W / 2, cy = H / 2;
-      svgInner += `<text x="${cx}" y="${cy - 8}" text-anchor="middle" dominant-baseline="middle" font-size="14" font-weight="700" fill="#333">${item.number || ''}</text>`;
-      // Seat count — clearly readable text
-      svgInner += `<text x="${cx}" y="${cy + 9}" text-anchor="middle" dominant-baseline="middle" font-size="8" fill="#546e7a">${item.seats} מושבים</text>`;
-      if (item.label) svgInner += `<text x="${cx}" y="${cy + 18}" text-anchor="middle" font-size="8" fill="#555">${UI.escHtml(item.label)}</text>`;
-      if (guestNames) svgInner += `<text x="${cx}" y="${cy + (item.label ? 28 : 18)}" text-anchor="middle" font-size="7" fill="#666">${guestNames}</text>`;
-      svgInner += `<text x="${cx}" y="${cy - 20}" text-anchor="middle" font-size="7" fill="#888">${occupancy}/${item.seats}</text>`;
+
+      // Occupancy (small, top of rect interior)
+      svgInner += `<text x="${cx}" y="${pad + occuFont + 1}" text-anchor="middle" font-size="${occuFont}" fill="#888">${occupancy}/${item.seats}</text>`;
+
+      // Table number — large, bold
+      const numY = cy - (item.label ? numFont * 0.45 : numFont * 0.2);
+      svgInner += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="#1a237e">${item.number || ''}</text>`;
+
+      // Label
+      let textY;
+      if (item.label) {
+        textY = numY + numFont * 0.65 + labelFont * 0.35 + 3;
+        svgInner += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${labelFont}" font-weight="600" fill="#37474f">${UI.escHtml(item.label)}</text>`;
+        textY += labelFont * 0.65 + 3;
+      } else {
+        textY = numY + numFont * 0.6 + 2;
+      }
+
+      // Guest names — one per line; reserve one slot for overflow indicator if needed
+      const availH  = H - pad - 4 - textY;
+      const rawMaxG = Math.max(0, Math.floor(availH / lineH));
+      const maxG    = (guests.length > rawMaxG) ? Math.max(0, rawMaxG - 1) : rawMaxG;
+      guests.slice(0, maxG).forEach(g => {
+        const nm = g.name.length > 16 ? g.name.slice(0, 15) + '…' : g.name;
+        svgInner += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${guestFont}" fill="#546e7a">${UI.escHtml(nm)}</text>`;
+        textY += lineH;
+      });
+      const extra = guests.length - maxG;
+      if (extra > 0) svgInner += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${occuFont}" fill="#90a4ae">+${extra}</text>`;
     }
 
     if (item.locked) {
@@ -262,14 +391,10 @@ const Items = (() => {
 
     const positions = [];
     const R = CONFIG.SEAT_RADIUS;
-    // top
-    for (let i = 0; i < topN; i++) positions.push([(i + 1) * rw / (topN + 1), -R - 1]);
-    // bottom
+    for (let i = 0; i < topN;    i++) positions.push([(i + 1) * rw / (topN    + 1), -R - 1]);
     for (let i = 0; i < bottomN; i++) positions.push([(i + 1) * rw / (bottomN + 1), rh + R + 1]);
-    // left
-    for (let i = 0; i < leftN; i++) positions.push([-R - 1, (i + 1) * rh / (leftN + 1)]);
-    // right
-    for (let i = 0; i < rightN; i++) positions.push([rw + R + 1, (i + 1) * rh / (rightN + 1)]);
+    for (let i = 0; i < leftN;   i++) positions.push([-R - 1, (i + 1) * rh / (leftN  + 1)]);
+    for (let i = 0; i < rightN;  i++) positions.push([rw + R + 1, (i + 1) * rh / (rightN + 1)]);
     return positions;
   }
 
@@ -285,7 +410,7 @@ const Items = (() => {
     const icons = { dancefloor: '🕺', dj: '🎵', door: '🚪' };
     const icon = icons[item.type] || '⬛';
     const bg = item.color || CONFIG.COLORS[item.type] || CONFIG.COLORS.shape;
-    const br = item.shape === 'circle' ? '50%' : (item.shape === 'square' ? '8px' : '8px');
+    const br = item.shape === 'circle' ? '50%' : '8px';
     return `<div class="special-item-inner" style="background:${bg};border-radius:${br};border:1.5px solid ${item.borderColor||'#aaa'}">
       <span class="special-icon">${icon}</span>
       <span class="special-label">${UI.escHtml(item.label || item.type)}</span>
@@ -328,7 +453,6 @@ const Items = (() => {
     m.querySelector('#ctxApplyText').onclick = _applyCtxText;
     m.querySelector('#ctxTextInput').addEventListener('keydown', e => { if (e.key === 'Enter') _applyCtxText(); });
 
-    // ✓ is the single commit point — avoids double-update / undo-stack pollution.
     m.querySelector('#ctxApplyColor').onclick = () => {
       if (_ctxItemId) {
         State.updateItem(_ctxItemId, { color: m.querySelector('#ctxColorInput').value });
@@ -355,7 +479,6 @@ const Items = (() => {
       _closeCtxMenu();
     };
 
-    // Close on outside click (capture so it fires before any button handler)
     document.addEventListener('mousedown', e => {
       if (!_ctxMenu || _ctxMenu.style.display === 'none') return;
       if (_ctxMenu.contains(e.target)) return;
@@ -385,7 +508,6 @@ const Items = (() => {
       item.color || (item.type === 'table' ? '#e3f2fd'
         : (CONFIG.COLORS[item.type] || CONFIG.COLORS.shape || '#cccccc'));
     _ctxMenu.style.display = 'block';
-    // Clamp to viewport
     const mw = _ctxMenu.offsetWidth  || 190;
     const mh = _ctxMenu.offsetHeight || 180;
     const x  = Math.min(viewX, window.innerWidth  - mw - 8);
@@ -423,17 +545,16 @@ const Items = (() => {
 
   /* ── Drop highlight ── */
   function highlightTable(id, on) {
-    const el = id ? document.getElementById(id) : null;
     document.querySelectorAll('.canvas-item.drop-target').forEach(e => e.classList.remove('drop-target'));
-    if (on && el) el.classList.add('drop-target');
+    if (on && id) document.getElementById(id)?.classList.add('drop-target');
   }
 
-  /* ── Flash an item (used by "focus on table") ── */
+  /* ── Flash ── */
   function flashItem(id) {
     const el = document.getElementById(id);
     if (!el) return;
     el.classList.remove('flash');
-    void el.offsetWidth;          // restart CSS animation
+    void el.offsetWidth;
     el.classList.add('flash');
     setTimeout(() => el.classList.remove('flash'), 2500);
   }
@@ -456,6 +577,7 @@ const Items = (() => {
     addTable, addSpecialItem,
     renderItem, refreshItem, renderAll, removeItemEl,
     selectItem, getSelected, deselectAll,
-    highlightTable, flashItem, tableColor
+    highlightTable, flashItem, tableColor,
+    renumberTables
   };
 })();

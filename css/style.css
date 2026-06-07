@@ -829,3 +829,151 @@ textarea.input { resize: vertical; min-height: 60px; }
 .find-table-no-fit {
   color: var(--danger); font-size: 13px; padding: 8px 0;
 }
+
+/* ── Table hover tooltip ── */
+.table-hover-tooltip {
+  position: fixed;
+  z-index: 9990;
+  background: #fff;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.22);
+  min-width: 190px;
+  max-width: 270px;
+  padding: 10px 12px;
+  pointer-events: none;
+  direction: rtl;
+  display: none;
+}
+.tooltip-title {
+  font-size: 14px; font-weight: 700; color: var(--primary-dk);
+  border-bottom: 1px solid var(--border); padding-bottom: 5px; margin-bottom: 6px;
+}
+.tooltip-sub { font-size: 11px; color: var(--text-light); margin-bottom: 5px; }
+.tooltip-guest-row {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12px; padding: 2px 0; color: var(--text);
+}
+.tooltip-guest-count { font-size: 11px; color: var(--text-light); flex-shrink: 0; }
+.tooltip-empty { font-size: 12px; color: var(--text-light); font-style: italic; }
+.tooltip-more { font-size: 11px; color: var(--text-light); margin-top: 4px;
+  padding-top: 4px; border-top: 1px solid var(--border); }
+
+/* ── Guests controls bar (sort / filter / group) ── */
+.guests-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 8px 5px;
+  flex-shrink: 0;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  background: #fafbff;
+}
+.guests-controls-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  width: 100%;
+}
+.guests-controls-label {
+  font-size: 10px;
+  color: var(--text-light);
+  white-space: nowrap;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  flex-shrink: 0;
+}
+.btn-xs-filter {
+  padding: 2px 7px;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  font-size: 11px;
+  background: transparent;
+  color: var(--text-light);
+  cursor: pointer;
+  transition: all .12s;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+.btn-xs-filter:hover { border-color: var(--primary); color: var(--primary-dk); }
+.btn-xs-filter.active {
+  border-color: var(--primary); background: #e8eaf6;
+  color: var(--primary-dk); font-weight: 600;
+}
+.btn-xs-filter.active-success {
+  border-color: var(--success); background: #e8f5e9;
+  color: var(--success); font-weight: 600;
+}
+.btn-xs-filter.active-warning {
+  border-color: var(--warning); background: #fff8e1;
+  color: #e65100; font-weight: 600;
+}
+.filter-table-input {
+  width: 52px;
+  padding: 2px 6px;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  font-size: 11px;
+  outline: none;
+  font-family: inherit;
+  color: var(--text);
+  background: transparent;
+  text-align: center;
+}
+.filter-table-input:focus { border-color: var(--primary); }
+.btn-clear-filters {
+  padding: 2px 7px;
+  border: none;
+  border-radius: 12px;
+  font-size: 11px;
+  background: #ffebee;
+  color: var(--danger);
+  cursor: pointer;
+  transition: background .12s;
+  display: none;
+}
+.btn-clear-filters.visible { display: inline-block; }
+.btn-clear-filters:hover { background: #ffcdd2; }
+
+/* ── Guest group headers (group-by mode) ── */
+.guest-group-section { margin-bottom: 2px; }
+.guest-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 4px 2px;
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid var(--border);
+}
+.guest-group-header:hover { color: var(--primary); }
+.guest-group-toggle { font-size: 9px; flex-shrink: 0; }
+.guest-group-count { margin-inline-start: 4px; font-weight: 400; opacity: .7; }
+.guest-group-section.collapsed .guest-group-body { display: none; }
+.guest-group-section.collapsed .guest-group-toggle::before { content: '▶'; }
+.guest-group-section:not(.collapsed) .guest-group-toggle::before { content: '▼'; }
+
+/* ── Guest drag-reorder handle ── */
+.guest-reorder-handle {
+  cursor: ns-resize;
+  color: var(--text-light);
+  opacity: .5;
+  font-size: 13px;
+  padding: 0 3px 0 0;
+  flex-shrink: 0;
+  user-select: none;
+  touch-action: none;
+}
+.guest-reorder-handle:hover { opacity: 1; color: var(--primary); }
+.guest-card.drag-source { opacity: .45; border-style: dashed; }
+.guest-card.drag-over { outline: 2px solid var(--primary); outline-offset: 1px; }
+

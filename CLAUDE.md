@@ -28,10 +28,10 @@ print.js → history.js → autoassign.js → app.js
 | `config.js` | Frozen constants: sizes, colours, zoom limits, proximity defs, event types |
 | `state.js` | Single source of truth. All mutation goes through here. Emits events. |
 | `ui.js` | Toast notifications, modal open/close, stats bar, HTML escaping, tag colours |
-| `canvas.js` | Viewport pan/zoom, coordinate transforms, pinch-to-zoom, fit-all, focusOnItem |
+| `canvas.js` | Viewport pan/zoom, coordinate transforms, pinch-to-zoom, fit-all, focusOnItem, distributeTablesEvenly |
 | `drag.js` | Pointer-events drag for canvas items (move + resize) and guest cards |
-| `items.js` | Renders canvas items as DOM; SVG table drawing; selection; drop highlights |
-| `guests.js` | Sidebar guest list: render, search, tag filter, drag bind |
+| `items.js` | Renders canvas items as DOM; SVG table drawing (scaled fonts + guest rows); selection; drop highlights; renumberTables |
+| `guests.js` | Sidebar guest list: render, search, tag filter, sort, group, filter, drag reorder |
 | `modals.js` | All modal logic: add/edit table, guest, item, auto-assign, overflow, settings |
 | `storage.js` | Multi-event localStorage auto-save (debounced 400ms), JSON/CSV export-import |
 | `print.js` | Builds print-area HTML (plan, guest list, or all) and triggers `window.print()` |
@@ -289,8 +289,36 @@ Three modes, each with its own hidden `<div>` in `index.html`:
 ### New-item flash
 Every `addTable` / `addSpecialItem` call triggers `flashItem(id)` (50 ms delay for DOM readiness). Flash lasts 2.5 s — long enough to spot the new item in a crowded canvas.
 
-### Seat count text
-Both circle and rect `buildTableSVG` now render `"${item.seats} מושבים"` as a dedicated SVG text element (font-size 8, below the table number). The existing occupancy ratio `occupancy/seats` remains at the top of the circle in smaller font (7px) as a quick reference.
+### Table hover tooltip
+
+Every table element fires `mouseenter`/`mousemove`/`mouseleave` events that show/move/hide a singleton `div.table-hover-tooltip` appended to `document.body`. The tooltip lists all assigned guests (up to 14, then "+N more"), the occupancy ratio, and the table number/label. Position is clamped to the viewport edges. The element is created lazily on first use (`_getTooltip()`) and reused.
+
+### Table SVG font scaling
+
+`buildTableSVG()` computes `scale = minDim / 130` where `minDim = Math.min(width, height)`. All font sizes are clamped and scaled relative to this:
+
+| Variable | Formula | Min–Max |
+|----------|---------|---------|
+| `numFont` | `item.fontSize \|\| round(15 * scale)` | 10–24 |
+| `labelFont` | `round(10 * scale)` | 7–14 |
+| `guestFont` | `round(8 * scale)` | 6–11 |
+| `occuFont` | `round(7 * scale)` | 6–9 |
+
+`item.fontSize` is a per-table manual override (stored in state, editable in the table modal via `#tableFontSize`). When set, it replaces `numFont` only.
+
+Guest names are rendered one per SVG `<text>` line below the label. Available lines = `floor(remainingHeight / lineH)` where `lineH = guestFont + 2.5`. When `guests.length > rawMaxG`, `maxG` is reduced by 1 to reserve a slot for the `+N` overflow indicator, ensuring it stays within the table body boundary.
+
+### Table renumber (`Items.renumberTables`)
+
+Triggered by `btnRenumber` (header). Sorts all tables by visual position: top-to-bottom rows (snapped within `ROW_SNAP = 60px`), then right-to-left within each row (RTL convention). Assigns sequential numbers 1, 2, 3…. Wrapped in `Guests.startBatch()` / `Guests.endBatch()` so a single re-render follows all `State.updateItem` calls.
+
+### Distribute tables evenly (`Canvas.distributeTablesEvenly`)
+
+Triggered by `btnDistribute` (header). Two steps:
+1. **Normalize sizes**: within each shape group, apply the largest `width`/`height` to all members.
+2. **Grid-arrange**: `cols = ceil(sqrt(n))`, spacing = `max(w, h) + 50px gap`. Grid is centered on the visible canvas viewport. Followed by `fitAll()` after 50 ms.
+
+Both loops are wrapped in `Guests.startBatch()` / `Guests.endBatch()` to produce a single sidebar re-render.
 
 ## Auto-Assign Improvements
 
@@ -341,6 +369,62 @@ Every canvas item has a `⋮` action button (top-left corner, visible on hover/s
 - **Live color preview vs. Guests.render()**: `input` event updates item only (cheap SVG redraw); `Guests.render()` is deferred to the ✓ button to avoid full sidebar rebuild on every color-picker drag tick.
 - **Singleton menu**: `_ctxMenu` is created lazily on first use (`_buildCtxMenu`), then reused. All button handlers close over `_ctxItemId`.
 
+## Guest List Controls
+
+The guest panel renders a `#guestsControls` block via `Guests.renderControls()` with three rows:
+
+### Sort modes
+| Value | Behaviour |
+|-------|-----------|
+| `default` | Insertion order (state array) |
+| `nameAsc` | Hebrew locale A→Z |
+| `nameDesc` | Hebrew locale Z→A |
+| `seatedFirst` | Assigned guests first |
+| `unseatedFirst` | Unassigned guests first |
+| `custom` | User-defined drag order (`_customOrder` array) |
+
+`custom` is activated automatically when the user drags a guest card via the reorder handle (⠿). `_customOrder` is seeded from the current state order on first drag.
+
+### Group modes
+| Value | Behaviour |
+|-------|-----------|
+| `none` | Flat list |
+| `byTag` | One collapsible section per tag; guests with multiple tags appear in each matching section |
+| `byTable` | One collapsible section per table (sorted by number), plus "לא שובצו" at the bottom |
+
+Collapse state is stored in the `_collapsed` Set (keyed `tag:TAG` or `table:ID`). Toggling does not trigger a full re-render — it only adds/removes the `collapsed` CSS class.
+
+**Multi-tag duplicate binding**: In `byTag` mode a guest may appear in multiple sections, each with the same `data-guest-id` attribute. `_bindCardEvents` uses `listEl.querySelectorAll('[data-guest-id="..."]')` to wire all occurrences. The `id` attribute is NOT used on guest cards to avoid invalid duplicate IDs in `byTag` mode.
+
+### Filter controls
+- **Assigned toggle** (`_filterAssigned`): `null` = all, `true` = assigned only, `false` = unassigned only.
+- **Table number** (`_filterTableNum`): free-text input filtered against `State.getItem(g.tableId)?.number`.
+- **Tag filter** (`_filterTags` Set): rendered in `#tagsFilter` bar above the list; clicking a tag toggles it.
+- **Search** (`_searchText`): `#guestSearch` text input, substring match on guest name.
+
+`clearFilters()` resets all four dimensions and re-renders both the tag bar and controls row.
+
+The "✕ נקה" button gains the `.visible` class when any filter is active; hidden otherwise.
+
+### Drag reorder (HTML5 drag)
+
+The reorder handle (⠿ span) is separate from the pointer-based canvas-drag system. To avoid conflicts:
+- Guest cards default to `draggable="false"`.
+- `pointerdown` on the handle sets `el.draggable = true` and stops propagation (so canvas drag does not start).
+- `dragend` resets `el.draggable = false`.
+- `dragstart` is unconditional: if the element is draggable when the browser fires it, the drag is valid.
+
+`_moveGuestBefore(srcId, targetId)` splices `srcId` before `targetId` in `_customOrder` and activates `custom` sort mode.
+
+### Batching
+
+`Guests.startBatch()` / `Guests.endBatch()` suppress intermediate renders during bulk `State.updateItem` loops (e.g., `distributeTablesEvenly`, `renumberTables`). `endBatch()` calls `render()` exactly once.
+
+## Print Improvements
+
+- **Room diagram SVG** (`buildRoomDiagramSVG`): table numbers use `font-size="16"` (circles) / `font-size="15"` (rects) and `font-weight="800"` for high contrast. Labels use `font-weight="700"` at font-size 10/9.
+- **Guest list table** now has an 8th column **תווית** (table label). `buildGuestRows` emits `<td>${tableLabel}</td>` and the totals row has an extra empty `<td>`.
+
 ## Common Pitfalls
 
 - **Double render**: Don't call `renderItem()` directly after `State.addItem()` — `itemAdded` event handles it.
@@ -351,6 +435,9 @@ Every canvas item has a `⋮` action button (top-left corner, visible on hover/s
 - **Multi-event _currentId**: Set `_currentId` BEFORE calling `State.resetBoard()` / `State.deserialize()` in storage.js. The debounced change listener uses `_currentId` to determine which key to write.
 - **Nested @page CSS**: `@page` rules cannot be nested inside regular CSS selectors. Use JS-injected `<style>` tags for conditional page orientation.
 - **saveNow null guard**: `saveNow()` returns early if `_currentId` is null — prevents orphan writes during initialization or after a `deleteEvent` clears the ID before switching.
+- **Guest card IDs**: Guest cards use `data-guest-id` (not `id`) so that `byTag` grouping can render the same guest in multiple sections without invalid duplicate `id` attributes. Always bind card events via `querySelectorAll('[data-guest-id="..."]')`.
+- **Drag reorder vs. canvas drag**: Guest cards are `draggable="false"` by default. Only `pointerdown` on `.guest-reorder-handle` sets `draggable="true"`. Never set `draggable="true"` unconditionally — it would conflict with the pointer-based canvas drag for assigning guests to tables.
+- **Batch during multi-updateItem loops**: Wrap any loop that calls `State.updateItem` multiple times in `Guests.startBatch()` / `Guests.endBatch()` to prevent O(n) sidebar re-renders.
 
 ## File Structure
 
