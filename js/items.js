@@ -11,17 +11,20 @@ const Items = (() => {
     const GAP  = 30;
     const hw   = w / 2, hh = h / 2;
 
-    // Estimate viewport center in canvas coordinates.
-    // In RTL layout the sidebar is on the right, so the canvas fills the left portion.
-    const sidebarEl   = document.getElementById('sidebar');
-    const sidebarW    = sidebarEl ? sidebarEl.offsetWidth : 290;
-    const headerH     = 52;
-    const canvasAreaW = window.innerWidth - sidebarW;
+    // Estimate viewport center in canvas coordinates, excluding sidebar overlap.
+    const vpEl = document.getElementById('canvasViewport');
+    const sbEl = document.getElementById('sidebar');
+    const vpR  = vpEl ? vpEl.getBoundingClientRect() : null;
+    const sbR  = sbEl ? sbEl.getBoundingClientRect() : null;
+    const canvasAreaW = vpR
+      ? vpR.width - Math.max(0, vpR.right - (sbR ? sbR.left : window.innerWidth))
+      : window.innerWidth - (sbEl ? sbEl.offsetWidth : 290);
+    const vpH  = vpR ? vpR.height : (window.innerHeight - 52);
     const vCx  = canvasAreaW / 2;
-    const vCy  = headerH + (window.innerHeight - headerH) / 2;
+    const vCy  = vpH / 2;
     // Visible canvas bounds (right/bottom edge in canvas coords)
     const visMaxX = (canvasAreaW - panX) / zoom;
-    const visMaxY = (window.innerHeight - panY) / zoom;
+    const visMaxY = (vpH         - panY) / zoom;
     // Clamp ideal center to visible viewport; never below item half-size + GAP
     const startX = Math.max(hw + GAP, Math.min((vCx - panX) / zoom, visMaxX - hw - GAP));
     const startY = Math.max(hh + GAP, Math.min((vCy - panY) / zoom, visMaxY - hh - GAP));

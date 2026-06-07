@@ -102,6 +102,27 @@ canvas_x   = (viewport_x - panX) / zoom
 
 `Canvas.viewportToCanvas(clientX, clientY)` and `Canvas.canvasToViewport(cx, cy)` handle the conversion.
 
+## Sidebar-Aware Viewport Width
+
+`Canvas._canvasAreaW(vr?)` returns the effective canvas width, excluding any portion covered by the sidebar. The formula handles both layout modes:
+
+- **Desktop**: sidebar is a flex sibling to the right of `canvasViewport`. `vr.right ≤ sbR.left`, so overlap = 0 and `_canvasAreaW` returns `vr.width` (the viewport's own flex-allocated width already excludes the sidebar).
+- **Mobile (≤768px)**: sidebar is `position:fixed` overlay. When open, `sbR.left < vr.right`, so `_canvasAreaW = vr.width - (vr.right - sbR.left)` gives the unoccluded strip. When closed (off-screen right), `sbR.left ≥ vr.right` → overlap = 0 → returns `vr.width`.
+
+```javascript
+function _canvasAreaW(vr) {
+    vr = vr || viewport.getBoundingClientRect();
+    const sb  = document.getElementById('sidebar');
+    if (!sb) return vr.width;
+    const sbR = sb.getBoundingClientRect();
+    return vr.width - Math.max(0, vr.right - sbR.left);
+}
+```
+
+Always pass the already-fetched `vr` when calling `_canvasAreaW` inside a function that already called `viewport.getBoundingClientRect()`, to avoid a redundant layout query.
+
+`fitAll()` uses `_canvasAreaW` to compute `availW` and centers content: `panX = (availW - contentW) / 2 - minX * zoom`. `focusOnItem()` centers on `_canvasAreaW(vr) / 2`. `Items.findFreePosition()` uses the same overlap-detection formula via `getBoundingClientRect()` on both elements.
+
 ## Undo/Redo
 
 `history.js` captures full `JSON.stringify(State.serialize())` snapshots.
