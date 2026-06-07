@@ -17,7 +17,9 @@ const Items = (() => {
     const vpR  = vpEl ? vpEl.getBoundingClientRect() : null;
     const sbR  = sbEl ? sbEl.getBoundingClientRect() : null;
     const canvasAreaW = vpR
-      ? vpR.width - Math.max(0, vpR.right - (sbR ? sbR.left : window.innerWidth))
+      ? (sbEl && window.getComputedStyle(sbEl).position === 'fixed'
+          ? vpR.width
+          : vpR.width - Math.max(0, vpR.right - (sbR ? sbR.left : window.innerWidth)))
       : window.innerWidth - (sbEl ? sbEl.offsetWidth : 290);
     const vpH  = vpR ? vpR.height : (window.innerHeight - 52);
     const vCx  = canvasAreaW / 2;

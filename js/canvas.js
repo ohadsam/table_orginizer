@@ -72,11 +72,25 @@ const Canvas = (() => {
     vr = vr || viewport.getBoundingClientRect();
     const sb = document.getElementById('sidebar');
     if (!sb) return vr.width;
+    // On mobile the sidebar is position:fixed overlay — when open it occludes the canvas
+    // but fitAll/focusOnItem close it first, so here it is always off-screen → overlap = 0.
+    if (window.getComputedStyle(sb).position === 'fixed') return vr.width;
     const sbR = sb.getBoundingClientRect();
     return vr.width - Math.max(0, vr.right - sbR.left);
   }
 
+  /* ── Close mobile sidebar overlay before spatial operations ── */
+  function _closeMobileSidebar() {
+    const sb = document.getElementById('sidebar');
+    const toggle = document.getElementById('btnMobileSidebar');
+    if (!sb || window.getComputedStyle(sb).position !== 'fixed') return;
+    if (!sb.classList.contains('sidebar-open')) return;
+    sb.classList.remove('sidebar-open');
+    if (toggle) toggle.textContent = '☰';
+  }
+
   function fitAll() {
+    _closeMobileSidebar();
     const items = State.get().items;
     if (!items.length) { zoom = 0.6; panX = 40; panY = 40; applyTransform(); return; }
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -196,6 +210,7 @@ const Canvas = (() => {
   function focusOnItem(id) {
     const it = State.getItem(id);
     if (!it) return;
+    _closeMobileSidebar();
     const vr = viewport.getBoundingClientRect();
     zoom = Math.max(0.6, Math.min(CONFIG.MAX_ZOOM, zoom));
     panX = _canvasAreaW(vr) / 2 - it.x * zoom;

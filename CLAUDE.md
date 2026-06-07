@@ -106,14 +106,17 @@ canvas_x   = (viewport_x - panX) / zoom
 
 `Canvas._canvasAreaW(vr?)` returns the effective canvas width, excluding any portion covered by the sidebar. The formula handles both layout modes:
 
-- **Desktop**: sidebar is a flex sibling to the right of `canvasViewport`. `vr.right ≤ sbR.left`, so overlap = 0 and `_canvasAreaW` returns `vr.width` (the viewport's own flex-allocated width already excludes the sidebar).
-- **Mobile (≤768px)**: sidebar is `position:fixed` overlay. When open, `sbR.left < vr.right`, so `_canvasAreaW = vr.width - (vr.right - sbR.left)` gives the unoccluded strip. When closed (off-screen right), `sbR.left ≥ vr.right` → overlap = 0 → returns `vr.width`.
+- **Desktop**: sidebar is a flex sibling to the right of `canvasViewport`. `position` is `static`, so the early-return is not taken. `vr.right ≤ sbR.left` → overlap = 0 → returns `vr.width` (canvas-area's own flex width already excludes the sidebar).
+- **Mobile (≤768px)**: sidebar is `position:fixed` overlay. `_canvasAreaW` detects this and returns `vr.width` immediately (full viewport). Before any spatial operation, `_closeMobileSidebar()` closes the open sidebar so the full viewport is actually visible.
 
 ```javascript
 function _canvasAreaW(vr) {
     vr = vr || viewport.getBoundingClientRect();
-    const sb  = document.getElementById('sidebar');
+    const sb = document.getElementById('sidebar');
     if (!sb) return vr.width;
+    // On mobile, sidebar is position:fixed overlay — fitAll/focusOnItem close it first,
+    // so it is always off-screen here; return full viewport width.
+    if (window.getComputedStyle(sb).position === 'fixed') return vr.width;
     const sbR = sb.getBoundingClientRect();
     return vr.width - Math.max(0, vr.right - sbR.left);
 }
@@ -121,7 +124,15 @@ function _canvasAreaW(vr) {
 
 Always pass the already-fetched `vr` when calling `_canvasAreaW` inside a function that already called `viewport.getBoundingClientRect()`, to avoid a redundant layout query.
 
-`fitAll()` uses `_canvasAreaW` to compute `availW` and centers content: `panX = (availW - contentW) / 2 - minX * zoom`. `focusOnItem()` centers on `_canvasAreaW(vr) / 2`. `Items.findFreePosition()` uses the same overlap-detection formula via `getBoundingClientRect()` on both elements.
+### Mobile sidebar auto-close
+
+`Canvas._closeMobileSidebar()` (module-private) is called at the start of `fitAll()` and `focusOnItem()`. It removes the `sidebar-open` class and resets the toggle button text to `☰`. This ensures:
+- `fitAll()` always centers content in the full visible viewport, not in a partial strip occluded by the overlay.
+- `focusOnItem()` places the target item at the visible center, not hidden under the open sidebar.
+
+`findFreePosition()` in `items.js` uses the same `position === 'fixed'` early-return pattern inline.
+
+`fitAll()` uses `_canvasAreaW` to compute `availW` and centers content: `panX = (availW - contentW) / 2 - minX * zoom`. `focusOnItem()` centers on `_canvasAreaW(vr) / 2`.
 
 ## Undo/Redo
 
