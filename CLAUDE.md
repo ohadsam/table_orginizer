@@ -371,6 +371,7 @@ Both loops are wrapped in `Guests.startBatch()` / `Guests.endBatch()` to produce
 
 Every canvas item has a `⋮` action button (top-left corner, visible on hover/select) and supports right-click. Both open a shared singleton context menu (`_ctxMenu` in `items.js`) with:
 
+- **📋 פרטים מלאים** — calls `Modals.openItemDetails(id)`; opens the full-details modal
 - **שכפל** — calls `State.duplicateItem(id)`; new item is selected
 - **שנה טקסט** — inline input + Enter/✓ → `State.updateItem(id, { label })`; calls `Guests.render()` for tables
 - **שנה צבע** — inline color picker; `input` event gives live item preview; ✓ button confirms and calls `Guests.render()` for tables; ✕ sets `color: null` (reverts to occupancy color for tables, default type color for special items)
@@ -382,6 +383,39 @@ Every canvas item has a `⋮` action button (top-left corner, visible on hover/s
 - **Outside-click capture listener**: added once in `_buildCtxMenu` with `capture: true`; skips clicks inside the menu or on `.item-action-btn` elements.
 - **Live color preview vs. Guests.render()**: `input` event updates item only (cheap SVG redraw); `Guests.render()` is deferred to the ✓ button to avoid full sidebar rebuild on every color-picker drag tick.
 - **Singleton menu**: `_ctxMenu` is created lazily on first use (`_buildCtxMenu`), then reused. All button handlers close over `_ctxItemId`.
+
+## Item Full Details Modal (`modalItemDetails`)
+
+`Modals.openItemDetails(id)` opens `modalItemDetails` (`.modal-xl`, 820px max-width) with all editable fields for any canvas item. The body (`#itemDetailsBody`) is rebuilt on every call.
+
+### Table fields (two-column layout)
+Left column — editable form:
+- **מספר שולחן** (`detailsTableNumber`) — positive integer; only written to state if non-empty
+- **תווית / שם** (`detailsTableLabel`)
+- **מספר מושבים** (`detailsTableSeats`) — min 1, max 50
+- **צורת שולחן** (`detailsShapeSelector`) — circle / rectangle / square; updates `_detailsShape` on click
+- **גודל** (`detailsTableW` / `detailsTableH`) — min 60px each; only written if non-zero
+- **גודל גופן** (`detailsTableFontSize`) — optional override; null if empty
+- **צבע מותאם אישית** (`detailsColorEnabled` checkbox + `detailsTableColor` picker)
+- **נעל שולחן** (`detailsTableLock`)
+
+Right column — live guest roster:
+- Table with columns: שם, מבוגרים, ילדים, תגיות, הערות, buttons
+- **✏️ ערוך** — closes `modalItemDetails` and opens `openEditGuest(id)` (called directly inside the same IIFE)
+- **✕ הסר** — `confirmDialog` → `State.assignGuest(gid, null)` → `openItemDetails(id)` to refresh
+
+### Special item fields (single-column)
+Label, width (min 40), height (min 40), color picker. Shape selector shown only for `type === 'shape'`.
+
+### Save (`saveItemDetails`)
+- Tables: reads all form fields, calls `State.updateItem` then `Guests.render()`
+- Special items: reads label/width/height/color/shape, calls `State.updateItem`
+- Both paths call `UI.toast('הפרטים עודכנו ✓', 'success', 1800)` on success
+
+### Key implementation notes
+- `_detailsItemId` and `_detailsShape` are module-level variables in `modals.js`; separate from `_editingTableId`/`_tableShapeEdit` used by the add/edit table modal
+- `openItemDetails` always rebuilds body HTML from live state, so calling it again after an unassign gives a fresh view
+- `openEditGuest` is called directly (not via `Modals.`) since both functions are inside the same IIFE
 
 ## Guest List Controls
 
