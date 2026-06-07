@@ -24,21 +24,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ── Header buttons ── */
   document.getElementById('btnSettings')?.addEventListener('click', () => Modals.openSettings());
-  document.getElementById('btnExport')?.addEventListener('click', () => Storage.exportJSON());
+  document.getElementById('btnExport')?.addEventListener('click', () => Storage.exportProjectJSON());
   document.getElementById('btnImport')?.addEventListener('click', () => {
     document.getElementById('importFileInput').click();
   });
   document.getElementById('importFileInput')?.addEventListener('change', async e => {
     const file = e.target.files[0];
     if (!file) return;
-    // State.deserialize (inside importJSON) emits 'dataLoaded' → views re-render automatically.
-    await Storage.importJSON(file);
+    await Storage.importProjectJSON(file);
     e.target.value = '';
   });
   document.getElementById('btnExportCsv')?.addEventListener('click', () => Storage.exportCSV());
   document.getElementById('btnPrintPlan')?.addEventListener('click', () => Print.printPlan());
   document.getElementById('btnPrintList')?.addEventListener('click', () => Print.printList());
   document.getElementById('btnPrintAll')?.addEventListener('click',  () => Print.printAll());
+  document.getElementById('btnPrintFull')?.addEventListener('click', () => Print.printFull());
   document.getElementById('btnUndo')?.addEventListener('click', () => History.undo());
   document.getElementById('btnRedo')?.addEventListener('click', () => History.redo());
   document.getElementById('eventNameDisplay')?.addEventListener('click', () => Modals.openSettings());
@@ -73,10 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (type === 'shape') {
         Modals.openAddShape();
       } else {
-        Items.addSpecialItem(type, {
-          x: 500 + Math.random() * 300,
-          y: 350 + Math.random() * 300
-        });
+        Items.addSpecialItem(type); // position determined by findFreePosition
       }
     });
   });
@@ -100,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (ctrl && e.key.toLowerCase() === 'z' && !e.shiftKey) { e.preventDefault(); History.undo(); return; }
     if (ctrl && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) { e.preventDefault(); History.redo(); return; }
     if (ctrl && e.key.toLowerCase() === 's') { e.preventDefault(); Storage.save(); UI.toast('נשמר ✓','success',1500); return; }
-    if (ctrl && e.key.toLowerCase() === 'e') { e.preventDefault(); Storage.exportJSON(); return; }
+    if (ctrl && e.key.toLowerCase() === 'e') { e.preventDefault(); Storage.exportProjectJSON(); return; }
     if (e.key === '+' || e.key === '=') Canvas.setZoom(State.get().canvas.zoom + CONFIG.ZOOM_STEP);
     if (e.key === '-')                   Canvas.setZoom(State.get().canvas.zoom - CONFIG.ZOOM_STEP);
     if (e.key === '0')                   Canvas.fitAll();

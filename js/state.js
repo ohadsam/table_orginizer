@@ -11,6 +11,8 @@ const State = (() => {
         defaultParentsSeats: 8,
         defaultFriendsSeats: 10,
         defaultShape: 'circle',
+        defaultFriendsShape: 'circle',
+        defaultParentsShape: 'rectangle',
         showGrid: false
       },
       canvas: { zoom: 0.6, panX: 40, panY: 40 },

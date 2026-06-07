@@ -34,7 +34,7 @@ print.js → history.js → autoassign.js → app.js
 | `guests.js` | Sidebar guest list: render, search, tag filter, sort, group, filter, drag reorder |
 | `modals.js` | All modal logic: add/edit table, guest, item, auto-assign, overflow, settings |
 | `storage.js` | Multi-event localStorage auto-save (debounced 400ms), JSON/CSV export-import |
-| `print.js` | Builds print-area HTML (plan, guest list, or all) and triggers `window.print()` |
+| `print.js` | Builds print-area HTML (plan, list, all, full) and triggers `window.print()` |
 | `history.js` | Undo/Redo via full-state JSON snapshots (max 50, debounced 350ms) |
 | `autoassign.js` | Smart auto-assign: affinity groups, proximity scoring, real split, auto-create tables |
 | `app.js` | DOMContentLoaded init, header button wiring, keyboard shortcuts |
@@ -259,19 +259,33 @@ Exported files omit table assignments and split markers so the list is portable 
 
 ## Print
 
-Three modes, each with its own hidden `<div>` in `index.html`:
+Four modes, each with its own hidden `<div>` in `index.html`:
 
 | Mode | Print area | Content |
 |------|-----------|---------|
 | `plan` | `#printPlanArea` | Table cards grid (3-column) + stats header |
 | `list` | `#printListArea` | Sortable guest table with table number column |
 | `all` | `#printAllArea` | Room SVG diagram + page break + full guest table |
+| `full` | `#printFullArea` | Room diagram + **one page per table** (visual SVG + full guest detail) + final guest table |
 
-### Room diagram SVG (`printAll`)
+### Room diagram SVG (`printAll`, `printFull`)
 
 `Print.buildRoomDiagramSVG()` computes a bounding box from all canvas items and renders a simplified SVG (no seat circles). Landscape mode is auto-detected: if `width/height > 1.3`, a `@page { size: A4 landscape; }` rule is injected via a `<style id="_printOrientStyle">` tag right before `window.print()` and removed in a setTimeout cleanup.
 
 **Important**: `@page` rules cannot be nested inside CSS selectors. The landscape rule must be top-level, which is why it is injected by JS rather than being in `print.css`.
+
+### Full print (`printFull`)
+
+`Print.printFull()` produces a comprehensive multi-page document:
+1. **Page 1** — event header, stats summary, room diagram SVG (landscape if `width/height > 1.3` using `@page :first { size: A4 landscape; }`).
+2. **One page per table** (via `page-break-before:always` inline style) — table number/label header, a large visual SVG of the table with seat circles (filled/empty), and a detailed guest table with columns: #, name, adults, children, total, tags, notes.
+3. **Final page** — full guest list sorted by table then name, using the same `buildGuestTableHTML` helper.
+
+**`_buildTableVisualSVG(item, occ)`**: renders a print-sized SVG of the table body and seat circles. Accepts `occ` from the caller to avoid a redundant `State.getTableOccupancy` call. Uses `Items.distributeRectSeats` for rect seat layout (exported from `items.js`) to keep canvas and print rendering consistent.
+
+**Landscape handling difference**: `printAll` applies `@page { size: landscape }` globally (all pages landscape). `printFull` applies `@page :first { size: landscape }` so only the first page (room diagram) is landscape; per-table pages remain portrait.
+
+**Tags escaping**: All user-supplied tag strings are passed through `UI.escHtml` in both `buildGuestRows` (shared helper) and `printFull`'s per-table guest detail rows.
 
 ## Collision-Free Item Placement
 

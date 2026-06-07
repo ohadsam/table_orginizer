@@ -24,13 +24,14 @@
     <button class="btn btn-icon" id="btnUndo"       title="בטל (Ctrl+Z)" disabled>↩️</button>
     <button class="btn btn-icon" id="btnRedo"       title="שחזר (Ctrl+Y)" disabled>↪️</button>
     <button class="btn btn-icon" id="btnSettings"   title="הגדרות אירוע">⚙️</button>
-    <button class="btn btn-icon" id="btnExport"     title="ייצוא JSON">📤</button>
-    <button class="btn btn-icon" id="btnImport"     title="ייבוא JSON">📥</button>
-    <button class="btn btn-icon" id="btnExportCsv"  title="ייצוא CSV/אקסל">📊</button>
-    <button class="btn btn-icon" id="btnPrintPlan"  title="הדפס תוכנית הושבה">🖨️</button>
-    <button class="btn btn-icon" id="btnPrintList"  title="הדפס רשימת מוזמנים">📋</button>
-    <button class="btn btn-icon" id="btnPrintAll"   title="הדפס הכל (תרשים + רשימה)">📄</button>
-    <a href="help.html" target="_blank" class="btn btn-icon" title="מדריך למשתמש">❓</a>
+    <button class="btn btn-icon" id="btnExport"     title="ייצוא כל הפרויקט לקובץ JSON (כל האירועים, הגדרות, שולחנות ומוזמנים)">📤</button>
+    <button class="btn btn-icon" id="btnImport"     title="ייבוא פרויקט מקובץ JSON — תומך בקבצי פרויקט מלא וגם בקבצי אירוע בודד">📥</button>
+    <button class="btn btn-icon" id="btnExportCsv"  title="ייצוא רשימת מוזמנים לקובץ CSV (אקסל)">📊</button>
+    <button class="btn btn-icon" id="btnPrintPlan"  title="הדפס תוכנית הושבה (כרטיסי שולחן)">🖨️</button>
+    <button class="btn btn-icon" id="btnPrintList"  title="הדפס רשימת מוזמנים מלאה">📋</button>
+    <button class="btn btn-icon" id="btnPrintAll"   title="הדפס הכל — תרשים אולם ורשימת מוזמנים">📄</button>
+    <button class="btn btn-icon" id="btnPrintFull"  title="הדפס מלא — תרשים + עמוד מפורט לכל שולחן + רשימת מוזמנים">📑</button>
+    <a href="help.html" target="_blank" class="btn btn-icon" title="פתח מדריך למשתמש בחלון חדש">❓</a>
   </div>
 </header>
 
@@ -89,8 +90,8 @@
         <div class="panel-actions">
           <button class="btn btn-sm btn-secondary" id="btnImportGuests" title="ייבוא מוזמנים מקובץ">⬇️</button>
           <button class="btn btn-sm btn-secondary" id="btnExportGuests" title="ייצוא מוזמנים לקובץ">⬆️</button>
-          <button class="btn btn-sm btn-primary"   id="btnAddGuest">+ הוסף</button>
-          <button class="btn btn-sm btn-secondary" id="btnAutoAssign">⚡ שיבוץ</button>
+          <button class="btn btn-sm btn-primary"   id="btnAddGuest" title="הוסף מוזמן חדש לרשימה">+ הוסף</button>
+          <button class="btn btn-sm btn-secondary" id="btnAutoAssign" title="פתח חלון שיבוץ אוטומטי — שיבוץ מוזמנים לשולחנות לפי תגיות">⚡ שיבוץ</button>
         </div>
       </div>
       <div class="guests-search">
@@ -142,6 +143,14 @@
       <button class="modal-close" data-close-modal="modalAddTable">✕</button>
     </div>
     <div class="modal-body">
+      <div class="form-group" id="tableTypeRow">
+        <label>סוג שולחן (ממלא ברירות מחדל)</label>
+        <div class="table-type-selector" id="tableTypeBtns">
+          <button class="type-btn active" data-ttype="">כללי</button>
+          <button class="type-btn" data-ttype="friends">👫 חברים</button>
+          <button class="type-btn" data-ttype="parents">👨‍👩‍👧 הורים</button>
+        </div>
+      </div>
       <div class="form-group" id="tablePresetsGroup">
         <label>תבניות מהירות</label>
         <div class="preset-btns" id="tablePresetBtns"></div>
@@ -356,6 +365,22 @@
           <option value="square">ריבוע</option>
         </select>
       </div>
+      <div class="form-group">
+        <label>צורת ברירת מחדל — שולחן חברים</label>
+        <select id="settingFriendsShape" class="input">
+          <option value="circle">עגול</option>
+          <option value="rectangle">מלבן</option>
+          <option value="square">ריבוע</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>צורת ברירת מחדל — שולחן הורים</label>
+        <select id="settingParentsShape" class="input">
+          <option value="circle">עגול</option>
+          <option value="rectangle">מלבן</option>
+          <option value="square">ריבוע</option>
+        </select>
+      </div>
       <hr class="settings-divider">
       <div class="settings-section-title">ניהול תגיות</div>
       <div class="tags-manager" id="tagsManager"></div>
@@ -389,7 +414,8 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-primary" id="btnSaveSettings">שמור</button>
-      <button class="btn btn-danger"  id="btnResetBoard">🗑 נקה לוח</button>
+      <button class="btn btn-danger"  id="btnResetBoard">🗑 נקה הכל (כולל מוזמנים)</button>
+      <button class="btn btn-warning" id="btnResetKeepGuests">🗑 נקה שולחנות (שמור מוזמנים)</button>
       <button class="btn btn-ghost"   data-close-modal="modalSettings">ביטול</button>
     </div>
   </div>
@@ -496,6 +522,18 @@
   </div>
 </div>
 
+<!-- Find Table -->
+<div class="modal-overlay" id="modalFindTable">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>🔍 מצא שולחן פנוי</h2>
+      <button class="modal-close" data-close-modal="modalFindTable">✕</button>
+    </div>
+    <div class="modal-body" id="findTableBody"></div>
+    <div class="modal-footer" id="findTableFooter"></div>
+  </div>
+</div>
+
 <!-- Overflow -->
 <div class="modal-overlay" id="modalOverflow">
   <div class="modal">
@@ -517,6 +555,7 @@
 <div id="printPlanArea" class="print-only"></div>
 <div id="printListArea" class="print-only"></div>
 <div id="printAllArea"  class="print-only"></div>
+<div id="printFullArea" class="print-only"></div>
 
 <!-- ═══════════════════ SCRIPTS ═══════════════════ -->
 <script src="js/config.js"></script>
