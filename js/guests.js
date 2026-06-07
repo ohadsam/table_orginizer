@@ -77,9 +77,9 @@ const Guests = (() => {
     <span class="guest-name">${UI.escHtml(g.name)} ${prox}${splitBadge}</span>
     <div class="guest-actions">
       ${unassignBtn}
-      <button class="btn-icon-xs btn-find-table"   title="מצא שולחן פנוי">🔍</button>
-      <button class="btn-icon-xs btn-edit-guest"   title="עריכה">✏️</button>
-      <button class="btn-icon-xs btn-remove-guest" title="מחיקה">🗑</button>
+      <button class="btn-icon-xs btn-find-table"   title="מצא שולחן פנוי עבור מוזמן זה">🔍</button>
+      <button class="btn-icon-xs btn-edit-guest"   title="עריכת פרטי המוזמן">✏️</button>
+      <button class="btn-icon-xs btn-remove-guest" title="מחיקת המוזמן מהרשימה">🗑</button>
     </div>
   </div>
   <div class="guest-card-body">

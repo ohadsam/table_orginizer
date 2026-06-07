@@ -121,7 +121,7 @@ const Items = (() => {
       // Resize handle — created once
       const rh = document.createElement('div');
       rh.className = 'resize-handle';
-      rh.title = 'שנה גודל';
+      rh.title = 'גרור לשינוי גודל הפריט';
       rh.textContent = '↔';
       el.appendChild(rh);
 

@@ -465,6 +465,8 @@ input, select, textarea { font-family: inherit; }
 .btn-danger:hover { background: #ffcdd2; }
 .btn-ghost     { background: transparent; color: var(--text-light); }
 .btn-ghost:hover { background: var(--bg); }
+.btn-warning   { background: var(--warning); color: #fff; border-color: var(--warning); }
+.btn-warning:hover { background: #e65100; border-color: #e65100; }
 .btn-sm        { padding: 4px 10px; font-size: 12px; }
 .btn-icon      { padding: 5px 8px; background: rgba(255,255,255,.18); color: #fff; border: none; border-radius: 6px; font-size: 13px; }
 .btn-icon:hover { background: rgba(255,255,255,.30); }
@@ -569,6 +571,27 @@ textarea.input { resize: vertical; min-height: 60px; }
   transition: all .15s;
 }
 .shape-btn.active, .shape-btn:hover {
+  border-color: var(--primary);
+  background: #e8eaf6;
+  color: var(--primary-dk);
+}
+
+/* Table type selector (add-table modal) */
+.table-type-selector {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.type-btn {
+  padding: 7px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  font-size: 13px;
+  color: var(--text);
+  transition: all .15s;
+}
+.type-btn.active, .type-btn:hover {
   border-color: var(--primary);
   background: #e8eaf6;
   color: var(--primary-dk);

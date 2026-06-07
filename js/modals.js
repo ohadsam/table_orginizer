@@ -6,6 +6,24 @@ const Modals = (() => {
   let _tableShapeEdit = 'circle';
   let _editingTableId = null;
 
+  function _applyTableType(type) {
+    const s = State.get().settings;
+    if (type === 'friends') {
+      _tableShapeEdit = s.defaultFriendsShape || 'circle';
+      document.getElementById('tableSeats').value = s.defaultFriendsSeats || 10;
+    } else if (type === 'parents') {
+      _tableShapeEdit = s.defaultParentsShape || 'rectangle';
+      document.getElementById('tableSeats').value = s.defaultParentsSeats || 8;
+    } else {
+      _tableShapeEdit = s.defaultShape || 'circle';
+      document.getElementById('tableSeats').value = 10;
+    }
+    syncShapeBtns(_tableShapeEdit);
+    document.querySelectorAll('#tableTypeBtns .type-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.ttype === type)
+    );
+  }
+
   function openAddTable(preset) {
     _editingTableId = null;
     _tableShapeEdit = preset?.shape || State.get().settings.defaultShape;
@@ -24,6 +42,12 @@ const Modals = (() => {
     document.getElementById('btnUnassignAllFromTable').style.display = 'none';
     const tcEnabled = document.getElementById('tableColorEnabled');
     if (tcEnabled) { tcEnabled.checked = false; document.getElementById('tableColor').disabled = true; document.getElementById('tableColor').value = '#e3f2fd'; }
+    // Show table type row and reset to 'כללי'
+    const typeRow = document.getElementById('tableTypeRow');
+    if (typeRow) typeRow.style.display = '';
+    document.querySelectorAll('#tableTypeBtns .type-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.ttype === '')
+    );
     syncShapeBtns(_tableShapeEdit);
     renderTablePresets();
     UI.openModal('modalAddTable');
@@ -46,6 +70,9 @@ const Modals = (() => {
     document.getElementById('tableLockRow').style.display = '';
     document.getElementById('btnDuplicateTable').style.display = '';
     document.getElementById('btnUnassignAllFromTable').style.display = '';
+    // Hide table type row in edit mode
+    const typeRow2 = document.getElementById('tableTypeRow');
+    if (typeRow2) typeRow2.style.display = 'none';
     const tcEnabled2 = document.getElementById('tableColorEnabled');
     if (tcEnabled2) {
       tcEnabled2.checked = !!item.color;
@@ -79,6 +106,9 @@ const Modals = (() => {
         document.getElementById('tableSeats').value  = p.seats;
         document.getElementById('tableWidth').value  = p.width  || '';
         document.getElementById('tableHeight').value = p.height || '';
+        document.querySelectorAll('#tableTypeBtns .type-btn').forEach(b =>
+          b.classList.toggle('active', b.dataset.ttype === '')
+        );
       });
     });
   }
@@ -642,6 +672,8 @@ const Modals = (() => {
     document.getElementById('settingParentsSeats').value  = s.settings.defaultParentsSeats;
     document.getElementById('settingFriendsSeats').value  = s.settings.defaultFriendsSeats;
     document.getElementById('settingDefaultShape').value  = s.settings.defaultShape;
+    document.getElementById('settingFriendsShape').value  = s.settings.defaultFriendsShape || 'circle';
+    document.getElementById('settingParentsShape').value  = s.settings.defaultParentsShape || 'rectangle';
     renderTagsManager();
     renderPresetManager();
     renderEventsManager();
@@ -735,6 +767,8 @@ const Modals = (() => {
     State.setSetting('defaultParentsSeats', parseInt(document.getElementById('settingParentsSeats').value) || 8);
     State.setSetting('defaultFriendsSeats', parseInt(document.getElementById('settingFriendsSeats').value) || 10);
     State.setSetting('defaultShape', document.getElementById('settingDefaultShape').value);
+    State.setSetting('defaultFriendsShape', document.getElementById('settingFriendsShape').value);
+    State.setSetting('defaultParentsShape', document.getElementById('settingParentsShape').value);
     Storage.updateCurrentMeta();
     updateEventHeader();
     UI.closeModal('modalSettings');
@@ -777,7 +811,12 @@ const Modals = (() => {
 
   /* ═══════════════════ INIT ═══════════════════ */
   function init() {
-    // Table modal
+    // Table modal — type selector
+    document.querySelectorAll('#tableTypeBtns .type-btn').forEach(b => {
+      b.addEventListener('click', () => _applyTableType(b.dataset.ttype));
+    });
+
+    // Table modal — shape selector
     document.querySelectorAll('#tableShapeSelector .shape-btn').forEach(b => {
       b.addEventListener('click', () => {
         _tableShapeEdit = b.dataset.shape;
@@ -864,10 +903,18 @@ const Modals = (() => {
     });
 
     document.getElementById('btnResetBoard')?.addEventListener('click', () => {
-      if (UI.confirmDialog('לנקות את כל השולחנות והמוזמנים? (ההגדרות והתגיות יישמרו)')) {
+      if (UI.confirmDialog('למחוק את הכל לחלוטין? (שולחנות, מוזמנים, ופרטי אירוע)')) {
         State.resetBoard();
         UI.closeModal('modalSettings');
         UI.toast('הלוח נוקה', 'info');
+      }
+    });
+
+    document.getElementById('btnResetKeepGuests')?.addEventListener('click', () => {
+      if (UI.confirmDialog('לנקות את כל השולחנות והפריטים? רשימת המוזמנים תישמר (שיבוצים יאופסו).')) {
+        State.resetBoardKeepGuests();
+        UI.closeModal('modalSettings');
+        UI.toast('השולחנות נוקו; המוזמנים נשמרו', 'info');
       }
     });
 

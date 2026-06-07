@@ -130,6 +130,39 @@ Every canvas item (table, dancefloor, dj, door, shape) can have a custom color s
 - **Guest sidebar cards**: tables with a custom color show a colored `border-inline-end` on every guest card assigned to that table.
 - **Print output**: table card borders and header backgrounds use the custom color. Guest list rows use `border-inline-end` on the table color column.
 
+## Button Tooltips
+
+All buttons have `title` attributes with a descriptive label and action. Key examples:
+
+- Header: `btnExport` → "ייצוא נתוני האירוע לקובץ JSON", `btnAutoAssign` → "פתח חלון שיבוץ אוטומטי — שיבוץ מוזמנים לשולחנות לפי תגיות"
+- Guest cards: "מצא שולחן פנוי עבור מוזמן זה" (🔍), "עריכת פרטי המוזמן" (✏️), "מחיקת המוזמן מהרשימה" (🗑)
+- Canvas resize handle: "גרור לשינוי גודל הפריט"
+
+## Clear Board Buttons
+
+Settings modal footer has two destructive actions:
+
+| Button | ID | Calls | Confirmation text |
+|--------|-----|-------|-------------------|
+| 🗑 נקה הכל (כולל מוזמנים) | `btnResetBoard` | `State.resetBoard()` | "למחוק את הכל לחלוטין? (שולחנות, מוזמנים, ופרטי אירוע)" |
+| 🗑 נקה שולחנות (שמור מוזמנים) | `btnResetKeepGuests` | `State.resetBoardKeepGuests()` | "לנקות את כל השולחנות והפריטים? רשימת המוזמנים תישמר (שיבוצים יאופסו)." |
+
+`resetBoard()` clears items + guests + event metadata (tags and tablePresets are kept — they are configuration, not event data). `resetBoardKeepGuests()` clears items only, nulls all `tableId` assignments, and drops split-artifact guests.
+
+## Per-Type Table Shape Defaults
+
+The Add Table modal has a **type selector** row (shown only in add mode, hidden in edit mode):
+
+- **כללי** (`data-ttype=""`) — uses `settings.defaultShape` + 10 seats
+- **👫 חברים** (`data-ttype="friends"`) — uses `settings.defaultFriendsShape` + `settings.defaultFriendsSeats`
+- **👨‍👩‍👧 הורים** (`data-ttype="parents"`) — uses `settings.defaultParentsShape` + `settings.defaultParentsSeats`
+
+`_applyTableType(type)` in `modals.js` reads live `State.get().settings`, writes to `#tableSeats`, calls `syncShapeBtns`, and toggles `.active` on type buttons.
+
+**Important interaction**: clicking a **preset button** also resets the type buttons to "כללי" active (preset overrides type selection). Conversely, clicking a type button after a preset overwrites the preset's shape and seat count.
+
+New settings fields: `defaultFriendsShape` (default `'circle'`) and `defaultParentsShape` (default `'rectangle'`) are stored in `createDefaultState().settings` and configured via `settingFriendsShape` / `settingParentsShape` selects in the settings modal.
+
 ## Find Table (🔍 button)
 
 Every guest card has a 🔍 button that opens `modalFindTable` via `Modals.openFindTable(guestId)`.
