@@ -43,8 +43,11 @@ const History = (() => {
 
   function applySnapshot(json) {
     restoring = true;
-    State.deserialize(JSON.parse(json));   // emits dataLoaded → full re-render
-    restoring = false;
+    try {
+      State.deserialize(JSON.parse(json));   // emits dataLoaded → full re-render
+    } finally {
+      restoring = false;
+    }
   }
 
   function undo() {

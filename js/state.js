@@ -196,13 +196,14 @@ const State = (() => {
     _state.canvas.panY = panY;
   }
 
-  /* ── reset board (keeps event settings + tags) ── */
+  /* ── reset board (clears items, guests, and event metadata for a fresh new event) ── */
   function resetBoard() {
     _state.items  = [];
     _state.guests = [];
     _state._nextItemId  = 1;
     _state._nextGuestId = 1;
     _state._nextTableNum = 1;
+    _state.event = { ...createDefaultState().event }; // clear event name/date for new event
     emit('dataLoaded');   // triggers full re-render
   }
 

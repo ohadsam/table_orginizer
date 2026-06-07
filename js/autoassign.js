@@ -186,11 +186,16 @@ const AutoAssign = (() => {
     const grouped = groupByAffinity(pending);
     let assigned = 0, failed = 0, splitsCreated = 0;
 
-    for (const group of grouped) {
-      const res = assignGroup(group, tables, capacity, allowSplit, landmarks, respectProximity);
-      assigned      += res.assigned;
-      failed        += res.failed;
-      splitsCreated += res.splitsCreated;
+    Guests.startBatch(); // suppress per-assignment re-renders (O(n²) → O(1))
+    try {
+      for (const group of grouped) {
+        const res = assignGroup(group, tables, capacity, allowSplit, landmarks, respectProximity);
+        assigned      += res.assigned;
+        failed        += res.failed;
+        splitsCreated += res.splitsCreated;
+      }
+    } finally {
+      Guests.endBatch(); // single re-render after all assignments are done
     }
 
     return { assigned, failed, splitsCreated, tablesCreated };
@@ -233,7 +238,7 @@ const AutoAssign = (() => {
         splitsCreated += r.splitsCreated;
       } else {
         const best = mostSpacious(tables, capacity);
-        if (best) {
+        if (best && capacity[best.id] >= guest.total) {
           State.assignGuest(guest.id, best.id);
           capacity[best.id] -= guest.total;
           assigned += guest.total;

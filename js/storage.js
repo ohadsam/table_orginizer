@@ -241,9 +241,12 @@ const Storage = (() => {
         try {
           const data = JSON.parse(e.target.result);
           if (!Array.isArray(data.guests)) throw new Error('Invalid guest file');
-          if (!merge && data.guests.length === 0 &&
+          if (!merge && State.get().guests.length > 0 &&
+              !window.confirm(`ייבוא זה ימחק את ${State.get().guests.length} המוזמנים הקיימים. להמשיך?`)) {
+            resolve(null); return;
+          } else if (!merge && data.guests.length === 0 &&
               !window.confirm('הקובץ ריק. האם להמשיך ולמחוק את כל המוזמנים הנוכחיים?')) {
-            resolve(data); return;
+            resolve(null); return;
           }
           State.importGuests(data.guests, data.tags || null, merge);
           saveNow();

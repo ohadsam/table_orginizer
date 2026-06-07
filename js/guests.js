@@ -3,9 +3,14 @@
 const Guests = (() => {
   let _searchText = '';
   let _filterTags = new Set();
+  let _batching   = false; // suppress render() during batch operations (e.g. auto-assign loop)
+
+  function startBatch() { _batching = true; }
+  function endBatch()   { _batching = false; render(); }
 
   /* ── Render guest list ── */
   function render() {
+    if (_batching) return;
     const listEl = document.getElementById('guestsList');
     if (!listEl) return;
     const state   = State.get();
@@ -125,5 +130,5 @@ const Guests = (() => {
     render();
   }
 
-  return { init, render, renderTagFilter };
+  return { init, render, renderTagFilter, startBatch, endBatch };
 })();
