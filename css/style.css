@@ -304,11 +304,13 @@ input, select, textarea { font-family: inherit; }
 .canvas-item:active, .canvas-item.dragging { cursor: grabbing; opacity: .9; z-index: 10; }
 .canvas-item.selected { outline: 2px dashed var(--primary); outline-offset: 2px; z-index: 5; }
 .canvas-item.drop-target { outline: 3px solid var(--success); outline-offset: 2px; z-index: 6; }
-.canvas-item.flash { animation: item-flash 1.3s ease; z-index: 7; }
+.canvas-item.flash { animation: item-flash 2.5s ease; z-index: 7; }
 @keyframes item-flash {
-  0%, 100% { outline: 0 solid rgba(255,143,0,0); outline-offset: 2px; }
-  25%      { outline: 4px solid rgba(255,143,0,.95); outline-offset: 4px; }
-  60%      { outline: 4px solid rgba(255,143,0,.6);  outline-offset: 4px; }
+  0%   { outline: 0   solid rgba(255,143,0,0);    outline-offset: 2px; }
+  8%   { outline: 5px solid rgba(255,143,0,.95);  outline-offset: 5px; }
+  40%  { outline: 4px solid rgba(255,143,0,.80);  outline-offset: 4px; }
+  75%  { outline: 4px solid rgba(255,143,0,.40);  outline-offset: 3px; }
+  100% { outline: 0   solid rgba(255,143,0,0);    outline-offset: 2px; }
 }
 .canvas-item svg { display: block; }
 

@@ -71,10 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (type === 'shape') {
         Modals.openAddShape();
       } else {
-        Items.addSpecialItem(type, {
-          x: 500 + Math.random() * 300,
-          y: 350 + Math.random() * 300
-        });
+        Items.addSpecialItem(type); // position determined by findFreePosition
       }
     });
   });

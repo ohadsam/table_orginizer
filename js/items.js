@@ -5,22 +5,75 @@ const Items = (() => {
 
   /* ═══════════════════════════════ ADD ITEMS ═══════════════════════════════ */
 
+  /* ── Find a free canvas position (viewport-center → spiral outward) ── */
+  function findFreePosition(w, h) {
+    const { zoom, panX, panY } = State.get().canvas;
+    const GAP  = 30;
+    const hw   = w / 2, hh = h / 2;
+
+    // Estimate viewport center in canvas coordinates.
+    // In RTL layout the sidebar is on the right, so the canvas fills the left portion.
+    const sidebarEl   = document.getElementById('sidebar');
+    const sidebarW    = sidebarEl ? sidebarEl.offsetWidth : 290;
+    const headerH     = 52;
+    const canvasAreaW = window.innerWidth - sidebarW;
+    const vCx  = canvasAreaW / 2;
+    const vCy  = headerH + (window.innerHeight - headerH) / 2;
+    // Visible canvas bounds (right/bottom edge in canvas coords)
+    const visMaxX = (canvasAreaW - panX) / zoom;
+    const visMaxY = (window.innerHeight - panY) / zoom;
+    // Clamp ideal center to visible viewport; never below item half-size + GAP
+    const startX = Math.max(hw + GAP, Math.min((vCx - panX) / zoom, visMaxX - hw - GAP));
+    const startY = Math.max(hh + GAP, Math.min((vCy - panY) / zoom, visMaxY - hh - GAP));
+
+    // Obstacles: bounding boxes of every existing item
+    const obs = State.get().items.map(i => ({
+      cx: i.x, cy: i.y, hw: i.width / 2, hh: i.height / 2
+    }));
+
+    function clear(cx, cy) {
+      return !obs.some(o =>
+        Math.abs(cx - o.cx) < hw + o.hw + GAP &&
+        Math.abs(cy - o.cy) < hh + o.hh + GAP
+      );
+    }
+
+    if (clear(startX, startY)) return { x: startX, y: startY };
+
+    // Spiral outward in rings until a free spot is found
+    const step = Math.max(w, h) + GAP;
+    for (let radius = step; radius < 4000; radius += step) {
+      for (let a = 0; a < Math.PI * 2; a += Math.PI / 6) {
+        const cx = startX + radius * Math.cos(a);
+        const cy = startY + radius * Math.sin(a);
+        if (cx > hw && cy > hh && clear(cx, cy)) return { x: cx, y: cy };
+      }
+    }
+
+    // Last-resort fallback: stack below all existing items
+    const baseY = obs.reduce((m, o) => Math.max(m, o.cy + o.hh), startY);
+    return { x: startX, y: baseY + hh + GAP };
+  }
+
   function addTable(opts = {}) {
-    const shape   = opts.shape   || State.get().settings.defaultShape;
-    const seats   = opts.seats   || 10;
-    const sz      = CONFIG.TABLE_SIZES[shape] || CONFIG.TABLE_SIZES.circle;
-    const number  = opts.number  != null ? opts.number : State.nextTableNumber();
-    // State.addItem emits 'itemAdded' → the listener below calls renderItem.
-    return State.addItem({
+    const shape  = opts.shape  || State.get().settings.defaultShape;
+    const seats  = opts.seats  ?? 10;
+    const sz     = CONFIG.TABLE_SIZES[shape] || CONFIG.TABLE_SIZES.circle;
+    const number = opts.number != null ? opts.number : State.nextTableNumber();
+    const w      = opts.width  || sz.width;
+    const h      = opts.height || sz.height;
+    const pos    = (opts.x != null && opts.y != null) ? { x: opts.x, y: opts.y } : findFreePosition(w, h);
+    const item   = State.addItem({
       type: 'table', shape,
       seats, number,
       locked: false,
       label: opts.label || '',
       color: opts.color || null,
-      x: opts.x || 400, y: opts.y || 300,
-      width: opts.width || sz.width,
-      height: opts.height || sz.height
+      x: pos.x, y: pos.y,
+      width: w, height: h
     });
+    setTimeout(() => flashItem(item.id), 50);
+    return item;
   }
 
   function addSpecialItem(type, opts = {}) {
@@ -32,18 +85,21 @@ const Items = (() => {
       case 'shape':      sz = CONFIG.SHAPE_SIZE;      label = opts.label || ''; color = opts.color || CONFIG.COLORS.shape; break;
       default: return;
     }
-    if (typeof sz === 'object' && !sz.width) sz = { width: sz, height: sz };
-    // State.addItem emits 'itemAdded' → the listener below calls renderItem.
-    return State.addItem({
+    if (typeof sz === 'number') sz = { width: sz, height: sz };
+    const w   = opts.width   || (typeof sz === 'object' ? sz.width  : sz);
+    const h   = opts.height  || (typeof sz === 'object' ? sz.height : sz);
+    const pos = (opts.x != null && opts.y != null) ? { x: opts.x, y: opts.y } : findFreePosition(w, h);
+    const item = State.addItem({
       type,
       shape: opts.shape || 'rectangle',
       label: opts.label || label,
       color: color,
       borderColor: opts.borderColor || '#999',
-      x: opts.x || 600, y: opts.y || 400,
-      width: opts.width   || (typeof sz === 'object' ? sz.width  : sz),
-      height: opts.height || (typeof sz === 'object' ? sz.height : sz)
+      x: pos.x, y: pos.y,
+      width: w, height: h
     });
+    setTimeout(() => flashItem(item.id), 50);
+    return item;
   }
 
   /* ═══════════════════════════════ RENDER ═══════════════════════════════ */
@@ -157,10 +213,12 @@ const Items = (() => {
         svgInner += `<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="${R_seat}" fill="${fill}" stroke="#fff" stroke-width="1.2"/>`;
       }
       // Table number
-      svgInner += `<text x="${cx}" y="${cy - 7}" text-anchor="middle" dominant-baseline="middle" font-size="15" font-weight="700" fill="#333">${item.number || ''}</text>`;
-      if (item.label) svgInner += `<text x="${cx}" y="${cy + 9}" text-anchor="middle" dominant-baseline="middle" font-size="9" fill="#555">${UI.escHtml(item.label)}</text>`;
-      if (guestNames) svgInner += `<text x="${cx}" y="${cy + 20}" text-anchor="middle" font-size="7" fill="#666">${guestNames}</text>`;
-      svgInner += `<text x="${cx}" y="${cy - 20}" text-anchor="middle" font-size="8" fill="#777">${occupancy}/${item.seats}</text>`;
+      svgInner += `<text x="${cx}" y="${cy - 8}" text-anchor="middle" dominant-baseline="middle" font-size="15" font-weight="700" fill="#333">${item.number || ''}</text>`;
+      // Seat count — clearly readable text
+      svgInner += `<text x="${cx}" y="${cy + 10}" text-anchor="middle" dominant-baseline="middle" font-size="8" fill="#546e7a">${item.seats} מושבים</text>`;
+      if (item.label) svgInner += `<text x="${cx}" y="${cy + 19}" text-anchor="middle" font-size="8" fill="#555">${UI.escHtml(item.label)}</text>`;
+      if (guestNames) svgInner += `<text x="${cx}" y="${cy + (item.label ? 29 : 19)}" text-anchor="middle" font-size="7" fill="#666">${guestNames}</text>`;
+      svgInner += `<text x="${cx}" y="${cy - 21}" text-anchor="middle" font-size="7" fill="#888">${occupancy}/${item.seats}</text>`;
     } else {
       // Rectangle / square
       const pad = R_seat + 4;
@@ -174,10 +232,12 @@ const Items = (() => {
         sIdx++;
       }
       const cx = W / 2, cy = H / 2;
-      svgInner += `<text x="${cx}" y="${cy - 6}" text-anchor="middle" dominant-baseline="middle" font-size="14" font-weight="700" fill="#333">${item.number || ''}</text>`;
-      if (item.label) svgInner += `<text x="${cx}" y="${cy + 8}" text-anchor="middle" font-size="9" fill="#555">${UI.escHtml(item.label)}</text>`;
-      if (guestNames) svgInner += `<text x="${cx}" y="${cy + 18}" text-anchor="middle" font-size="7" fill="#666">${guestNames}</text>`;
-      svgInner += `<text x="${cx}" y="${cy - 18}" text-anchor="middle" font-size="8" fill="#777">${occupancy}/${item.seats}</text>`;
+      svgInner += `<text x="${cx}" y="${cy - 8}" text-anchor="middle" dominant-baseline="middle" font-size="14" font-weight="700" fill="#333">${item.number || ''}</text>`;
+      // Seat count — clearly readable text
+      svgInner += `<text x="${cx}" y="${cy + 9}" text-anchor="middle" dominant-baseline="middle" font-size="8" fill="#546e7a">${item.seats} מושבים</text>`;
+      if (item.label) svgInner += `<text x="${cx}" y="${cy + 18}" text-anchor="middle" font-size="8" fill="#555">${UI.escHtml(item.label)}</text>`;
+      if (guestNames) svgInner += `<text x="${cx}" y="${cy + (item.label ? 28 : 18)}" text-anchor="middle" font-size="7" fill="#666">${guestNames}</text>`;
+      svgInner += `<text x="${cx}" y="${cy - 20}" text-anchor="middle" font-size="7" fill="#888">${occupancy}/${item.seats}</text>`;
     }
 
     if (item.locked) {
@@ -370,7 +430,7 @@ const Items = (() => {
     el.classList.remove('flash');
     void el.offsetWidth;          // restart CSS animation
     el.classList.add('flash');
-    setTimeout(() => el.classList.remove('flash'), 1300);
+    setTimeout(() => el.classList.remove('flash'), 2500);
   }
 
   /* ── State sync ── */

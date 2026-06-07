@@ -113,18 +113,13 @@ const Modals = (() => {
       const w   = wVal ? Math.max(60, wVal) : sz.width;
       const h   = hVal ? Math.max(60, hVal)
                        : (_tableShapeEdit === 'circle' || _tableShapeEdit === 'square' ? (wVal || sz.width) : sz.height);
-      // Lay multiple tables out in a tidy grid near the centre of the view.
-      const cols = Math.ceil(Math.sqrt(qty));
-      const gapX = w + 50, gapY = h + 60;
-      const baseX = 350, baseY = 280;
+      // No explicit x/y — Items.addTable uses findFreePosition for collision-free placement.
       for (let i = 0; i < qty; i++) {
-        const r = Math.floor(i / cols), c = i % cols;
         Items.addTable({
           shape:  _tableShapeEdit,
           seats,  label, color,
           number: (qty === 1 && number) ? number : undefined,
-          width:  w, height: h,
-          x: baseX + c * gapX, y: baseY + r * gapY
+          width:  w, height: h
         });
       }
     }

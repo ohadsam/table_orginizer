@@ -162,6 +162,25 @@ Three modes, each with its own hidden `<div>` in `index.html`:
 
 **Important**: `@page` rules cannot be nested inside CSS selectors. The landscape rule must be top-level, which is why it is injected by JS rather than being in `print.css`.
 
+## Collision-Free Item Placement
+
+`Items.findFreePosition(w, h)` — used automatically by `addTable` and `addSpecialItem` when no explicit `x`/`y` is supplied:
+
+1. Computes the viewport-center in canvas coordinates using `State.get().canvas` (zoom/panX/panY) and the sidebar width.
+2. Tries that center point. If free (no overlap with existing items + GAP=30px clearance), returns it immediately.
+3. Otherwise, spirals outward in rings of `step = max(w,h) + GAP`, checking 12 candidate points per ring (every 30°).
+4. Fallback: stacks below all existing items.
+
+**Obstacle list** is rebuilt fresh on each call from `State.get().items`. For batch additions (qty > 1 in the table modal), each sequential `addTable` call sees the previously added tables in state, so they spread without collision.
+
+**Auto-assign** (`autoCreateTables`) passes explicit `x`/`y` to `Items.addTable`, so `findFreePosition` is bypassed — it has its own grid+ring placement logic.
+
+### New-item flash
+Every `addTable` / `addSpecialItem` call triggers `flashItem(id)` (50 ms delay for DOM readiness). Flash lasts 2.5 s — long enough to spot the new item in a crowded canvas.
+
+### Seat count text
+Both circle and rect `buildTableSVG` now render `"${item.seats} מושבים"` as a dedicated SVG text element (font-size 8, below the table number). The existing occupancy ratio `occupancy/seats` remains at the top of the circle in smaller font (7px) as a quick reference.
+
 ## Auto-Assign Improvements
 
 `AutoAssign.run({ allowSplit, keepExisting, respectProximity, createTables })`:
