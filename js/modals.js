@@ -241,6 +241,216 @@ const Modals = (() => {
     if (copy) { Items.selectItem(copy.id); UI.toast('הפריט שוכפל ✓', 'success', 1800); }
   }
 
+  /* ═══════════════════ ITEM FULL DETAILS ═══════════════════ */
+  let _detailsItemId = null;
+  let _detailsShape  = null;
+
+  function openItemDetails(id) {
+    const item = State.getItem(id);
+    if (!item) return;
+    _detailsItemId = id;
+    _detailsShape  = item.shape;
+
+    const body = document.getElementById('itemDetailsBody');
+    if (!body) return;
+
+    if (item.type === 'table') {
+      const guests = State.getTableGuests(id);
+      const occ    = guests.reduce((s, g) => s + (g.total || 1), 0);
+      document.getElementById('itemDetailsTitle').textContent =
+        `פרטים מלאים — שולחן ${item.number != null ? item.number : ''}`.trim();
+
+      const guestRows = guests.map(g => `
+        <tr>
+          <td>${UI.escHtml(g.name)}</td>
+          <td>${g.adults}</td>
+          <td>${g.children}</td>
+          <td>${UI.escHtml((g.tags || []).join(', '))}</td>
+          <td>${UI.escHtml(g.notes || '')}</td>
+          <td style="white-space:nowrap">
+            <button class="btn btn-sm btn-ghost" data-detail-edit-guest="${g.id}" title="ערוך מוזמן">✏️</button>
+            <button class="btn btn-sm btn-danger" data-detail-unassign-guest="${g.id}" title="הסר מהשולחן">✕</button>
+          </td>
+        </tr>`).join('');
+
+      body.innerHTML = `
+        <div class="details-two-col">
+          <div class="details-col">
+            <h3 class="details-section-title">פרטי שולחן</h3>
+            <div class="form-group">
+              <label>מספר שולחן</label>
+              <input type="number" id="detailsTableNumber" class="input" value="${item.number ?? ''}" min="1">
+            </div>
+            <div class="form-group">
+              <label>תווית / שם</label>
+              <input type="text" id="detailsTableLabel" class="input" value="${UI.escHtml(item.label || '')}">
+            </div>
+            <div class="form-group">
+              <label>מספר מושבים</label>
+              <input type="number" id="detailsTableSeats" class="input" value="${item.seats}" min="1" max="50">
+            </div>
+            <div class="form-group">
+              <label>צורת שולחן</label>
+              <div class="shape-selector" id="detailsShapeSelector">
+                <button class="shape-btn ${item.shape==='circle'?'active':''}"    data-shape="circle">⭕ עגול</button>
+                <button class="shape-btn ${item.shape==='rectangle'?'active':''}" data-shape="rectangle">▭ מלבן</button>
+                <button class="shape-btn ${item.shape==='square'?'active':''}"    data-shape="square">⬜ ריבוע</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>גודל (פיקסלים)</label>
+              <div class="size-row">
+                <input type="number" id="detailsTableW" class="input" value="${item.width}"  min="60" placeholder="רוחב">
+                <span class="size-sep">×</span>
+                <input type="number" id="detailsTableH" class="input" value="${item.height}" min="60" placeholder="גובה">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>גודל גופן <small style="font-weight:400;color:#90a4ae">(ריק = אוטומטי)</small></label>
+              <input type="number" id="detailsTableFontSize" class="input" value="${item.fontSize || ''}" placeholder="אוטומטי" min="6" max="40">
+            </div>
+            <div class="form-group">
+              <label class="checkbox-label" style="margin-bottom:6px">
+                <input type="checkbox" id="detailsColorEnabled" ${item.color ? 'checked' : ''}>
+                <span>צבע מותאם אישית</span>
+              </label>
+              <input type="color" id="detailsTableColor" class="input" value="${item.color || '#e3f2fd'}"
+                ${item.color ? '' : 'disabled'} style="width:56px;height:36px;padding:3px;cursor:pointer">
+            </div>
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="detailsTableLock" ${item.locked ? 'checked' : ''}>
+                <span>🔒 נעל שולחן (השיבוץ האוטומטי לא ישנה אותו)</span>
+              </label>
+            </div>
+          </div>
+          <div class="details-col">
+            <h3 class="details-section-title">
+              מוזמנים בשולחן
+              <span class="details-occ">${occ}/${item.seats}</span>
+            </h3>
+            ${guests.length ? `
+            <table class="details-guest-table">
+              <thead>
+                <tr><th>שם</th><th>מבוגרים</th><th>ילדים</th><th>תגיות</th><th>הערות</th><th></th></tr>
+              </thead>
+              <tbody>${guestRows}</tbody>
+            </table>` : '<p class="details-empty">אין מוזמנים משובצים לשולחן זה</p>'}
+          </div>
+        </div>`;
+
+      body.querySelectorAll('#detailsShapeSelector .shape-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          body.querySelectorAll('#detailsShapeSelector .shape-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          _detailsShape = btn.dataset.shape;
+        });
+      });
+
+      const colorEn  = body.querySelector('#detailsColorEnabled');
+      const colorInp = body.querySelector('#detailsTableColor');
+      colorEn?.addEventListener('change', () => { if (colorInp) colorInp.disabled = !colorEn.checked; });
+
+      body.querySelectorAll('[data-detail-unassign-guest]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (UI.confirmDialog('להסיר מוזמן זה מהשולחן?')) {
+            State.assignGuest(btn.dataset.detailUnassignGuest, null);
+            openItemDetails(id);
+          }
+        });
+      });
+
+      body.querySelectorAll('[data-detail-edit-guest]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          UI.closeModal('modalItemDetails');
+          openEditGuest(btn.dataset.detailEditGuest);
+        });
+      });
+
+    } else {
+      const typeLabels = { dancefloor: 'רחבת ריקודים', dj: 'עמדת DJ', door: 'כניסה', shape: 'צורה' };
+      document.getElementById('itemDetailsTitle').textContent =
+        'פרטים מלאים — ' + (typeLabels[item.type] || item.type);
+
+      body.innerHTML = `
+        <div class="form-group">
+          <label>תווית</label>
+          <input id="detailsItemLabel" class="input" value="${UI.escHtml(item.label || '')}">
+        </div>
+        <div class="form-group">
+          <label>רוחב</label>
+          <input id="detailsItemW" class="input" type="number" value="${item.width}" min="40">
+        </div>
+        <div class="form-group">
+          <label>גובה</label>
+          <input id="detailsItemH" class="input" type="number" value="${item.height}" min="40">
+        </div>
+        <div class="form-group">
+          <label>צבע רקע</label>
+          <input id="detailsItemColor" class="input" type="color"
+            value="${item.color || CONFIG.COLORS[item.type] || CONFIG.COLORS.shape}"
+            style="height:40px;padding:4px">
+        </div>
+        ${item.type === 'shape' ? `
+        <div class="form-group">
+          <label>צורה</label>
+          <div class="shape-selector" id="detailsItemShapeSelector">
+            <button class="shape-btn ${item.shape==='rectangle'?'active':''}" data-shape="rectangle">▭ מלבן</button>
+            <button class="shape-btn ${item.shape==='square'?'active':''}"    data-shape="square">⬜ ריבוע</button>
+            <button class="shape-btn ${item.shape==='circle'?'active':''}"    data-shape="circle">⭕ עגול</button>
+          </div>
+        </div>` : ''}`;
+
+      body.querySelectorAll('#detailsItemShapeSelector .shape-btn').forEach(b => {
+        b.addEventListener('click', () => {
+          body.querySelectorAll('#detailsItemShapeSelector .shape-btn').forEach(x => x.classList.remove('active'));
+          b.classList.add('active');
+          _detailsShape = b.dataset.shape;
+        });
+      });
+    }
+
+    UI.openModal('modalItemDetails');
+  }
+
+  function saveItemDetails() {
+    const item = State.getItem(_detailsItemId);
+    if (!item) { UI.closeModal('modalItemDetails'); return; }
+
+    if (item.type === 'table') {
+      const number    = parseInt(document.getElementById('detailsTableNumber')?.value) || null;
+      const seats     = Math.max(1, parseInt(document.getElementById('detailsTableSeats')?.value) || 10);
+      const label     = document.getElementById('detailsTableLabel')?.value.trim() || '';
+      const wVal      = parseInt(document.getElementById('detailsTableW')?.value);
+      const hVal      = parseInt(document.getElementById('detailsTableH')?.value);
+      const fontSizeV = parseFloat(document.getElementById('detailsTableFontSize')?.value) || null;
+      const locked    = document.getElementById('detailsTableLock')?.checked || false;
+      const colorEn   = document.getElementById('detailsColorEnabled')?.checked;
+      const color     = colorEn ? (document.getElementById('detailsTableColor')?.value || null) : null;
+
+      const updates = { seats, label, locked, color, fontSize: fontSizeV };
+      if (_detailsShape) updates.shape = _detailsShape;
+      if (number) updates.number = number;
+      if (wVal)   updates.width  = Math.max(60, wVal);
+      if (hVal)   updates.height = Math.max(60, hVal);
+
+      State.updateItem(_detailsItemId, updates);
+      Guests.render();
+    } else {
+      const updates = {
+        label:  document.getElementById('detailsItemLabel')?.value.trim() || '',
+        width:  Math.max(40, parseInt(document.getElementById('detailsItemW')?.value) || 80),
+        height: Math.max(40, parseInt(document.getElementById('detailsItemH')?.value) || 80),
+        color:  document.getElementById('detailsItemColor')?.value || null,
+      };
+      if (_detailsShape) updates.shape = _detailsShape;
+      State.updateItem(_detailsItemId, updates);
+    }
+
+    UI.closeModal('modalItemDetails');
+    UI.toast('הפרטים עודכנו ✓', 'success', 1800);
+  }
+
   /* ═══════════════════ ADD/EDIT GUEST ═══════════════════ */
   let _editingGuestId   = null;
   let _selectedTags     = new Set();
@@ -848,6 +1058,9 @@ const Modals = (() => {
     document.getElementById('btnDeleteEditItem')?.addEventListener('click', deleteEditItem);
     document.getElementById('btnDuplicateItem')?.addEventListener('click', duplicateEditItem);
 
+    // Item details modal
+    document.getElementById('btnSaveItemDetails')?.addEventListener('click', saveItemDetails);
+
     // Guest modal
     document.getElementById('btnConfirmGuest')?.addEventListener('click', confirmGuest);
     document.getElementById('btnConfirmGuestAndAdd')?.addEventListener('click', confirmGuestAndAdd);
@@ -962,7 +1175,7 @@ const Modals = (() => {
     openAddTable, openEditTable,
     openEditItem, openAddGuest, openEditGuest,
     openAddShape, openSettings, openAutoAssign,
-    openFindTable,
+    openFindTable, openItemDetails,
     handleGuestDrop, updateEventHeader,
     renderTagsManager, renderPresetManager, renderTablePresets,
     renderEventsManager, showAutoAssignResult

@@ -546,6 +546,21 @@
   </div>
 </div>
 
+<!-- Item full details -->
+<div class="modal-overlay" id="modalItemDetails">
+  <div class="modal modal-xl">
+    <div class="modal-header">
+      <h2 id="itemDetailsTitle">פרטים מלאים</h2>
+      <button class="modal-close" data-close-modal="modalItemDetails">✕</button>
+    </div>
+    <div class="modal-body" id="itemDetailsBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="btnSaveItemDetails">שמור שינויים</button>
+      <button class="btn btn-ghost"   data-close-modal="modalItemDetails">ביטול</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════════ UTILITIES ═══════════════════ -->
 <div class="toast-container" id="toastContainer"></div>
 <input type="file" id="importFileInput"  accept=".json" style="display:none">

@@ -425,7 +425,9 @@ const Items = (() => {
     const m = document.createElement('div');
     m.className = 'item-ctx-menu';
     m.innerHTML =
-      `<button class="ctx-menu-btn" id="ctxDuplicate">⧉&nbsp; שכפל</button>
+      `<button class="ctx-menu-btn" id="ctxDetails">📋&nbsp; פרטים מלאים</button>
+       <hr class="ctx-menu-sep">
+       <button class="ctx-menu-btn" id="ctxDuplicate">⧉&nbsp; שכפל</button>
        <hr class="ctx-menu-sep">
        <div class="ctx-inline-row">
          <span class="ctx-row-lbl" title="שנה טקסט">📝</span>
@@ -441,6 +443,11 @@ const Items = (() => {
        <hr class="ctx-menu-sep">
        <button class="ctx-menu-btn ctx-danger" id="ctxDelete">🗑&nbsp; מחק</button>`;
     document.body.appendChild(m);
+
+    m.querySelector('#ctxDetails').onclick = () => {
+      if (_ctxItemId) Modals.openItemDetails(_ctxItemId);
+      _closeCtxMenu();
+    };
 
     m.querySelector('#ctxDuplicate').onclick = () => {
       if (_ctxItemId) {
