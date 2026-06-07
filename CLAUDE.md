@@ -210,6 +210,33 @@ When a guest group doesn't fit at one table:
 - **Find Table modal**: partial-fit rows offer a split button with `confirmDialog` confirmation
 - Split guests show a `⛓ פוצל` badge on their sidebar card and `(פיצול)` in print output
 
+## Full Project Import / Export
+
+`Storage.exportProjectJSON()` exports the entire project — all events, their items, guests, settings, table presets, tags, and canvas positions — as a single JSON file (format version 2):
+
+```json
+{
+  "version": 2,
+  "exportedAt": "...",
+  "meta": { "currentId": "evt_1", "events": [{ "id": "evt_1", "name": "...", "date": "...", "updated": "..." }] },
+  "events": {
+    "evt_1": { /* full State.serialize() snapshot */ }
+  }
+}
+```
+
+`Storage.importProjectJSON(file)` auto-detects format:
+- **Full project file** (`data.meta && data.events` object) → replaces ALL localStorage events with the imported ones, confirms with `window.confirm` first.
+- **Single-event file** (old format, no `meta`/`events` keys) → backward-compatible: deserializes into the current event.
+
+**Write-before-delete safety**: new event keys are written BEFORE old ones are removed. If writing fails mid-way, old data is still intact. Old keys not in the new project are deleted only after the new meta is committed.
+
+**Key invariant**: `_currentId` is set after `writeMeta(cleanMeta)` and before `State.deserialize()`, so the auto-save listener writes to the correct key.
+
+**Filename**: derived from the current active event (`_currentId`), falling back to the first event.
+
+**Triggering**: `btnExport` (📤) and `Ctrl+E` both call `exportProjectJSON`. `btnImport` (📥) calls `importProjectJSON` which handles both formats.
+
 ## Guest Import / Export
 
 ```javascript

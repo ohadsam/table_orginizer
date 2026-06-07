@@ -168,6 +168,94 @@ const Storage = (() => {
     UI.toast('הקובץ יוצא בהצלחה ✓', 'success');
   }
 
+  function exportProjectJSON() {
+    saveNow();
+    const m = readMeta();
+    if (!m) { UI.toast('אין נתונים לייצוא', 'warning'); return; }
+    const project = {
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      meta: m,
+      events: {}
+    };
+    m.events.forEach(ev => {
+      try {
+        const raw = localStorage.getItem(evtKey(ev.id));
+        if (raw) project.events[ev.id] = JSON.parse(raw);
+      } catch(e) { console.warn('Failed to read event', ev.id, e); }
+    });
+    const json = JSON.stringify(project, null, 2);
+    const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const date = new Date().toISOString().slice(0, 10);
+    const currentEvName = m.events.find(ev => ev.id === _currentId)?.name || m.events[0]?.name || '';
+    const name = (currentEvName || 'פרויקט').replace(/\s+/g, '_');
+    a.href = url; a.download = `${name}_${date}_פרויקט.json`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    const exported = Object.keys(project.events).length;
+    if (exported < m.events.length) {
+      UI.toast(`הפרויקט יוצא — ${exported} מתוך ${m.events.length} אירועים (חלק מהנתונים פגומים)`, 'warning');
+    } else {
+      UI.toast(`הפרויקט יוצא בהצלחה (${exported} אירועים) ✓`, 'success');
+    }
+  }
+
+  function _importFullProject(project) {
+    return new Promise((resolve, reject) => {
+      try {
+        const importEvents = project.meta?.events || [];
+        const importCount  = importEvents.length;
+        if (!importCount) throw new Error('No events in project file');
+
+        const existingMeta  = readMeta();
+        const existingCount = existingMeta?.events?.length || 0;
+        const msg = existingCount > 0
+          ? `ייבוא זה ימחק את ${existingCount} האירועים הנוכחיים ויחליף ב-${importCount} אירועים מהקובץ.\nלהמשיך?`
+          : `לייבא פרויקט עם ${importCount} אירועים?`;
+        if (!window.confirm(msg)) { resolve(null); return; }
+
+        // Write new event data FIRST — old keys remain intact until meta is committed
+        const validIds = new Set();
+        importEvents.forEach(ev => {
+          const evData = project.events[ev.id];
+          if (evData) { localStorage.setItem(evtKey(ev.id), JSON.stringify(evData)); validIds.add(ev.id); }
+        });
+
+        const cleanMeta = {
+          ...project.meta,
+          events: importEvents.filter(ev => validIds.has(ev.id))
+        };
+        if (!cleanMeta.events.length) throw new Error('No valid event data found in project file');
+        if (!validIds.has(cleanMeta.currentId)) cleanMeta.currentId = cleanMeta.events[0].id;
+
+        // Commit meta, then set _currentId (must precede any State mutation)
+        writeMeta(cleanMeta);
+        _currentId = cleanMeta.currentId;
+
+        // Now safe to remove old keys that are no longer in the project
+        if (existingMeta) {
+          existingMeta.events.forEach(ev => {
+            if (!validIds.has(ev.id)) localStorage.removeItem(evtKey(ev.id));
+          });
+        }
+
+        const raw = localStorage.getItem(evtKey(_currentId));
+        if (raw) State.deserialize(JSON.parse(raw));
+        else     State.resetBoard();
+
+        State.emit('eventSwitched');
+        const loaded = validIds.size;
+        const toast = loaded < importCount
+          ? `יובאו ${loaded} מתוך ${importCount} אירועים (חלק מהנתונים חסרו בקובץ)`
+          : `הפרויקט יובא — ${loaded} אירועים ✓`;
+        UI.toast(toast, loaded < importCount ? 'warning' : 'success');
+        resolve(project);
+      } catch(err) { reject(err); }  // importProjectJSON's catch shows the toast
+    });
+  }
+
   function exportCSV() {
     const state = State.get();
     const guests = [...state.guests].sort((a, b) => {
@@ -205,6 +293,30 @@ const Storage = (() => {
           UI.toast('הנתונים יובאו בהצלחה ✓', 'success');
           resolve(data);
         } catch(err) { UI.toast('שגיאה בקריאת הקובץ', 'error'); reject(err); }
+      };
+      reader.onerror = () => { UI.toast('שגיאה בפתיחת הקובץ', 'error'); reject(reader.error); };
+      reader.readAsText(file);
+    });
+  }
+
+  function importProjectJSON(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async e => {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (data.meta && data.events && typeof data.events === 'object') {
+            // Full project file
+            const result = await _importFullProject(data);
+            resolve(result);
+          } else {
+            // Single-event file — backward-compatible import into current event
+            State.deserialize(data);
+            saveNow();
+            UI.toast('האירוע יובא בהצלחה ✓', 'success');
+            resolve(data);
+          }
+        } catch(err) { UI.toast('שגיאה בייבוא הקובץ', 'error'); reject(err); }
       };
       reader.onerror = () => { UI.toast('שגיאה בפתיחת הקובץ', 'error'); reject(reader.error); };
       reader.readAsText(file);
@@ -264,7 +376,8 @@ const Storage = (() => {
 
   return {
     save, saveNow, load,
-    exportJSON, exportCSV, importJSON,
+    exportJSON, exportProjectJSON, exportCSV,
+    importJSON, importProjectJSON,
     exportGuestsJSON, importGuestsJSON,
     createEvent, switchEvent, deleteEvent,
     getEventsList, updateCurrentMeta
