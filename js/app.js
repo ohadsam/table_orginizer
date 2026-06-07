@@ -42,6 +42,8 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnUndo')?.addEventListener('click', () => History.undo());
   document.getElementById('btnRedo')?.addEventListener('click', () => History.redo());
   document.getElementById('eventNameDisplay')?.addEventListener('click', () => Modals.openSettings());
+  document.getElementById('btnDistribute')?.addEventListener('click', () => Canvas.distributeTablesEvenly());
+  document.getElementById('btnRenumber')?.addEventListener('click',   () => Items.renumberTables());
 
   /* ── Guest export / import ── */
   document.getElementById('btnExportGuests')?.addEventListener('click', () => Storage.exportGuestsJSON());

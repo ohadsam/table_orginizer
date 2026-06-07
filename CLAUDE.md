@@ -28,10 +28,10 @@ print.js → history.js → autoassign.js → app.js
 | `config.js` | Frozen constants: sizes, colours, zoom limits, proximity defs, event types |
 | `state.js` | Single source of truth. All mutation goes through here. Emits events. |
 | `ui.js` | Toast notifications, modal open/close, stats bar, HTML escaping, tag colours |
-| `canvas.js` | Viewport pan/zoom, coordinate transforms, pinch-to-zoom, fit-all, focusOnItem |
+| `canvas.js` | Viewport pan/zoom, coordinate transforms, pinch-to-zoom, fit-all, focusOnItem, distributeTablesEvenly |
 | `drag.js` | Pointer-events drag for canvas items (move + resize) and guest cards |
-| `items.js` | Renders canvas items as DOM; SVG table drawing; selection; drop highlights |
-| `guests.js` | Sidebar guest list: render, search, tag filter, drag bind |
+| `items.js` | Renders canvas items as DOM; SVG table drawing (scaled fonts + guest rows); selection; drop highlights; renumberTables |
+| `guests.js` | Sidebar guest list: render, search, tag filter, sort, group, filter, drag reorder |
 | `modals.js` | All modal logic: add/edit table, guest, item, auto-assign, overflow, settings |
 | `storage.js` | Multi-event localStorage auto-save (debounced 400ms), JSON/CSV export-import |
 | `print.js` | Builds print-area HTML (plan, guest list, or all) and triggers `window.print()` |
@@ -102,6 +102,38 @@ canvas_x   = (viewport_x - panX) / zoom
 
 `Canvas.viewportToCanvas(clientX, clientY)` and `Canvas.canvasToViewport(cx, cy)` handle the conversion.
 
+## Sidebar-Aware Viewport Width
+
+`Canvas._canvasAreaW(vr?)` returns the effective canvas width, excluding any portion covered by the sidebar. The formula handles both layout modes:
+
+- **Desktop**: sidebar is a flex sibling to the right of `canvasViewport`. `position` is `static`, so the early-return is not taken. `vr.right ≤ sbR.left` → overlap = 0 → returns `vr.width` (canvas-area's own flex width already excludes the sidebar).
+- **Mobile (≤768px)**: sidebar is `position:fixed` overlay. `_canvasAreaW` detects this and returns `vr.width` immediately (full viewport). Before any spatial operation, `_closeMobileSidebar()` closes the open sidebar so the full viewport is actually visible.
+
+```javascript
+function _canvasAreaW(vr) {
+    vr = vr || viewport.getBoundingClientRect();
+    const sb = document.getElementById('sidebar');
+    if (!sb) return vr.width;
+    // On mobile, sidebar is position:fixed overlay — fitAll/focusOnItem close it first,
+    // so it is always off-screen here; return full viewport width.
+    if (window.getComputedStyle(sb).position === 'fixed') return vr.width;
+    const sbR = sb.getBoundingClientRect();
+    return vr.width - Math.max(0, vr.right - sbR.left);
+}
+```
+
+Always pass the already-fetched `vr` when calling `_canvasAreaW` inside a function that already called `viewport.getBoundingClientRect()`, to avoid a redundant layout query.
+
+### Mobile sidebar auto-close
+
+`Canvas._closeMobileSidebar()` (module-private) is called at the start of `fitAll()` and `focusOnItem()`. It removes the `sidebar-open` class and resets the toggle button text to `☰`. This ensures:
+- `fitAll()` always centers content in the full visible viewport, not in a partial strip occluded by the overlay.
+- `focusOnItem()` places the target item at the visible center, not hidden under the open sidebar.
+
+`findFreePosition()` in `items.js` uses the same `position === 'fixed'` early-return pattern inline.
+
+`fitAll()` uses `_canvasAreaW` to compute `availW` and centers content: `panX = (availW - contentW) / 2 - minX * zoom`. `focusOnItem()` centers on `_canvasAreaW(vr) / 2`.
+
 ## Undo/Redo
 
 `history.js` captures full `JSON.stringify(State.serialize())` snapshots.
@@ -130,12 +162,91 @@ Every canvas item (table, dancefloor, dj, door, shape) can have a custom color s
 - **Guest sidebar cards**: tables with a custom color show a colored `border-inline-end` on every guest card assigned to that table.
 - **Print output**: table card borders and header backgrounds use the custom color. Guest list rows use `border-inline-end` on the table color column.
 
+## Button Tooltips
+
+All buttons have `title` attributes with a descriptive label and action. Key examples:
+
+- Header: `btnExport` → "ייצוא נתוני האירוע לקובץ JSON", `btnAutoAssign` → "פתח חלון שיבוץ אוטומטי — שיבוץ מוזמנים לשולחנות לפי תגיות"
+- Guest cards: "מצא שולחן פנוי עבור מוזמן זה" (🔍), "עריכת פרטי המוזמן" (✏️), "מחיקת המוזמן מהרשימה" (🗑)
+- Canvas resize handle: "גרור לשינוי גודל הפריט"
+
+## Clear Board Buttons
+
+Settings modal footer has two destructive actions:
+
+| Button | ID | Calls | Confirmation text |
+|--------|-----|-------|-------------------|
+| 🗑 נקה הכל (כולל מוזמנים) | `btnResetBoard` | `State.resetBoard()` | "למחוק את הכל לחלוטין? (שולחנות, מוזמנים, ופרטי אירוע)" |
+| 🗑 נקה שולחנות (שמור מוזמנים) | `btnResetKeepGuests` | `State.resetBoardKeepGuests()` | "לנקות את כל השולחנות והפריטים? רשימת המוזמנים תישמר (שיבוצים יאופסו)." |
+
+`resetBoard()` clears items + guests + event metadata (tags and tablePresets are kept — they are configuration, not event data). `resetBoardKeepGuests()` clears items only, nulls all `tableId` assignments, and drops split-artifact guests.
+
+## Per-Type Table Shape Defaults
+
+The Add Table modal has a **type selector** row (shown only in add mode, hidden in edit mode):
+
+- **כללי** (`data-ttype=""`) — uses `settings.defaultShape` + 10 seats
+- **👫 חברים** (`data-ttype="friends"`) — uses `settings.defaultFriendsShape` + `settings.defaultFriendsSeats`
+- **👨‍👩‍👧 הורים** (`data-ttype="parents"`) — uses `settings.defaultParentsShape` + `settings.defaultParentsSeats`
+
+`_applyTableType(type)` in `modals.js` reads live `State.get().settings`, writes to `#tableSeats`, calls `syncShapeBtns`, and toggles `.active` on type buttons.
+
+**Important interaction**: clicking a **preset button** also resets the type buttons to "כללי" active (preset overrides type selection). Conversely, clicking a type button after a preset overwrites the preset's shape and seat count.
+
+New settings fields: `defaultFriendsShape` (default `'circle'`) and `defaultParentsShape` (default `'rectangle'`) are stored in `createDefaultState().settings` and configured via `settingFriendsShape` / `settingParentsShape` selects in the settings modal.
+
+## Find Table (🔍 button)
+
+Every guest card has a 🔍 button that opens `modalFindTable` via `Modals.openFindTable(guestId)`.
+
+**Algorithm** (`_findTableCandidates`):
+1. Excludes locked tables and the guest's current table.
+2. Scores each remaining table by counting how many of the guest's own tags are present among guests already seated there.
+3. Splits candidates into `fitting` (free ≥ guest.total) and `partial` (0 < free < guest.total).
+4. Sorts `fitting` by tag score desc, then by tightest fit (least wasted seats).
+5. Sorts `partial` by tag score desc, then by most free space.
+
+**Modal flow**:
+- **Fitting tables found**: shows up to 5 ranked options; "שבץ" assigns immediately.
+- **No fitting table**: shows "no-fit" message; if partial tables exist, shows them with "פצל" buttons — each requires a `confirmDialog` before calling `splitGuestAtTable`.
+- **Footer "צור שולחן חדש"**: shown only when `fitting.length === 0`; creates a table using the first preset (or defaults), assigns the guest, and calls `Canvas.focusOnItem`.
+
+**Re-render note**: `_renderFindTableBody` reads live state on each open, so the list reflects table occupancy at the moment the modal is opened.
+
 ## Guest Split
 
 When a guest group doesn't fit at one table:
 - **Auto-assign**: `placeWithSplit` creates sibling guest cards with `splitOf: originalId`
 - **Manual drag**: overflow modal offers a split button; `splitGuestAtTable` handles it
+- **Find Table modal**: partial-fit rows offer a split button with `confirmDialog` confirmation
 - Split guests show a `⛓ פוצל` badge on their sidebar card and `(פיצול)` in print output
+
+## Full Project Import / Export
+
+`Storage.exportProjectJSON()` exports the entire project — all events, their items, guests, settings, table presets, tags, and canvas positions — as a single JSON file (format version 2):
+
+```json
+{
+  "version": 2,
+  "exportedAt": "...",
+  "meta": { "currentId": "evt_1", "events": [{ "id": "evt_1", "name": "...", "date": "...", "updated": "..." }] },
+  "events": {
+    "evt_1": { /* full State.serialize() snapshot */ }
+  }
+}
+```
+
+`Storage.importProjectJSON(file)` auto-detects format:
+- **Full project file** (`data.meta && data.events` object) → replaces ALL localStorage events with the imported ones, confirms with `window.confirm` first.
+- **Single-event file** (old format, no `meta`/`events` keys) → backward-compatible: deserializes into the current event.
+
+**Write-before-delete safety**: new event keys are written BEFORE old ones are removed. If writing fails mid-way, old data is still intact. Old keys not in the new project are deleted only after the new meta is committed.
+
+**Key invariant**: `_currentId` is set after `writeMeta(cleanMeta)` and before `State.deserialize()`, so the auto-save listener writes to the correct key.
+
+**Filename**: derived from the current active event (`_currentId`), falling back to the first event.
+
+**Triggering**: `btnExport` (📤) and `Ctrl+E` both call `exportProjectJSON`. `btnImport` (📥) calls `importProjectJSON` which handles both formats.
 
 ## Guest Import / Export
 
@@ -161,6 +272,53 @@ Three modes, each with its own hidden `<div>` in `index.html`:
 `Print.buildRoomDiagramSVG()` computes a bounding box from all canvas items and renders a simplified SVG (no seat circles). Landscape mode is auto-detected: if `width/height > 1.3`, a `@page { size: A4 landscape; }` rule is injected via a `<style id="_printOrientStyle">` tag right before `window.print()` and removed in a setTimeout cleanup.
 
 **Important**: `@page` rules cannot be nested inside CSS selectors. The landscape rule must be top-level, which is why it is injected by JS rather than being in `print.css`.
+
+## Collision-Free Item Placement
+
+`Items.findFreePosition(w, h)` — used automatically by `addTable` and `addSpecialItem` when no explicit `x`/`y` is supplied:
+
+1. Computes the viewport-center in canvas coordinates using `State.get().canvas` (zoom/panX/panY) and the sidebar width.
+2. Tries that center point. If free (no overlap with existing items + GAP=30px clearance), returns it immediately.
+3. Otherwise, spirals outward in rings of `step = max(w,h) + GAP`, checking 12 candidate points per ring (every 30°).
+4. Fallback: stacks below all existing items.
+
+**Obstacle list** is rebuilt fresh on each call from `State.get().items`. For batch additions (qty > 1 in the table modal), each sequential `addTable` call sees the previously added tables in state, so they spread without collision.
+
+**Auto-assign** (`autoCreateTables`) passes explicit `x`/`y` to `Items.addTable`, so `findFreePosition` is bypassed — it has its own grid+ring placement logic.
+
+### New-item flash
+Every `addTable` / `addSpecialItem` call triggers `flashItem(id)` (50 ms delay for DOM readiness). Flash lasts 2.5 s — long enough to spot the new item in a crowded canvas.
+
+### Table hover tooltip
+
+Every table element fires `mouseenter`/`mousemove`/`mouseleave` events that show/move/hide a singleton `div.table-hover-tooltip` appended to `document.body`. The tooltip lists all assigned guests (up to 14, then "+N more"), the occupancy ratio, and the table number/label. Position is clamped to the viewport edges. The element is created lazily on first use (`_getTooltip()`) and reused.
+
+### Table SVG font scaling
+
+`buildTableSVG()` computes `scale = minDim / 130` where `minDim = Math.min(width, height)`. All font sizes are clamped and scaled relative to this:
+
+| Variable | Formula | Min–Max |
+|----------|---------|---------|
+| `numFont` | `item.fontSize \|\| round(15 * scale)` | 10–24 |
+| `labelFont` | `round(10 * scale)` | 7–14 |
+| `guestFont` | `round(8 * scale)` | 6–11 |
+| `occuFont` | `round(7 * scale)` | 6–9 |
+
+`item.fontSize` is a per-table manual override (stored in state, editable in the table modal via `#tableFontSize`). When set, it replaces `numFont` only.
+
+Guest names are rendered one per SVG `<text>` line below the label. Available lines = `floor(remainingHeight / lineH)` where `lineH = guestFont + 2.5`. When `guests.length > rawMaxG`, `maxG` is reduced by 1 to reserve a slot for the `+N` overflow indicator, ensuring it stays within the table body boundary.
+
+### Table renumber (`Items.renumberTables`)
+
+Triggered by `btnRenumber` (header). Sorts all tables by visual position: top-to-bottom rows (snapped within `ROW_SNAP = 60px`), then right-to-left within each row (RTL convention). Assigns sequential numbers 1, 2, 3…. Wrapped in `Guests.startBatch()` / `Guests.endBatch()` so a single re-render follows all `State.updateItem` calls.
+
+### Distribute tables evenly (`Canvas.distributeTablesEvenly`)
+
+Triggered by `btnDistribute` (header). Two steps:
+1. **Normalize sizes**: within each shape group, apply the largest `width`/`height` to all members.
+2. **Grid-arrange**: `cols = ceil(sqrt(n))`, spacing = `max(w, h) + 50px gap`. Grid is centered on the visible canvas viewport. Followed by `fitAll()` after 50 ms.
+
+Both loops are wrapped in `Guests.startBatch()` / `Guests.endBatch()` to produce a single sidebar re-render.
 
 ## Auto-Assign Improvements
 
@@ -211,6 +369,62 @@ Every canvas item has a `⋮` action button (top-left corner, visible on hover/s
 - **Live color preview vs. Guests.render()**: `input` event updates item only (cheap SVG redraw); `Guests.render()` is deferred to the ✓ button to avoid full sidebar rebuild on every color-picker drag tick.
 - **Singleton menu**: `_ctxMenu` is created lazily on first use (`_buildCtxMenu`), then reused. All button handlers close over `_ctxItemId`.
 
+## Guest List Controls
+
+The guest panel renders a `#guestsControls` block via `Guests.renderControls()` with three rows:
+
+### Sort modes
+| Value | Behaviour |
+|-------|-----------|
+| `default` | Insertion order (state array) |
+| `nameAsc` | Hebrew locale A→Z |
+| `nameDesc` | Hebrew locale Z→A |
+| `seatedFirst` | Assigned guests first |
+| `unseatedFirst` | Unassigned guests first |
+| `custom` | User-defined drag order (`_customOrder` array) |
+
+`custom` is activated automatically when the user drags a guest card via the reorder handle (⠿). `_customOrder` is seeded from the current state order on first drag.
+
+### Group modes
+| Value | Behaviour |
+|-------|-----------|
+| `none` | Flat list |
+| `byTag` | One collapsible section per tag; guests with multiple tags appear in each matching section |
+| `byTable` | One collapsible section per table (sorted by number), plus "לא שובצו" at the bottom |
+
+Collapse state is stored in the `_collapsed` Set (keyed `tag:TAG` or `table:ID`). Toggling does not trigger a full re-render — it only adds/removes the `collapsed` CSS class.
+
+**Multi-tag duplicate binding**: In `byTag` mode a guest may appear in multiple sections, each with the same `data-guest-id` attribute. `_bindCardEvents` uses `listEl.querySelectorAll('[data-guest-id="..."]')` to wire all occurrences. The `id` attribute is NOT used on guest cards to avoid invalid duplicate IDs in `byTag` mode.
+
+### Filter controls
+- **Assigned toggle** (`_filterAssigned`): `null` = all, `true` = assigned only, `false` = unassigned only.
+- **Table number** (`_filterTableNum`): free-text input filtered against `State.getItem(g.tableId)?.number`.
+- **Tag filter** (`_filterTags` Set): rendered in `#tagsFilter` bar above the list; clicking a tag toggles it.
+- **Search** (`_searchText`): `#guestSearch` text input, substring match on guest name.
+
+`clearFilters()` resets all four dimensions and re-renders both the tag bar and controls row.
+
+The "✕ נקה" button gains the `.visible` class when any filter is active; hidden otherwise.
+
+### Drag reorder (HTML5 drag)
+
+The reorder handle (⠿ span) is separate from the pointer-based canvas-drag system. To avoid conflicts:
+- Guest cards default to `draggable="false"`.
+- `pointerdown` on the handle sets `el.draggable = true` and stops propagation (so canvas drag does not start).
+- `dragend` resets `el.draggable = false`.
+- `dragstart` is unconditional: if the element is draggable when the browser fires it, the drag is valid.
+
+`_moveGuestBefore(srcId, targetId)` splices `srcId` before `targetId` in `_customOrder` and activates `custom` sort mode.
+
+### Batching
+
+`Guests.startBatch()` / `Guests.endBatch()` suppress intermediate renders during bulk `State.updateItem` loops (e.g., `distributeTablesEvenly`, `renumberTables`). `endBatch()` calls `render()` exactly once.
+
+## Print Improvements
+
+- **Room diagram SVG** (`buildRoomDiagramSVG`): table numbers use `font-size="16"` (circles) / `font-size="15"` (rects) and `font-weight="800"` for high contrast. Labels use `font-weight="700"` at font-size 10/9.
+- **Guest list table** now has an 8th column **תווית** (table label). `buildGuestRows` emits `<td>${tableLabel}</td>` and the totals row has an extra empty `<td>`.
+
 ## Common Pitfalls
 
 - **Double render**: Don't call `renderItem()` directly after `State.addItem()` — `itemAdded` event handles it.
@@ -221,6 +435,9 @@ Every canvas item has a `⋮` action button (top-left corner, visible on hover/s
 - **Multi-event _currentId**: Set `_currentId` BEFORE calling `State.resetBoard()` / `State.deserialize()` in storage.js. The debounced change listener uses `_currentId` to determine which key to write.
 - **Nested @page CSS**: `@page` rules cannot be nested inside regular CSS selectors. Use JS-injected `<style>` tags for conditional page orientation.
 - **saveNow null guard**: `saveNow()` returns early if `_currentId` is null — prevents orphan writes during initialization or after a `deleteEvent` clears the ID before switching.
+- **Guest card IDs**: Guest cards use `data-guest-id` (not `id`) so that `byTag` grouping can render the same guest in multiple sections without invalid duplicate `id` attributes. Always bind card events via `querySelectorAll('[data-guest-id="..."]')`.
+- **Drag reorder vs. canvas drag**: Guest cards are `draggable="false"` by default. Only `pointerdown` on `.guest-reorder-handle` sets `draggable="true"`. Never set `draggable="true"` unconditionally — it would conflict with the pointer-based canvas drag for assigning guests to tables.
+- **Batch during multi-updateItem loops**: Wrap any loop that calls `State.updateItem` multiple times in `Guests.startBatch()` / `Guests.endBatch()` to prevent O(n) sidebar re-renders.
 
 ## File Structure
 

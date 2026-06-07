@@ -35,18 +35,28 @@ const Print = (() => {
           const r = Math.min(W, H) / 2 - 5;
           const cx = W / 2, cy = H / 2;
           body += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${bg}" stroke="#888" stroke-width="1.5"/>`;
-          body += `<text x="${cx}" y="${cy - 8}" text-anchor="middle" dominant-baseline="middle" font-size="14" font-weight="700" fill="#333">${item.number || ''}</text>`;
-          body += `<text x="${cx}" y="${cy + 7}" text-anchor="middle" font-size="8" fill="#555">${occ}/${item.seats}</text>`;
-          if (item.label) body += `<text x="${cx}" y="${cy + 19}" text-anchor="middle" font-size="7" fill="#666">${UI.escHtml(item.label)}</text>`;
-          if (nameStr)   body += `<text x="${cx}" y="${cy + 29}" text-anchor="middle" font-size="6" fill="#888">${nameStr}</text>`;
+          body += `<text x="${cx}" y="${cy - (item.label ? 12 : 6)}" text-anchor="middle" dominant-baseline="middle" font-size="16" font-weight="800" fill="#1a237e">${item.number || ''}</text>`;
+          if (item.label) {
+            body += `<text x="${cx}" y="${cy + 6}" text-anchor="middle" font-size="10" font-weight="700" fill="#37474f">${UI.escHtml(item.label)}</text>`;
+            body += `<text x="${cx}" y="${cy + 18}" text-anchor="middle" font-size="8" fill="#555">${occ}/${item.seats}</text>`;
+            if (nameStr) body += `<text x="${cx}" y="${cy + 28}" text-anchor="middle" font-size="6" fill="#888">${nameStr}</text>`;
+          } else {
+            body += `<text x="${cx}" y="${cy + 8}" text-anchor="middle" font-size="8" fill="#555">${occ}/${item.seats}</text>`;
+            if (nameStr) body += `<text x="${cx}" y="${cy + 20}" text-anchor="middle" font-size="6" fill="#888">${nameStr}</text>`;
+          }
         } else {
           const p = 3;
           body += `<rect x="${p}" y="${p}" width="${W - p * 2}" height="${H - p * 2}" rx="5" fill="${bg}" stroke="#888" stroke-width="1.5"/>`;
           const cx = W / 2, cy = H / 2;
-          body += `<text x="${cx}" y="${cy - 8}" text-anchor="middle" dominant-baseline="middle" font-size="14" font-weight="700" fill="#333">${item.number || ''}</text>`;
-          body += `<text x="${cx}" y="${cy + 7}" text-anchor="middle" font-size="8" fill="#555">${occ}/${item.seats}</text>`;
-          if (item.label) body += `<text x="${cx}" y="${cy + 17}" text-anchor="middle" font-size="7" fill="#666">${UI.escHtml(item.label)}</text>`;
-          if (nameStr)   body += `<text x="${cx}" y="${cy + 26}" text-anchor="middle" font-size="6" fill="#888">${nameStr}</text>`;
+          body += `<text x="${cx}" y="${cy - (item.label ? 12 : 6)}" text-anchor="middle" dominant-baseline="middle" font-size="15" font-weight="800" fill="#1a237e">${item.number || ''}</text>`;
+          if (item.label) {
+            body += `<text x="${cx}" y="${cy + 5}" text-anchor="middle" font-size="9" font-weight="700" fill="#37474f">${UI.escHtml(item.label)}</text>`;
+            body += `<text x="${cx}" y="${cy + 17}" text-anchor="middle" font-size="8" fill="#555">${occ}/${item.seats}</text>`;
+            if (nameStr) body += `<text x="${cx}" y="${cy + 26}" text-anchor="middle" font-size="6" fill="#888">${nameStr}</text>`;
+          } else {
+            body += `<text x="${cx}" y="${cy + 8}" text-anchor="middle" font-size="8" fill="#555">${occ}/${item.seats}</text>`;
+            if (nameStr) body += `<text x="${cx}" y="${cy + 18}" text-anchor="middle" font-size="6" fill="#888">${nameStr}</text>`;
+          }
         }
         if (item.locked) body += `<text x="${W - 3}" y="14" text-anchor="end" font-size="11">🔒</text>`;
       } else {
@@ -125,6 +135,7 @@ const Print = (() => {
     return sorted.map((g, i) => {
       const table      = g.tableId ? State.getItem(g.tableId) : null;
       const tableNum   = table?.number ?? '—';
+      const tableLabel = table?.label  ?? '';
       const tags       = (g.tags || []).join(', ');
       const colorStyle = table?.color ? `border-inline-end:4pt solid ${table.color};` : '';
       const splitMark  = g.splitOf ? ' <em style="color:#e65100;font-size:8pt">(פיצול)</em>' : '';
@@ -136,6 +147,7 @@ const Print = (() => {
         <td>${g.total}</td>
         <td>${tags}</td>
         <td><strong>${tableNum}</strong></td>
+        <td>${UI.escHtml(tableLabel)}</td>
       </tr>`;
     }).join('');
   }
@@ -144,7 +156,7 @@ const Print = (() => {
     const stats = State.getStats();
     return `<table class="print-guest-table">
   <thead>
-    <tr><th>#</th><th>שם</th><th>מבוגרים</th><th>ילדים</th><th>סה"כ</th><th>תגיות</th><th>שולחן</th></tr>
+    <tr><th>#</th><th>שם</th><th>מבוגרים</th><th>ילדים</th><th>סה"כ</th><th>תגיות</th><th>שולחן</th><th>תווית</th></tr>
   </thead>
   <tbody>${buildGuestRows(sorted)}</tbody>
   <tfoot>
@@ -153,7 +165,7 @@ const Print = (() => {
       <td>${sorted.reduce((s, g) => s + g.adults, 0)}</td>
       <td>${sorted.reduce((s, g) => s + g.children, 0)}</td>
       <td><strong>${stats.totalGuests}</strong></td>
-      <td></td><td></td>
+      <td></td><td></td><td></td>
     </tr>
   </tfoot>
 </table>`;

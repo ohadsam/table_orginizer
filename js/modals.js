@@ -11,11 +11,12 @@ const Modals = (() => {
     _tableShapeEdit = preset?.shape || State.get().settings.defaultShape;
 
     document.getElementById('tableModalTitle').textContent = 'הוסף שולחן';
-    document.getElementById('tableNumber').value  = '';
-    document.getElementById('tableSeats').value   = preset?.seats || 10;
-    document.getElementById('tableLabel').value   = preset?.label || '';
-    document.getElementById('tableWidth').value   = '';
-    document.getElementById('tableHeight').value  = '';
+    document.getElementById('tableNumber').value   = '';
+    document.getElementById('tableSeats').value    = preset?.seats || 10;
+    document.getElementById('tableLabel').value    = preset?.label || '';
+    document.getElementById('tableWidth').value    = '';
+    document.getElementById('tableHeight').value   = '';
+    document.getElementById('tableFontSize').value = '';
     document.getElementById('tableQty').value      = 1;
     document.getElementById('tableLock').checked   = false;
     document.getElementById('tableQtyRow').style.display  = '';
@@ -36,12 +37,13 @@ const Modals = (() => {
     _tableShapeEdit = item.shape;
 
     document.getElementById('tableModalTitle').textContent = 'עריכת שולחן';
-    document.getElementById('tableNumber').value  = item.number || '';
-    document.getElementById('tableSeats').value   = item.seats;
-    document.getElementById('tableLabel').value   = item.label || '';
-    document.getElementById('tableWidth').value   = item.width;
-    document.getElementById('tableHeight').value  = item.height;
-    document.getElementById('tableLock').checked  = !!item.locked;
+    document.getElementById('tableNumber').value   = item.number || '';
+    document.getElementById('tableSeats').value    = item.seats;
+    document.getElementById('tableLabel').value    = item.label || '';
+    document.getElementById('tableWidth').value    = item.width;
+    document.getElementById('tableHeight').value   = item.height;
+    document.getElementById('tableFontSize').value = item.fontSize || '';
+    document.getElementById('tableLock').checked   = !!item.locked;
     document.getElementById('tableQtyRow').style.display  = 'none';
     document.getElementById('tableLockRow').style.display = '';
     document.getElementById('btnDuplicateTable').style.display = '';
@@ -93,15 +95,16 @@ const Modals = (() => {
     const number = parseInt(document.getElementById('tableNumber').value) || null;
     const seats  = Math.max(1, parseInt(document.getElementById('tableSeats').value) || 10);
     const label  = document.getElementById('tableLabel').value.trim();
-    const wVal   = parseInt(document.getElementById('tableWidth').value);
-    const hVal   = parseInt(document.getElementById('tableHeight').value);
-    const locked = document.getElementById('tableLock').checked;
+    const wVal      = parseInt(document.getElementById('tableWidth').value);
+    const hVal      = parseInt(document.getElementById('tableHeight').value);
+    const fontSizeV = parseFloat(document.getElementById('tableFontSize')?.value) || null;
+    const locked    = document.getElementById('tableLock').checked;
     const colorEnabled = document.getElementById('tableColorEnabled')?.checked;
     const color  = colorEnabled ? (document.getElementById('tableColor')?.value || null) : null;
 
     if (_editingTableId) {
       const item = State.getItem(_editingTableId);
-      const updates = { shape: _tableShapeEdit, seats, label, locked, color };
+      const updates = { shape: _tableShapeEdit, seats, label, locked, color, fontSize: fontSizeV };
       if (number) updates.number = number;
       if (wVal)   updates.width  = Math.max(60, wVal);
       if (hVal)   updates.height = Math.max(60, hVal);
@@ -122,6 +125,7 @@ const Modals = (() => {
         Items.addTable({
           shape:  _tableShapeEdit,
           seats,  label, color,
+          fontSize: fontSizeV,
           number: (qty === 1 && number) ? number : undefined,
           width:  w, height: h,
           x: baseX + c * gapX, y: baseY + r * gapY

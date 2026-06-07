@@ -199,6 +199,63 @@ const Canvas = (() => {
     focusOnItem(g.tableId);
   }
 
+  /* ── Distribute tables evenly in a grid + normalize same-shape sizes ── */
+  function distributeTablesEvenly() {
+    const tables = State.getTables();
+    if (!tables.length) { UI.toast('אין שולחנות לפיזור', 'info', 1800); return; }
+
+    Guests.startBatch();
+
+    // Normalize: all tables of the same shape get the largest width/height in that group
+    const shapeGroups = {};
+    tables.forEach(t => {
+      if (!shapeGroups[t.shape]) shapeGroups[t.shape] = [];
+      shapeGroups[t.shape].push(t);
+    });
+    Object.values(shapeGroups).forEach(grp => {
+      if (grp.length < 2) return;
+      const maxW = Math.max(...grp.map(t => t.width));
+      const maxH = Math.max(...grp.map(t => t.height));
+      grp.forEach(t => {
+        if (t.width !== maxW || t.height !== maxH)
+          State.updateItem(t.id, { width: maxW, height: maxH });
+      });
+    });
+
+    // Re-read tables after normalization, then grid-arrange
+    const updated = State.getTables();
+    const n       = updated.length;
+    const cols    = Math.ceil(Math.sqrt(n));
+    const GAP     = 50;
+    const maxW    = Math.max(...updated.map(t => t.width));
+    const maxH    = Math.max(...updated.map(t => t.height));
+    const cellW   = maxW + GAP;
+    const cellH   = maxH + GAP;
+    const rows    = Math.ceil(n / cols);
+    const totalW  = cols * cellW - GAP;
+    const totalH  = rows * cellH - GAP;
+
+    // Center the grid on the visible canvas center
+    const vr = viewport.getBoundingClientRect();
+    const { zoom: z, panX: px, panY: py } = State.get().canvas;
+    const canvasCx = (_canvasAreaW(vr) / 2 - px) / z;
+    const canvasCy = (vr.height          / 2 - py) / z;
+
+    const startX = canvasCx - totalW / 2 + maxW / 2;
+    const startY = canvasCy - totalH / 2 + maxH / 2;
+
+    updated.forEach((t, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      State.updateItem(t.id, { x: startX + col * cellW, y: startY + row * cellH });
+    });
+
+    Guests.endBatch();
+
+    setTimeout(fitAll, 50);
+    UI.toast(`${n} שולחנות פוזרו ✓`, 'success', 2000);
+  }
+
   return { init, applyTransform, setZoom, fitAll, viewportToCanvas, canvasToViewport,
-           getTableUnder, snapToGrid, focusOnItem, focusGuestTable };
+           getTableUnder, snapToGrid, focusOnItem, focusGuestTable, distributeTablesEvenly };
 })();

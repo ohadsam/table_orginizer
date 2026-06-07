@@ -97,6 +97,7 @@
         <input type="text" id="guestSearch" placeholder="🔍 חיפוש מוזמנים..." class="input-search" autocomplete="off">
       </div>
       <div class="tags-filter" id="tagsFilter"></div>
+      <div class="guests-controls" id="guestsControls"></div>
       <div class="guests-list"  id="guestsList"></div>
     </div>
 
@@ -113,6 +114,8 @@
       <button class="btn btn-sm btn-secondary" id="btnZoomReset" title="איפוס תצוגה">↺</button>
       <span class="zoom-level" id="zoomLevel">60%</span>
       <button class="btn btn-sm btn-secondary" id="btnToggleGrid" title="הצג/הסתר רשת">⊟ רשת</button>
+      <button class="btn btn-sm btn-secondary" id="btnDistribute" title="פזר שולחנות — סדר בצורה שווה ואחיד גדלם">⊞ פזר</button>
+      <button class="btn btn-sm btn-secondary" id="btnRenumber"   title="מספר מחדש — סדר מספרי שולחנות לפי מיקומם"># מספר</button>
       <span style="flex:1"></span>
       <small style="color:#90a4ae;font-size:11px">גרור לשינוי מיקום · גלגלת לזום · לחץ פריט לבחירה · Del למחיקה</small>
     </div>
@@ -170,6 +173,10 @@
           <span class="size-sep">×</span>
           <input type="number" id="tableHeight" class="input" placeholder="גובה"  min="60">
         </div>
+      </div>
+      <div class="form-group">
+        <label>גודל גופן <small style="font-weight:400;color:#90a4ae">(ריק = אוטומטי)</small></label>
+        <input type="number" id="tableFontSize" class="input" placeholder="אוטומטי" min="6" max="40">
       </div>
       <div class="form-group">
         <label class="checkbox-label" style="margin-bottom:6px">
