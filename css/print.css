@@ -17,6 +17,7 @@
   /* Show correct print area based on mode */
   body[data-print-mode="plan"] #printPlanArea { display: block !important; }
   body[data-print-mode="list"] #printListArea { display: block !important; }
+  body[data-print-mode="all"]  #printAllArea  { display: block !important; }
 
   /* Default: show plan if mode not set */
   body:not([data-print-mode]) #printPlanArea { display: block !important; }
@@ -32,7 +33,8 @@
 
   /* ── Print areas ── */
   #printPlanArea,
-  #printListArea {
+  #printListArea,
+  #printAllArea {
     display: none;
     direction: rtl;
     background: #fff;
@@ -141,13 +143,18 @@
   .print-guest-table tfoot { display: table-footer-group; }
   .print-guest-table tr    { break-inside: avoid; page-break-inside: avoid; }
 
-  /* Page settings */
+  /* Page settings — landscape override injected by print.js at runtime */
   @page {
     size: A4 portrait;
     margin: 15mm 12mm;
   }
   @page :first { margin-top: 10mm; }
 }
+
+  /* Room diagram */
+  .print-room-diagram { margin: 12pt 0; }
+  .print-room-diagram svg { max-width: 100%; height: auto; }
+  .print-section-title { font-size: 13pt; font-weight: 700; color: #3949ab; margin-bottom: 8pt; }
 
 /* Screen preview styles (non-print) */
 .print-only { display: none; }

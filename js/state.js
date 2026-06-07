@@ -206,6 +206,45 @@ const State = (() => {
     emit('dataLoaded');   // triggers full re-render
   }
 
+  /* ── reset board keeping guests (wipes items/assignments only) ── */
+  function resetBoardKeepGuests() {
+    _state.guests = _state.guests.filter(g => !g.splitOf); // drop split artefacts to avoid double-counting
+    _state.guests.forEach(g => { g.tableId = null; });
+    _state.items = [];
+    _state._nextItemId = 1;
+    _state._nextTableNum = 1;
+    emit('dataLoaded');
+  }
+
+  /* ── guest-only import (merge or replace) ── */
+  function importGuests(guestsData, tagsData, merge) {
+    if (!merge) {
+      _state.guests = [];
+      _state._nextGuestId = 1;
+      if (tagsData) _state.tags = [...tagsData];
+    } else if (tagsData) {
+      tagsData.forEach(t => {
+        t = String(t).trim();
+        if (t && !_state.tags.includes(t)) _state.tags.push(t);
+      });
+    }
+    guestsData.forEach(g => {
+      const guest = {
+        id: 'guest_' + (_state._nextGuestId++),
+        name: g.name || '',
+        adults: g.adults || 0,
+        children: g.children || 0,
+        tags: Array.isArray(g.tags) ? [...g.tags] : [],
+        proximity: Array.isArray(g.proximity) ? [...g.proximity] : [],
+        notes: g.notes || '',
+        tableId: null
+      };
+      guest.total = guest.adults + guest.children;
+      _state.guests.push(guest);
+    });
+    emit('dataLoaded');
+  }
+
   return {
     get, on, emit,
     getItem, getGuest, getTables,
@@ -215,7 +254,7 @@ const State = (() => {
     nextTableNumber,
     addTablePreset, removeTablePreset,
     addTag, removeTag,
-    serialize, deserialize, resetBoard,
+    serialize, deserialize, resetBoard, resetBoardKeepGuests, importGuests,
     setEventField, setSetting, setCanvasView
   };
 })();

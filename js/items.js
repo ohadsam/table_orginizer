@@ -16,6 +16,7 @@ const Items = (() => {
       seats, number,
       locked: false,
       label: opts.label || '',
+      color: opts.color || null,
       x: opts.x || 400, y: opts.y || 300,
       width: opts.width || sz.width,
       height: opts.height || sz.height
@@ -116,7 +117,7 @@ const Items = (() => {
     const guests     = State.getTableGuests(item.id);
     const occupancy  = State.getTableOccupancy(item.id);
     const hasSpace   = occupancy <= item.seats;
-    const bgColor    = tableColor(occupancy, item.seats);
+    const bgColor    = item.color || tableColor(occupancy, item.seats);
     const R_seat     = CONFIG.SEAT_RADIUS;
 
     let svgInner = '';

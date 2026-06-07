@@ -33,10 +33,10 @@ print.js → history.js → autoassign.js → app.js
 | `items.js` | Renders canvas items as DOM; SVG table drawing; selection; drop highlights |
 | `guests.js` | Sidebar guest list: render, search, tag filter, drag bind |
 | `modals.js` | All modal logic: add/edit table, guest, item, auto-assign, overflow, settings |
-| `storage.js` | localStorage auto-save (debounced 400ms), JSON export/import, CSV export |
-| `print.js` | Builds print-area HTML and triggers `window.print()` |
+| `storage.js` | Multi-event localStorage auto-save (debounced 400ms), JSON/CSV export-import |
+| `print.js` | Builds print-area HTML (plan, guest list, or all) and triggers `window.print()` |
 | `history.js` | Undo/Redo via full-state JSON snapshots (max 50, debounced 350ms) |
-| `autoassign.js` | Smart auto-assign: affinity groups, proximity scoring, real split |
+| `autoassign.js` | Smart auto-assign: affinity groups, proximity scoring, real split, auto-create tables |
 | `app.js` | DOMContentLoaded init, header button wiring, keyboard shortcuts |
 
 ## State & Event Bus
@@ -59,8 +59,38 @@ State.emit('eventName', data)     // publish (also fires 'change')
 | `guestAssigned` | `{guestId, tableId, prevTableId}` | state.js | guests.js (render), items.js (refresh both tables) |
 | `dataLoaded` | — | state.js | items.js (renderAll), guests.js (renderTagFilter+render), modals.js (updateEventHeader) |
 | `change` | `{evt, data}` | state.js (auto) | storage.js (save), app.js (updateStats), history.js (scheduleCapture) |
+| `eventSwitched` | — | storage.js | history.js (reset — clears undo/redo stacks) |
 
 **CRITICAL**: `change` is fired automatically after every other event. Never emit `change` directly.
+
+## Multi-Event Storage
+
+Each event is stored independently in localStorage. Two keys are used:
+
+- **`seating_planner_meta`** — JSON object `{ currentId, events: [{id, name, date, updated}] }`
+- **`seating_planner_event_${id}`** — full serialized event state (same shape as single-event JSON export)
+
+### Key invariant
+
+`Storage._currentId` **must be set before any State mutation** in `createEvent()` and `switchEvent()`. The debounced `save()` listener fires on every state change; if `_currentId` is stale, the write goes to the wrong key. This is why all event-switch logic sets `_currentId` before calling `State.resetBoard()` or `State.deserialize()`.
+
+### API
+
+```javascript
+Storage.createEvent({ keepGuests: false })  // new event; keepGuests=true copies guests without assignments
+Storage.switchEvent(id)                     // persist current, load target
+Storage.deleteEvent(id)                     // cannot delete last event
+Storage.getEventsList()                     // → { events, currentId }
+Storage.updateCurrentMeta()                 // sync meta name/date from current state
+```
+
+### Migration
+
+On first load, if no meta key exists but the legacy `seating_planner_v2` key does, the data is migrated automatically to `evt_1` in the new multi-event format.
+
+### History boundary
+
+`State.emit('eventSwitched')` triggers `History.reset()`, which clears undo/redo stacks and takes a fresh snapshot. This prevents cross-event undo/redo corruption.
 
 ## Canvas Coordinate Math
 
@@ -79,6 +109,7 @@ canvas_x   = (viewport_x - panX) / zoom
 - `restoring` flag: prevents `scheduleCapture` from firing during `State.deserialize()` (would create infinite loop)
 - `suspended` flag: prevents capturing the initial page load
 - Always call `clearTimeout(timer); capture()` at the top of both `undo()` and `redo()` to flush any pending debounced change before navigating history
+- `History.reset()`: clears stacks + takes fresh snapshot; called on `eventSwitched`
 
 ## Table Locking
 
@@ -89,19 +120,55 @@ canvas_x   = (viewport_x - panX) / zoom
 
 To unlock: double-click the table → uncheck the "נעול" checkbox → save.
 
-## Proximity Scoring (Auto-Assign)
+## Custom Colors
 
-Defined in `CONFIG.PROXIMITY`. Each key maps to `{ target, want }`:
-- `target`: item type (`'dancefloor'` or `'door'`)
-- `want`: `'near'` (score = −distance) or `'far'` (score = +distance)
+Every canvas item (table, dancefloor, dj, door, shape) can have a custom color stored as `item.color`.
 
-`nearDance` and `farDance` are mutually exclusive — the modal enforces this when toggling.
+- **Tables**: color checkbox + color picker in the table edit modal. When enabled, `item.color` is stored; when disabled, `item.color = null` and the dynamic occupancy-based color is used.
+- **Special items**: color picker always shown in the edit modal. Defaults to `CONFIG.COLORS[item.type]`.
+- **Rendering**: `items.js buildTableSVG()` uses `item.color || tableColor(occ, seats)`. Special items use `item.color || CONFIG.COLORS[item.type]`.
+- **Guest sidebar cards**: tables with a custom color show a colored `border-inline-end` on every guest card assigned to that table.
+- **Print output**: table card borders and header backgrounds use the custom color. Guest list rows use `border-inline-end` on the table color column.
 
 ## Guest Split
 
 When a guest group doesn't fit at one table:
 - **Auto-assign**: `placeWithSplit` creates sibling guest cards with `splitOf: originalId`
 - **Manual drag**: overflow modal offers a split button; `splitGuestAtTable` handles it
+- Split guests show a `⛓ פוצל` badge on their sidebar card and `(פיצול)` in print output
+
+## Guest Import / Export
+
+```javascript
+Storage.exportGuestsJSON()               // exports {version:1, tags, guests} — no tableId/splitOf
+Storage.importGuestsJSON(file, merge)    // merge=true adds to existing; merge=false replaces
+```
+
+Exported files omit table assignments and split markers so the list is portable across events. On replace mode with an empty file, a `window.confirm` is required to prevent accidental data loss.
+
+## Print
+
+Three modes, each with its own hidden `<div>` in `index.html`:
+
+| Mode | Print area | Content |
+|------|-----------|---------|
+| `plan` | `#printPlanArea` | Table cards grid (3-column) + stats header |
+| `list` | `#printListArea` | Sortable guest table with table number column |
+| `all` | `#printAllArea` | Room SVG diagram + page break + full guest table |
+
+### Room diagram SVG (`printAll`)
+
+`Print.buildRoomDiagramSVG()` computes a bounding box from all canvas items and renders a simplified SVG (no seat circles). Landscape mode is auto-detected: if `width/height > 1.3`, a `@page { size: A4 landscape; }` rule is injected via a `<style id="_printOrientStyle">` tag right before `window.print()` and removed in a setTimeout cleanup.
+
+**Important**: `@page` rules cannot be nested inside CSS selectors. The landscape rule must be top-level, which is why it is injected by JS rather than being in `print.css`.
+
+## Auto-Assign Improvements
+
+`AutoAssign.run({ allowSplit, keepExisting, respectProximity, createTables })`:
+
+- `createTables: true` — calls `autoCreateTables(pending)` to create enough new tables to cover the capacity deficit before assigning. Uses the first table preset if available, otherwise `defaultFriendsSeats`/`defaultShape` from settings.
+- Returns `{ assigned, failed, splitsCreated, tablesCreated }`. A result modal (`modalAutoAssignResult`) shows these stats after each run. The modal is skipped if all four values are zero (run bailed early with a toast).
+- `baseY` for new tables uses `items.reduce((acc, i) => Math.max(acc, ...), 220)` rather than `Math.max(...items.map(...))` to avoid `-Infinity` on an empty items array.
 
 ## Serialization
 
@@ -135,6 +202,9 @@ When a guest group doesn't fit at one table:
 - **Redo flush**: Always `clearTimeout(timer); capture()` before popping undo/redo stacks.
 - **guestRemoved payload**: Always `{ id, tableId }` — items.js needs tableId to refresh the right table.
 - **History during restore**: `restoring = true` before `State.deserialize()`, `false` after — prevents snapshot loops.
+- **Multi-event _currentId**: Set `_currentId` BEFORE calling `State.resetBoard()` / `State.deserialize()` in storage.js. The debounced change listener uses `_currentId` to determine which key to write.
+- **Nested @page CSS**: `@page` rules cannot be nested inside regular CSS selectors. Use JS-injected `<style>` tags for conditional page orientation.
+- **saveNow null guard**: `saveNow()` returns early if `_currentId` is null — prevents orphan writes during initialization or after a `deleteEvent` clears the ID before switching.
 
 ## File Structure
 
@@ -143,7 +213,7 @@ table_orginizer/
 ├── index.html          # Single page, all modals inline
 ├── css/
 │   ├── style.css       # Main styles (RTL, canvas, sidebar, modals, responsive)
-│   └── print.css       # A4 print styles for plan and guest list
+│   └── print.css       # A4 print styles for plan, guest list, and all-in-one
 ├── js/
 │   ├── config.js
 │   ├── state.js

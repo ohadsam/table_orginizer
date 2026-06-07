@@ -21,6 +21,9 @@ const Modals = (() => {
     document.getElementById('tableQtyRow').style.display  = '';
     document.getElementById('tableLockRow').style.display = 'none';
     document.getElementById('btnDuplicateTable').style.display = 'none';
+    document.getElementById('btnUnassignAllFromTable').style.display = 'none';
+    const tcEnabled = document.getElementById('tableColorEnabled');
+    if (tcEnabled) { tcEnabled.checked = false; document.getElementById('tableColor').disabled = true; document.getElementById('tableColor').value = '#e3f2fd'; }
     syncShapeBtns(_tableShapeEdit);
     renderTablePresets();
     UI.openModal('modalAddTable');
@@ -42,6 +45,14 @@ const Modals = (() => {
     document.getElementById('tableQtyRow').style.display  = 'none';
     document.getElementById('tableLockRow').style.display = '';
     document.getElementById('btnDuplicateTable').style.display = '';
+    document.getElementById('btnUnassignAllFromTable').style.display = '';
+    const tcEnabled2 = document.getElementById('tableColorEnabled');
+    if (tcEnabled2) {
+      tcEnabled2.checked = !!item.color;
+      const tcInput = document.getElementById('tableColor');
+      tcInput.value    = item.color || '#e3f2fd';
+      tcInput.disabled = !item.color;
+    }
     syncShapeBtns(_tableShapeEdit);
     renderTablePresets();
     UI.openModal('modalAddTable');
@@ -85,10 +96,12 @@ const Modals = (() => {
     const wVal   = parseInt(document.getElementById('tableWidth').value);
     const hVal   = parseInt(document.getElementById('tableHeight').value);
     const locked = document.getElementById('tableLock').checked;
+    const colorEnabled = document.getElementById('tableColorEnabled')?.checked;
+    const color  = colorEnabled ? (document.getElementById('tableColor')?.value || null) : null;
 
     if (_editingTableId) {
       const item = State.getItem(_editingTableId);
-      const updates = { shape: _tableShapeEdit, seats, label, locked };
+      const updates = { shape: _tableShapeEdit, seats, label, locked, color };
       if (number) updates.number = number;
       if (wVal)   updates.width  = Math.max(60, wVal);
       if (hVal)   updates.height = Math.max(60, hVal);
@@ -107,7 +120,7 @@ const Modals = (() => {
         const r = Math.floor(i / cols), c = i % cols;
         Items.addTable({
           shape:  _tableShapeEdit,
-          seats,  label,
+          seats,  label, color,
           number: (qty === 1 && number) ? number : undefined,
           width:  w, height: h,
           x: baseX + c * gapX, y: baseY + r * gapY
@@ -145,6 +158,10 @@ const Modals = (() => {
       <div class="form-group">
         <label>גובה</label><input id="editItemH" class="input" type="number" value="${item.height}">
       </div>
+      <div class="form-group">
+        <label>צבע רקע</label>
+        <input id="editItemColor" class="input" type="color" value="${item.color || CONFIG.COLORS[item.type] || CONFIG.COLORS.shape}" style="height:40px;padding:4px">
+      </div>
       ${item.type === 'shape' ? `
       <div class="form-group">
         <label>צורה</label>
@@ -153,10 +170,6 @@ const Modals = (() => {
           <button class="shape-btn ${item.shape==='square'?'active':''}"    data-shape="square">⬜ ריבוע</button>
           <button class="shape-btn ${item.shape==='circle'?'active':''}"    data-shape="circle">⭕ עגול</button>
         </div>
-      </div>
-      <div class="form-group">
-        <label>צבע רקע</label>
-        <input id="editItemColor" class="input" type="color" value="${item.color || CONFIG.COLORS.shape}">
       </div>` : ''}`;
     document.querySelectorAll('#editShapeSelector .shape-btn').forEach(b => {
       b.addEventListener('click', () => {
@@ -456,7 +469,46 @@ const Modals = (() => {
     document.getElementById('settingDefaultShape').value  = s.settings.defaultShape;
     renderTagsManager();
     renderPresetManager();
+    renderEventsManager();
     UI.openModal('modalSettings');
+  }
+
+  function renderEventsManager() {
+    const wrap = document.getElementById('eventsManager');
+    if (!wrap) return;
+    const { events, currentId } = Storage.getEventsList();
+    if (!events.length) { wrap.innerHTML = ''; return; }
+    wrap.innerHTML = events.map(ev => {
+      const isCurrent = ev.id === currentId;
+      const dateStr   = ev.date ? (() => { const [y,mo,d] = ev.date.split('-'); return new Date(+y, +mo-1, +d).toLocaleDateString('he-IL'); })() : '';
+      return `
+<div class="event-item ${isCurrent ? 'event-current' : ''}">
+  <div class="event-item-info">
+    <span class="event-item-name">${UI.escHtml(ev.name || 'אירוע ללא שם')}</span>
+    ${dateStr ? `<span class="event-item-date">${dateStr}</span>` : ''}
+    ${isCurrent ? '<span class="event-current-badge">נוכחי</span>' : ''}
+  </div>
+  <div class="event-item-actions">
+    ${!isCurrent ? `<button class="btn btn-sm btn-secondary btn-switch-event" data-id="${ev.id}">עבור</button>` : ''}
+    ${events.length > 1 ? `<button class="btn btn-sm btn-danger btn-delete-event" data-id="${ev.id}">מחק</button>` : ''}
+  </div>
+</div>`;
+    }).join('');
+    wrap.querySelectorAll('.btn-switch-event').forEach(btn => {
+      btn.addEventListener('click', () => {
+        Storage.switchEvent(btn.dataset.id);
+        UI.closeModal('modalSettings');
+      });
+    });
+    wrap.querySelectorAll('.btn-delete-event').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const ev = events.find(e => e.id === btn.dataset.id);
+        if (UI.confirmDialog(`למחוק את האירוע "${ev?.name || 'ללא שם'}"?`)) {
+          Storage.deleteEvent(btn.dataset.id);
+          renderEventsManager();
+        }
+      });
+    });
   }
 
   function renderTagsManager() {
@@ -508,6 +560,7 @@ const Modals = (() => {
     State.setSetting('defaultParentsSeats', parseInt(document.getElementById('settingParentsSeats').value) || 8);
     State.setSetting('defaultFriendsSeats', parseInt(document.getElementById('settingFriendsSeats').value) || 10);
     State.setSetting('defaultShape', document.getElementById('settingDefaultShape').value);
+    Storage.updateCurrentMeta();
     updateEventHeader();
     UI.closeModal('modalSettings');
     UI.toast('ההגדרות נשמרו ✓', 'success');
@@ -519,6 +572,19 @@ const Modals = (() => {
     if (nameEl) nameEl.textContent = e.name || 'לחץ להגדרת אירוע';
     const typeEl = document.getElementById('eventTypeDisplay');
     if (typeEl) typeEl.textContent = CONFIG.EVENT_TYPES[e.type] || '';
+  }
+
+  function showAutoAssignResult(result) {
+    const body = document.getElementById('autoAssignResultBody');
+    if (!body) return;
+    const { assigned, failed, splitsCreated, tablesCreated } = result;
+    const rows = [];
+    if (tablesCreated > 0)  rows.push(`<div class="result-row result-info"><strong>${tablesCreated}</strong> שולחנות נוצרו אוטומטית 🪑</div>`);
+    rows.push(`<div class="result-row result-success"><strong>${assigned}</strong> מוזמנים שובצו ✅</div>`);
+    if (splitsCreated > 0) rows.push(`<div class="result-row result-warning"><strong>${splitsCreated}</strong> קבוצות פוצלו ⛓ (מסומנות בכרטיסים ובהדפסה)</div>`);
+    if (failed > 0)        rows.push(`<div class="result-row result-danger"><strong>${failed}</strong> מוזמנים לא שובצו ⚠️</div>`);
+    body.innerHTML = `<div class="assign-result-grid">${rows.join('')}</div>`;
+    UI.openModal('modalAutoAssignResult');
   }
 
   /* ═══════════════════ AUTO-ASSIGN ═══════════════════ */
@@ -545,6 +611,19 @@ const Modals = (() => {
     });
     document.getElementById('btnConfirmTable')?.addEventListener('click', confirmTable);
     document.getElementById('btnDuplicateTable')?.addEventListener('click', duplicateTable);
+    document.getElementById('tableColorEnabled')?.addEventListener('change', e => {
+      const inp = document.getElementById('tableColor');
+      if (inp) inp.disabled = !e.target.checked;
+    });
+    document.getElementById('btnUnassignAllFromTable')?.addEventListener('click', () => {
+      if (!_editingTableId) return;
+      const table = State.getItem(_editingTableId);
+      if (!table) return;
+      if (!UI.confirmDialog(`להסיר שיבוץ כל המוזמנים משולחן ${table.number}?`)) return;
+      State.getTableGuests(_editingTableId).forEach(g => State.assignGuest(g.id, null));
+      UI.closeModal('modalAddTable');
+      UI.toast('כל המוזמנים הוסרו מהשולחן', 'info');
+    });
 
     // Edit item modal
     document.getElementById('btnConfirmEditItem')?.addEventListener('click', confirmEditItem);
@@ -619,11 +698,31 @@ const Modals = (() => {
 
     // Auto-assign
     document.getElementById('btnConfirmAutoAssign')?.addEventListener('click', () => {
-      const split = document.getElementById('autoAssignSplit').checked;
-      const keep  = document.getElementById('autoAssignKeepExisting').checked;
-      const prox  = document.getElementById('autoAssignProximity').checked;
-      AutoAssign.run({ allowSplit: split, keepExisting: keep, respectProximity: prox });
+      const split  = document.getElementById('autoAssignSplit').checked;
+      const keep   = document.getElementById('autoAssignKeepExisting').checked;
+      const prox   = document.getElementById('autoAssignProximity').checked;
+      const create = document.getElementById('autoAssignCreateTables')?.checked || false;
       UI.closeModal('modalAutoAssign');
+      const result = AutoAssign.run({ allowSplit: split, keepExisting: keep, respectProximity: prox, createTables: create });
+      if (result.assigned + result.failed + result.splitsCreated + result.tablesCreated === 0) return;
+      if (result.tablesCreated > 0) requestAnimationFrame(() => Canvas.fitAll());
+      showAutoAssignResult(result);
+    });
+
+    // New event modal
+    document.getElementById('btnNewEvent')?.addEventListener('click', () => {
+      UI.openModal('modalNewEvent');
+    });
+    document.getElementById('btnConfirmNewEvent')?.addEventListener('click', () => {
+      const keep = document.getElementById('newEventKeepGuests')?.checked || false;
+      UI.closeModal('modalNewEvent');
+      UI.closeModal('modalSettings');
+      Storage.createEvent({ keepGuests: keep });
+    });
+
+    // Import guests modal (merge/replace handled in app.js)
+    document.getElementById('btnCloseAutoAssignResult')?.addEventListener('click', () => {
+      UI.closeModal('modalAutoAssignResult');
     });
 
     State.on('eventChanged',   updateEventHeader);
@@ -638,6 +737,7 @@ const Modals = (() => {
     openEditItem, openAddGuest, openEditGuest,
     openAddShape, openSettings, openAutoAssign,
     handleGuestDrop, updateEventHeader,
-    renderTagsManager, renderPresetManager, renderTablePresets
+    renderTagsManager, renderPresetManager, renderTablePresets,
+    renderEventsManager, showAutoAssignResult
   };
 })();

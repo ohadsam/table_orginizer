@@ -20,6 +20,7 @@ const History = (() => {
     last = snapshot();
     suspended = false;
     State.on('change', scheduleCapture);
+    State.on('eventSwitched', reset);
     updateButtons();
   }
 
@@ -75,5 +76,13 @@ const History = (() => {
     if (r) r.disabled = redoStack.length === 0;
   }
 
-  return { init, undo, redo, updateButtons };
+  function reset() {
+    clearTimeout(timer);
+    undoStack = [];
+    redoStack = [];
+    last = snapshot();
+    updateButtons();
+  }
+
+  return { init, undo, redo, updateButtons, reset };
 })();

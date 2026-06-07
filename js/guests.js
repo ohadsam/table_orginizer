@@ -46,19 +46,26 @@ const Guests = (() => {
   }
 
   function buildGuestCard(g, state) {
-    const tableNum = g.tableId ? (State.getItem(g.tableId)?.number ?? '?') : null;
+    const table    = g.tableId ? State.getItem(g.tableId) : null;
+    const tableNum = table?.number ?? '?';
+    const tableClr = table?.color || null;
     const tags     = (g.tags || []).map(t => UI.tagBadge(t)).join('');
     const prox     = (g.proximity || [])
       .map(k => CONFIG.PROXIMITY[k] ? `<span class="prox-badge" title="${CONFIG.PROXIMITY[k].label}">${CONFIG.PROXIMITY[k].icon}</span>` : '')
       .join('');
+    const splitBadge = g.splitOf
+      ? `<span class="split-badge" title="כרטיס זה נוצר מפיצול">⛓ פוצל</span>` : '';
     const assigned = g.tableId
       ? `<span class="guest-table-badge" title="לחץ על הכרטיס למעבר לשולחן">שולחן ${tableNum}</span>` : '';
     const unassignBtn = g.tableId
       ? `<button class="btn-icon-xs btn-unassign-guest" title="הסר שיבוץ">✕</button>` : '';
+    const colorStyle = tableClr
+      ? `border-inline-end: 4px solid ${tableClr};`
+      : '';
     return `
-<div id="gc_${g.id}" class="guest-card ${g.tableId ? 'assigned' : ''}" draggable="false">
+<div id="gc_${g.id}" class="guest-card ${g.tableId ? 'assigned' : ''}" draggable="false" style="${colorStyle}">
   <div class="guest-card-header">
-    <span class="guest-name">${UI.escHtml(g.name)} ${prox}</span>
+    <span class="guest-name">${UI.escHtml(g.name)} ${prox}${splitBadge}</span>
     <div class="guest-actions">
       ${unassignBtn}
       <button class="btn-icon-xs btn-edit-guest"   title="עריכה">✏️</button>

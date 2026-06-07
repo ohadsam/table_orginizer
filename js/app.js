@@ -38,9 +38,29 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnExportCsv')?.addEventListener('click', () => Storage.exportCSV());
   document.getElementById('btnPrintPlan')?.addEventListener('click', () => Print.printPlan());
   document.getElementById('btnPrintList')?.addEventListener('click', () => Print.printList());
+  document.getElementById('btnPrintAll')?.addEventListener('click',  () => Print.printAll());
   document.getElementById('btnUndo')?.addEventListener('click', () => History.undo());
   document.getElementById('btnRedo')?.addEventListener('click', () => History.redo());
   document.getElementById('eventNameDisplay')?.addEventListener('click', () => Modals.openSettings());
+
+  /* ── Guest export / import ── */
+  document.getElementById('btnExportGuests')?.addEventListener('click', () => Storage.exportGuestsJSON());
+  document.getElementById('btnImportGuests')?.addEventListener('click', () => document.getElementById('importGuestsInput')?.click());
+  let _pendingGuestsFile = null;
+  document.getElementById('importGuestsInput')?.addEventListener('change', e => {
+    const file = e.target.files[0]; if (!file) return;
+    _pendingGuestsFile = file;
+    UI.openModal('modalImportGuests');
+    e.target.value = '';
+  });
+  document.getElementById('btnImportGuestsMerge')?.addEventListener('click', async () => {
+    try { if (_pendingGuestsFile) await Storage.importGuestsJSON(_pendingGuestsFile, true); }
+    finally { _pendingGuestsFile = null; UI.closeModal('modalImportGuests'); }
+  });
+  document.getElementById('btnImportGuestsReplace')?.addEventListener('click', async () => {
+    try { if (_pendingGuestsFile) await Storage.importGuestsJSON(_pendingGuestsFile, false); }
+    finally { _pendingGuestsFile = null; UI.closeModal('modalImportGuests'); }
+  });
 
   /* ── Sidebar: add items ── */
   document.querySelectorAll('[data-add-item]').forEach(btn => {

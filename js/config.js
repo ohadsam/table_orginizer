@@ -1,7 +1,9 @@
 'use strict';
 
 const CONFIG = Object.freeze({
-  STORAGE_KEY: 'seating_planner_v2',
+  STORAGE_KEY:          'seating_planner_v2',        // legacy — kept for migration only
+  STORAGE_META_KEY:     'seating_planner_meta',
+  STORAGE_EVENT_PREFIX: 'seating_planner_event_',
   CANVAS_WIDTH: 4000,
   CANVAS_HEIGHT: 3000,
   MIN_ZOOM: 0.15,

@@ -23,12 +23,13 @@
   <div class="header-actions">
     <button class="btn btn-icon" id="btnUndo"       title="בטל (Ctrl+Z)" disabled>↩️</button>
     <button class="btn btn-icon" id="btnRedo"       title="שחזר (Ctrl+Y)" disabled>↪️</button>
-    <button class="btn btn-icon" id="btnSettings"   title="הגדרות אירוע (⚙️)">⚙️</button>
+    <button class="btn btn-icon" id="btnSettings"   title="הגדרות אירוע">⚙️</button>
     <button class="btn btn-icon" id="btnExport"     title="ייצוא JSON">📤</button>
     <button class="btn btn-icon" id="btnImport"     title="ייבוא JSON">📥</button>
-    <button class="btn btn-icon" id="btnExportCsv"  title="ייצוא רשימה ל-CSV/אקסל">📊</button>
-    <button class="btn btn-icon" id="btnPrintPlan"  title="הדפס / PDF תוכנית הושבה">🖨️</button>
-    <button class="btn btn-icon" id="btnPrintList"  title="הדפס / PDF רשימת מוזמנים">📋</button>
+    <button class="btn btn-icon" id="btnExportCsv"  title="ייצוא CSV/אקסל">📊</button>
+    <button class="btn btn-icon" id="btnPrintPlan"  title="הדפס תוכנית הושבה">🖨️</button>
+    <button class="btn btn-icon" id="btnPrintList"  title="הדפס רשימת מוזמנים">📋</button>
+    <button class="btn btn-icon" id="btnPrintAll"   title="הדפס הכל (תרשים + רשימה)">📄</button>
   </div>
 </header>
 
@@ -85,6 +86,8 @@
       <div class="panel-header">
         <span>מוזמנים</span>
         <div class="panel-actions">
+          <button class="btn btn-sm btn-secondary" id="btnImportGuests" title="ייבוא מוזמנים מקובץ">⬇️</button>
+          <button class="btn btn-sm btn-secondary" id="btnExportGuests" title="ייצוא מוזמנים לקובץ">⬆️</button>
           <button class="btn btn-sm btn-primary"   id="btnAddGuest">+ הוסף</button>
           <button class="btn btn-sm btn-secondary" id="btnAutoAssign">⚡ שיבוץ</button>
         </div>
@@ -167,6 +170,13 @@
           <input type="number" id="tableHeight" class="input" placeholder="גובה"  min="60">
         </div>
       </div>
+      <div class="form-group">
+        <label class="checkbox-label" style="margin-bottom:6px">
+          <input type="checkbox" id="tableColorEnabled">
+          <span>צבע מותאם אישית לשולחן</span>
+        </label>
+        <input type="color" id="tableColor" class="input" value="#e3f2fd" disabled style="width:56px;height:36px;padding:3px;cursor:pointer">
+      </div>
       <div class="form-group" id="tableQtyRow">
         <label>כמות שולחנות ליצירה</label>
         <input type="number" id="tableQty" class="input" value="1" min="1" max="50">
@@ -181,6 +191,7 @@
     <div class="modal-footer">
       <button class="btn btn-primary"   id="btnConfirmTable">שמור שולחן</button>
       <button class="btn btn-secondary" id="btnDuplicateTable" style="display:none">📑 שכפל</button>
+      <button class="btn btn-danger"    id="btnUnassignAllFromTable" style="display:none">🔓 הסר כל שיבוצים</button>
       <button class="btn btn-ghost"     data-close-modal="modalAddTable">ביטול</button>
     </div>
   </div>
@@ -361,6 +372,12 @@
           <button class="btn btn-sm btn-primary" id="btnAddPreset">+ הוסף</button>
         </div>
       </div>
+      <hr class="settings-divider">
+      <div class="settings-section-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>ניהול אירועים</span>
+        <button class="btn btn-sm btn-primary" id="btnNewEvent">+ אירוע חדש</button>
+      </div>
+      <div id="eventsManager" style="margin-top:8px"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-primary" id="btnSaveSettings">שמור</button>
@@ -401,10 +418,72 @@
           <span>שמור שיבוצים קיימים</span>
         </label>
       </div>
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="autoAssignCreateTables">
+          <span>צור שולחנות חדשים אוטומטית אם אין מספיק מקום (לפי תבנית ראשונה)</span>
+        </label>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-primary" id="btnConfirmAutoAssign">⚡ שבץ!</button>
       <button class="btn btn-ghost"   data-close-modal="modalAutoAssign">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- Auto-assign result -->
+<div class="modal-overlay" id="modalAutoAssignResult">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>✅ תוצאות שיבוץ</h2>
+      <button class="modal-close" data-close-modal="modalAutoAssignResult">✕</button>
+    </div>
+    <div class="modal-body" id="autoAssignResultBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="btnCloseAutoAssignResult">סגור</button>
+    </div>
+  </div>
+</div>
+
+<!-- New event -->
+<div class="modal-overlay" id="modalNewEvent">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>🎉 אירוע חדש</h2>
+      <button class="modal-close" data-close-modal="modalNewEvent">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom:12px;font-size:13px">יצירת אירוע חדש תאפס את הלוח. האירוע הנוכחי ישמר ב-local storage ותוכל לחזור אליו בכל עת.</p>
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="newEventKeepGuests">
+          <span>שמור את רשימת המוזמנים הנוכחית (העבר לאירוע החדש ללא שיבוצים)</span>
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="btnConfirmNewEvent">צור אירוע חדש</button>
+      <button class="btn btn-ghost"   data-close-modal="modalNewEvent">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import guests -->
+<div class="modal-overlay" id="modalImportGuests">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>⬇️ ייבוא מוזמנים</h2>
+      <button class="modal-close" data-close-modal="modalImportGuests">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;margin-bottom:10px">כיצד לייבא את המוזמנים?</p>
+      <p style="font-size:12px;color:#607d8b"><strong>מיזוג</strong> — ישמור את המוזמנים הקיימים ויוסיף את החדשים.<br><strong>החלפה</strong> — ימחק את כל המוזמנים הנוכחיים וייבא את הקובץ.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary"   id="btnImportGuestsMerge">מיזוג</button>
+      <button class="btn btn-secondary" id="btnImportGuestsReplace">החלפה</button>
+      <button class="btn btn-ghost"     data-close-modal="modalImportGuests">ביטול</button>
     </div>
   </div>
 </div>
@@ -423,11 +502,13 @@
 
 <!-- ═══════════════════ UTILITIES ═══════════════════ -->
 <div class="toast-container" id="toastContainer"></div>
-<input type="file" id="importFileInput" accept=".json" style="display:none">
+<input type="file" id="importFileInput"  accept=".json" style="display:none">
+<input type="file" id="importGuestsInput" accept=".json" style="display:none">
 
 <!-- Hidden print areas -->
 <div id="printPlanArea" class="print-only"></div>
 <div id="printListArea" class="print-only"></div>
+<div id="printAllArea"  class="print-only"></div>
 
 <!-- ═══════════════════ SCRIPTS ═══════════════════ -->
 <script src="js/config.js"></script>
