@@ -336,8 +336,7 @@ const Modals = (() => {
     Items.addSpecialItem('shape', {
       shape: _shapeModalShape,
       color, label,
-      width: w, height: (_shapeModalShape === 'circle' || _shapeModalShape === 'square') ? w : h,
-      x: 500 + Math.random() * 200, y: 400 + Math.random() * 200
+      width: w, height: (_shapeModalShape === 'circle' || _shapeModalShape === 'square') ? w : h
     });
     UI.closeModal('modalAddShape');
   }
@@ -453,6 +452,184 @@ const Modals = (() => {
       });
     }
     UI.toast(`פוצל: ${free} בשולחן ${table.number}, השאר נותר ברשימה`, 'success', 4000);
+  }
+
+  /* ═══════════════════ FIND TABLE ═══════════════════ */
+  let _findTableGuestId = null;
+
+  function openFindTable(guestId) {
+    const guest = State.getGuest(guestId);
+    if (!guest) return;
+    _findTableGuestId = guestId;
+    _renderFindTableBody();
+    UI.openModal('modalFindTable');
+  }
+
+  function _findTableCandidates(guest) {
+    const guestTags = new Set(guest.tags || []);
+    return State.getTables()
+      .filter(t => !t.locked && t.id !== guest.tableId)
+      .map(t => {
+        const occ  = State.getTableOccupancy(t.id);
+        const free = t.seats - occ;
+        if (free <= 0) return null;
+        const atTableTags = new Set(State.getTableGuests(t.id).flatMap(g => g.tags || []));
+        let tagScore = 0;
+        guestTags.forEach(tag => { if (atTableTags.has(tag)) tagScore++; });
+        return { table: t, free, tagScore, fits: free >= guest.total };
+      })
+      .filter(Boolean);
+  }
+
+  function _renderFindTableBody() {
+    const guest  = State.getGuest(_findTableGuestId);
+    const body   = document.getElementById('findTableBody');
+    const footer = document.getElementById('findTableFooter');
+    if (!body || !footer || !guest) return;
+
+    const candidates = _findTableCandidates(guest);
+    const fitting = candidates
+      .filter(c => c.fits)
+      .sort((a, b) => b.tagScore - a.tagScore || (a.free - guest.total) - (b.free - guest.total));
+    const partial = candidates
+      .filter(c => !c.fits)
+      .sort((a, b) => b.tagScore - a.tagScore || b.free - a.free);
+
+    const currentNote = guest.tableId
+      ? `<p class="find-table-current">כרגע משובץ לשולחן ${State.getItem(guest.tableId)?.number ?? '?'}</p>`
+      : '';
+
+    let html = `<p class="find-table-guest-info">${currentNote}
+      <strong>${UI.escHtml(guest.name)}</strong> &mdash;
+      ${guest.adults} מבוגרים${guest.children ? ` + ${guest.children} ילדים` : ''}
+      <span class="find-table-total">(${guest.total} אנשים)</span>
+    </p>`;
+
+    if (fitting.length > 0) {
+      html += `<div class="find-table-section">שולחנות מתאימים</div><div class="find-table-list">`;
+      fitting.slice(0, 5).forEach((c, i) => {
+        const occ      = c.table.seats - c.free;
+        const tagBadge = c.tagScore > 0 ? `<span class="find-match-badge">⭐ ${c.tagScore} תגיות</span>` : '';
+        const lbl      = c.table.label ? ` <span class="find-table-lbl">— ${UI.escHtml(c.table.label)}</span>` : '';
+        html += `
+          <div class="find-table-row${i === 0 ? ' best' : ''}">
+            <div class="find-table-info">
+              <span class="find-table-num">שולחן ${c.table.number || '?'}${lbl}</span>
+              <span class="find-table-occ">${occ}/${c.table.seats} תפוסים &middot; ${c.free} פנויים</span>
+              ${tagBadge}
+            </div>
+            <button class="btn btn-sm btn-primary btn-ft-assign" data-tid="${c.table.id}">שבץ</button>
+          </div>`;
+      });
+      html += `</div>`;
+    } else {
+      const noTablesAtAll = State.getTables().length === 0;
+      html += `<p class="find-table-no-fit">⚠️ ${noTablesAtAll
+        ? 'אין שולחנות בתכנית עדיין'
+        : `אין שולחן שיכיל את הקבוצה כולה (${guest.total} אנשים)`}</p>`;
+    }
+
+    if (partial.length > 0) {
+      html += `<div class="find-table-section">אפשרויות פיצול</div><div class="find-table-list">`;
+      partial.slice(0, 3).forEach(c => {
+        const occ      = c.table.seats - c.free;
+        const tagBadge = c.tagScore > 0 ? `<span class="find-match-badge">⭐ ${c.tagScore} תגיות</span>` : '';
+        const lbl      = c.table.label ? ` <span class="find-table-lbl">— ${UI.escHtml(c.table.label)}</span>` : '';
+        html += `
+          <div class="find-table-row">
+            <div class="find-table-info">
+              <span class="find-table-num">שולחן ${c.table.number || '?'}${lbl}</span>
+              <span class="find-table-occ">${occ}/${c.table.seats} תפוסים &middot; ${c.free} פנויים</span>
+              ${tagBadge}
+            </div>
+            <button class="btn btn-sm btn-secondary btn-ft-split" data-tid="${c.table.id}">
+              פצל (${c.free} כאן)
+            </button>
+          </div>`;
+      });
+      html += `</div>`;
+    }
+
+    body.innerHTML = html;
+
+    // Assign — re-check live capacity at click time to guard against state changes since render
+    body.querySelectorAll('.btn-ft-assign').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const table = State.getItem(btn.dataset.tid);
+        const g     = State.getGuest(_findTableGuestId);
+        if (!table || !g) return;
+        const liveFree = table.seats - State.getTableOccupancy(table.id);
+        if (liveFree < g.total) {
+          UI.toast('השולחן התמלא — מרענן רשימה', 'warning');
+          _renderFindTableBody();
+          return;
+        }
+        State.assignGuest(g.id, table.id);
+        UI.toast(`${UI.escHtml(g.name)} שובצו לשולחן ${table.number} ✓`, 'success');
+        UI.closeModal('modalFindTable');
+      });
+    });
+
+    // Split — re-fetch live free space at click time; data-free in HTML can be stale.
+    // If liveFree >= g.total the table now fits everyone — promote to a direct assign.
+    body.querySelectorAll('.btn-ft-split').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const table   = State.getItem(btn.dataset.tid);
+        const g       = State.getGuest(_findTableGuestId);
+        if (!table || !g) return;
+        const liveFree = Math.max(0, table.seats - State.getTableOccupancy(table.id));
+        if (liveFree <= 0) {
+          UI.toast('השולחן התמלא — מרענן רשימה', 'warning');
+          _renderFindTableBody();
+          return;
+        }
+        if (liveFree >= g.total) {
+          // Table now fits the full group; assign directly instead of splitting
+          State.assignGuest(g.id, table.id);
+          UI.toast(`${UI.escHtml(g.name)} שובצו לשולחן ${table.number} ✓`, 'success');
+          UI.closeModal('modalFindTable');
+          return;
+        }
+        const rest = g.total - liveFree;
+        const fromNote = g.tableId ? ` (יוסרו משולחן ${State.getItem(g.tableId)?.number ?? '?'})` : '';
+        if (!UI.confirmDialog(`לפצל את "${g.name}"?${fromNote}\n${liveFree} ישובצו לשולחן ${table.number}, ${rest} ישארו כרטיס נפרד.`)) return;
+        splitGuestAtTable(g, table, liveFree);
+        UI.closeModal('modalFindTable');
+      });
+    });
+
+    // Footer: explicit handlers on dynamic buttons (data-close-modal won't work on injected HTML)
+    footer.innerHTML = `
+      ${fitting.length === 0
+        ? `<button class="btn btn-secondary" id="btnFindCreateTable">+ צור שולחן חדש ושבץ</button>`
+        : ''}
+      <button class="btn btn-ghost" id="btnFindClose">סגור</button>`;
+
+    document.getElementById('btnFindClose')?.addEventListener('click', () => UI.closeModal('modalFindTable'));
+
+    document.getElementById('btnFindCreateTable')?.addEventListener('click', () => {
+      const g       = State.getGuest(_findTableGuestId);
+      if (!g) return;
+      const settings = State.get().settings;
+      const presets  = State.get().tablePresets || [];
+      const preset   = presets[0] || null;
+      const shape    = preset?.shape  || settings.defaultShape  || 'circle';
+      const sz       = CONFIG.TABLE_SIZES[shape] || CONFIG.TABLE_SIZES.circle;
+      // Use ?? so a preset with seats:0 is treated as 0, not as a missing value
+      const seats    = Math.max(g.total, preset?.seats ?? settings.defaultFriendsSeats ?? 10);
+      const table    = Items.addTable({
+        shape, seats,
+        width:  preset?.width  || sz.width,
+        height: preset?.height || sz.height
+      });
+      if (!table) { UI.toast('שגיאה ביצירת שולחן', 'error'); return; }
+      State.assignGuest(g.id, table.id);
+      // addTable already schedules flashItem(50ms); focusOnItem also calls flashItem immediately.
+      // Call focusOnItem after the 50ms flash to avoid resetting the animation mid-play.
+      setTimeout(() => Canvas.focusOnItem(table.id), 60);
+      UI.toast(`שולחן חדש נוצר ו-${UI.escHtml(g.name)} שובצו ✓`, 'success', 3000);
+      UI.closeModal('modalFindTable');
+    });
   }
 
   /* ═══════════════════ EVENT SETTINGS ═══════════════════ */
@@ -734,6 +911,7 @@ const Modals = (() => {
     openAddTable, openEditTable,
     openEditItem, openAddGuest, openEditGuest,
     openAddShape, openSettings, openAutoAssign,
+    openFindTable,
     handleGuestDrop, updateEventHeader,
     renderTagsManager, renderPresetManager, renderTablePresets,
     renderEventsManager, showAutoAssignResult

@@ -775,3 +775,34 @@ textarea.input { resize: vertical; min-height: 60px; }
 .event-item-date  { color: var(--text-light); font-size: 12px; margin-inline-end: 6px; }
 .event-current-badge { background: var(--primary); color: #fff; border-radius: 10px; padding: 1px 7px; font-size: 10px; }
 .event-item-actions { display: flex; gap: 4px; }
+
+/* ── Find Table modal ── */
+.find-table-guest-info {
+  font-size: 13px; padding: 8px 0 10px; margin-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.find-table-current { color: var(--text-light); font-size: 12px; margin-bottom: 4px; }
+.find-table-total   { color: var(--text-light); font-size: 12px; }
+.find-table-section {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+  color: var(--text-light); margin: 12px 0 6px;
+}
+.find-table-list { display: flex; flex-direction: column; gap: 6px; }
+.find-table-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 8px 10px; border-radius: 8px;
+  background: var(--bg); border: 1px solid var(--border);
+}
+.find-table-row.best { border-color: var(--success); background: #f1fdf3; }
+.find-table-info  { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.find-table-num   { font-weight: 700; font-size: 13px; }
+.find-table-occ   { font-size: 12px; color: var(--text-light); }
+.find-table-lbl   { font-weight: 400; color: var(--text-light); font-style: italic; }
+.find-match-badge {
+  display: inline-block; font-size: 11px;
+  padding: 1px 6px; background: #fff9c4; border: 1px solid #f9a825;
+  border-radius: 10px; color: #e65100; white-space: nowrap;
+}
+.find-table-no-fit {
+  color: var(--danger); font-size: 13px; padding: 8px 0;
+}

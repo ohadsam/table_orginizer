@@ -130,11 +130,30 @@ Every canvas item (table, dancefloor, dj, door, shape) can have a custom color s
 - **Guest sidebar cards**: tables with a custom color show a colored `border-inline-end` on every guest card assigned to that table.
 - **Print output**: table card borders and header backgrounds use the custom color. Guest list rows use `border-inline-end` on the table color column.
 
+## Find Table (🔍 button)
+
+Every guest card has a 🔍 button that opens `modalFindTable` via `Modals.openFindTable(guestId)`.
+
+**Algorithm** (`_findTableCandidates`):
+1. Excludes locked tables and the guest's current table.
+2. Scores each remaining table by counting how many of the guest's own tags are present among guests already seated there.
+3. Splits candidates into `fitting` (free ≥ guest.total) and `partial` (0 < free < guest.total).
+4. Sorts `fitting` by tag score desc, then by tightest fit (least wasted seats).
+5. Sorts `partial` by tag score desc, then by most free space.
+
+**Modal flow**:
+- **Fitting tables found**: shows up to 5 ranked options; "שבץ" assigns immediately.
+- **No fitting table**: shows "no-fit" message; if partial tables exist, shows them with "פצל" buttons — each requires a `confirmDialog` before calling `splitGuestAtTable`.
+- **Footer "צור שולחן חדש"**: shown only when `fitting.length === 0`; creates a table using the first preset (or defaults), assigns the guest, and calls `Canvas.focusOnItem`.
+
+**Re-render note**: `_renderFindTableBody` reads live state on each open, so the list reflects table occupancy at the moment the modal is opened.
+
 ## Guest Split
 
 When a guest group doesn't fit at one table:
 - **Auto-assign**: `placeWithSplit` creates sibling guest cards with `splitOf: originalId`
 - **Manual drag**: overflow modal offers a split button; `splitGuestAtTable` handles it
+- **Find Table modal**: partial-fit rows offer a split button with `confirmDialog` confirmation
 - Split guests show a `⛓ פוצל` badge on their sidebar card and `(פיצול)` in print output
 
 ## Guest Import / Export

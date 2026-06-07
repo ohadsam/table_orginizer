@@ -47,6 +47,10 @@ const Guests = (() => {
         e.stopPropagation();
         State.assignGuest(g.id, null);
       });
+      el.querySelector('.btn-find-table')?.addEventListener('click', e => {
+        e.stopPropagation();
+        Modals.openFindTable(g.id);
+      });
     });
   }
 
@@ -73,6 +77,7 @@ const Guests = (() => {
     <span class="guest-name">${UI.escHtml(g.name)} ${prox}${splitBadge}</span>
     <div class="guest-actions">
       ${unassignBtn}
+      <button class="btn-icon-xs btn-find-table"   title="מצא שולחן פנוי">🔍</button>
       <button class="btn-icon-xs btn-edit-guest"   title="עריכה">✏️</button>
       <button class="btn-icon-xs btn-remove-guest" title="מחיקה">🗑</button>
     </div>
