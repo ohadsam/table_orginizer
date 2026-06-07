@@ -195,6 +195,22 @@ Three modes, each with its own hidden `<div>` in `index.html`:
 3. Add open/confirm functions in `modals.js`
 4. Wire button in `modals.js init()` or `app.js`
 
+## Item Context Menu
+
+Every canvas item has a `⋮` action button (top-left corner, visible on hover/select) and supports right-click. Both open a shared singleton context menu (`_ctxMenu` in `items.js`) with:
+
+- **שכפל** — calls `State.duplicateItem(id)`; new item is selected
+- **שנה טקסט** — inline input + Enter/✓ → `State.updateItem(id, { label })`; calls `Guests.render()` for tables
+- **שנה צבע** — inline color picker; `input` event gives live item preview; ✓ button confirms and calls `Guests.render()` for tables; ✕ sets `color: null` (reverts to occupancy color for tables, default type color for special items)
+- **מחק** — confirm dialog → `State.removeItem(id)`
+
+### Context menu pitfalls
+
+- **Action button blocks drag**: `pointerdown` on `.item-action-btn` calls `e.stopPropagation()` to prevent drag initiation.
+- **Outside-click capture listener**: added once in `_buildCtxMenu` with `capture: true`; skips clicks inside the menu or on `.item-action-btn` elements.
+- **Live color preview vs. Guests.render()**: `input` event updates item only (cheap SVG redraw); `Guests.render()` is deferred to the ✓ button to avoid full sidebar rebuild on every color-picker drag tick.
+- **Singleton menu**: `_ctxMenu` is created lazily on first use (`_buildCtxMenu`), then reused. All button handlers close over `_ctxItemId`.
+
 ## Common Pitfalls
 
 - **Double render**: Don't call `renderItem()` directly after `State.addItem()` — `itemAdded` event handles it.

@@ -80,6 +80,26 @@ const Items = (() => {
         if (cur.type === 'table') Modals.openEditTable(item.id);
         else Modals.openEditItem(item.id);
       });
+
+      // Action button (⋮) — top-left corner, shown on hover/select
+      const actionBtn = document.createElement('button');
+      actionBtn.className = 'item-action-btn';
+      actionBtn.title = 'פעולות (שכפל / מחק / צבע / טקסט)';
+      actionBtn.textContent = '⋮';
+      actionBtn.addEventListener('pointerdown', e => e.stopPropagation());
+      actionBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const r = actionBtn.getBoundingClientRect();
+        openCtxMenu(item.id, r.left, r.bottom + 4);
+      });
+      el.appendChild(actionBtn);
+
+      // Right-click opens the same context menu
+      el.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        openCtxMenu(item.id, e.clientX, e.clientY);
+      });
     }
 
     el.dataset.shape = item.shape || '';
@@ -199,12 +219,119 @@ const Items = (() => {
   function buildSpecialHTML(item) {
     const icons = { dancefloor: '🕺', dj: '🎵', door: '🚪' };
     const icon = icons[item.type] || '⬛';
-    const bg = item.color || CONFIG.COLORS.shape;
+    const bg = item.color || CONFIG.COLORS[item.type] || CONFIG.COLORS.shape;
     const br = item.shape === 'circle' ? '50%' : (item.shape === 'square' ? '8px' : '8px');
     return `<div class="special-item-inner" style="background:${bg};border-radius:${br};border:1.5px solid ${item.borderColor||'#aaa'}">
       <span class="special-icon">${icon}</span>
       <span class="special-label">${UI.escHtml(item.label || item.type)}</span>
     </div>`;
+  }
+
+  /* ── Item context menu ── */
+  let _ctxItemId = null;
+  let _ctxMenu   = null;
+
+  function _buildCtxMenu() {
+    const m = document.createElement('div');
+    m.className = 'item-ctx-menu';
+    m.innerHTML =
+      `<button class="ctx-menu-btn" id="ctxDuplicate">⧉&nbsp; שכפל</button>
+       <hr class="ctx-menu-sep">
+       <div class="ctx-inline-row">
+         <span class="ctx-row-lbl" title="שנה טקסט">📝</span>
+         <input id="ctxTextInput" class="ctx-inline-input" type="text" placeholder="תווית…">
+         <button id="ctxApplyText" class="ctx-apply-btn" title="שמור טקסט">✓</button>
+       </div>
+       <div class="ctx-inline-row">
+         <span class="ctx-row-lbl" title="שנה צבע">🎨</span>
+         <input id="ctxColorInput" class="ctx-inline-color" type="color">
+         <button id="ctxApplyColor" class="ctx-apply-btn" title="שמור צבע">✓</button>
+         <button id="ctxClearColor" class="ctx-apply-btn ctx-clear-btn" title="הסר צבע מותאם">✕</button>
+       </div>
+       <hr class="ctx-menu-sep">
+       <button class="ctx-menu-btn ctx-danger" id="ctxDelete">🗑&nbsp; מחק</button>`;
+    document.body.appendChild(m);
+
+    m.querySelector('#ctxDuplicate').onclick = () => {
+      if (_ctxItemId) {
+        const copy = State.duplicateItem(_ctxItemId);
+        if (copy) { selectItem(copy.id); UI.toast('הפריט שוכפל ✓', 'success', 1800); }
+      }
+      _closeCtxMenu();
+    };
+
+    m.querySelector('#ctxApplyText').onclick = _applyCtxText;
+    m.querySelector('#ctxTextInput').addEventListener('keydown', e => { if (e.key === 'Enter') _applyCtxText(); });
+
+    // ✓ is the single commit point — avoids double-update / undo-stack pollution.
+    m.querySelector('#ctxApplyColor').onclick = () => {
+      if (_ctxItemId) {
+        State.updateItem(_ctxItemId, { color: m.querySelector('#ctxColorInput').value });
+        if (State.getItem(_ctxItemId)?.type === 'table') Guests.render();
+      }
+      _closeCtxMenu();
+    };
+
+    m.querySelector('#ctxClearColor').onclick = () => {
+      if (_ctxItemId) {
+        State.updateItem(_ctxItemId, { color: null });
+        if (State.getItem(_ctxItemId)?.type === 'table') Guests.render();
+      }
+      _closeCtxMenu();
+    };
+
+    m.querySelector('#ctxDelete').onclick = () => {
+      const id = _ctxItemId;
+      if (!id) return;
+      if (UI.confirmDialog('למחוק פריט זה?')) {
+        State.removeItem(id);
+        if (_selectedId === id) deselectAll();
+      }
+      _closeCtxMenu();
+    };
+
+    // Close on outside click (capture so it fires before any button handler)
+    document.addEventListener('mousedown', e => {
+      if (!_ctxMenu || _ctxMenu.style.display === 'none') return;
+      if (_ctxMenu.contains(e.target)) return;
+      if (e.target.closest('.item-action-btn')) return;
+      _closeCtxMenu();
+    }, true);
+
+    return m;
+  }
+
+  function _applyCtxText() {
+    if (!_ctxItemId) return;
+    const val = document.getElementById('ctxTextInput').value.trim();
+    State.updateItem(_ctxItemId, { label: val });
+    if (State.getItem(_ctxItemId)?.type === 'table') Guests.render();
+    _closeCtxMenu();
+  }
+
+  function openCtxMenu(id, viewX, viewY) {
+    const item = State.getItem(id);
+    if (!item) return;
+    _ctxItemId = id;
+    selectItem(id);
+    if (!_ctxMenu) _ctxMenu = _buildCtxMenu();
+    document.getElementById('ctxTextInput').value = item.label || '';
+    document.getElementById('ctxColorInput').value =
+      item.color || (item.type === 'table' ? '#e3f2fd'
+        : (CONFIG.COLORS[item.type] || CONFIG.COLORS.shape || '#cccccc'));
+    _ctxMenu.style.display = 'block';
+    // Clamp to viewport
+    const mw = _ctxMenu.offsetWidth  || 190;
+    const mh = _ctxMenu.offsetHeight || 180;
+    const x  = Math.min(viewX, window.innerWidth  - mw - 8);
+    const y  = Math.min(viewY, window.innerHeight - mh - 8);
+    _ctxMenu.style.left = Math.max(4, x) + 'px';
+    _ctxMenu.style.top  = Math.max(4, y) + 'px';
+  }
+
+  function _closeCtxMenu() {
+    if (_ctxMenu) _ctxMenu.style.display = 'none';
+    _ctxItemId = null;
   }
 
   /* ── Selection ── */
@@ -226,7 +353,7 @@ const Items = (() => {
         _selectedId = null;
       }
     }
-    if (e.key === 'Escape') deselectAll();
+    if (e.key === 'Escape') { _closeCtxMenu(); deselectAll(); }
   });
 
   /* ── Drop highlight ── */
