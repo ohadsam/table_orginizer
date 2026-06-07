@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>מדריך למשתמש — מארגן הושבה</title>
+  <style>
+    :root {
+      --primary: #3949ab;
+      --primary-light: #e8eaf6;
+      --accent: #7c4dff;
+      --success: #43a047;
+      --warning: #fb8c00;
+      --danger: #e53935;
+      --text: #263238;
+      --text-muted: #607d8b;
+      --border: #e0e0e0;
+      --bg: #f5f7fa;
+      --card: #ffffff;
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      font-size: 15px;
+    }
+
+    /* ── Navigation bar ── */
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--primary);
+      color: #fff;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.2);
+    }
+    .nav-title { font-size: 18px; font-weight: 700; flex: 1; }
+    .nav-back {
+      background: rgba(255,255,255,.18);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 14px;
+      cursor: pointer;
+      font-size: 14px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background .15s;
+    }
+    .nav-back:hover { background: rgba(255,255,255,.3); }
+
+    /* ── Table of contents ── */
+    .toc-wrap {
+      max-width: 900px;
+      margin: 28px auto 0;
+      padding: 0 20px;
+    }
+    .toc {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      columns: 2;
+      column-gap: 24px;
+    }
+    .toc h3 { font-size: 13px; color: var(--primary); margin-bottom: 10px; column-span: all; letter-spacing: .05em; text-transform: uppercase; }
+    .toc a { display: block; color: var(--primary); text-decoration: none; padding: 3px 0; font-size: 14px; break-inside: avoid; }
+    .toc a:hover { text-decoration: underline; }
+    .toc a::before { content: '›  '; }
+
+    /* ── Main content ── */
+    .content {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px 20px 60px;
+    }
+
+    /* ── Sections ── */
+    .section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    .section-header {
+      background: var(--primary-light);
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-icon { font-size: 22px; }
+    .section-title { font-size: 17px; font-weight: 700; color: var(--primary); }
+    .section-body { padding: 18px 20px; }
+
+    h3 { font-size: 15px; color: var(--primary); margin: 16px 0 8px; }
+    h3:first-child { margin-top: 0; }
+
+    p { margin-bottom: 10px; }
+    p:last-child { margin-bottom: 0; }
+
+    /* ── Steps ── */
+    .steps { list-style: none; counter-reset: step; padding: 0; }
+    .steps li {
+      counter-increment: step;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px dashed var(--border);
+    }
+    .steps li:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .steps li::before {
+      content: counter(step);
+      flex-shrink: 0;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 2px;
+    }
+
+    /* ── Bullets ── */
+    ul.bullets { padding-right: 20px; margin-bottom: 10px; }
+    ul.bullets li { margin-bottom: 6px; }
+
+    /* ── Tips / notes ── */
+    .tip, .note, .warning-box {
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin: 12px 0;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .tip    { background: #e8f5e9; border-right: 4px solid var(--success); }
+    .note   { background: #e3f2fd; border-right: 4px solid var(--primary); }
+    .warning-box { background: #fff3e0; border-right: 4px solid var(--warning); }
+    .tip-icon, .note-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── Keyboard shortcuts ── */
+    .shortcuts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 8px;
+    }
+    .shortcut-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      background: var(--bg);
+      border-radius: 6px;
+    }
+    kbd {
+      display: inline-block;
+      background: var(--card);
+      border: 1px solid #ccc;
+      border-bottom: 2px solid #aaa;
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-family: monospace;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .shortcut-desc { font-size: 13px; color: var(--text-muted); }
+
+    /* ── Feature cards ── */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+      margin: 12px 0;
+    }
+    .feature-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      text-align: center;
+    }
+    .feature-card .fc-icon { font-size: 28px; margin-bottom: 8px; display: block; }
+    .feature-card .fc-name { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+    .feature-card .fc-desc { font-size: 12px; color: var(--text-muted); }
+
+    /* ── Highlight box ── */
+    .highlight {
+      background: var(--primary-light);
+      border: 1px solid #c5cae9;
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin: 10px 0;
+    }
+
+    /* ── Badge ── */
+    .badge {
+      display: inline-block;
+      background: var(--primary);
+      color: #fff;
+      border-radius: 12px;
+      padding: 2px 10px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .badge.green { background: var(--success); }
+    .badge.orange { background: var(--warning); }
+    .badge.purple { background: var(--accent); }
+
+    /* ── Flow diagram ── */
+    .flow {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0;
+      margin: 12px 0;
+    }
+    .flow-step {
+      background: var(--primary-light);
+      border: 1px solid #c5cae9;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--primary);
+    }
+    .flow-arrow { font-size: 18px; color: var(--text-muted); padding: 0 6px; }
+
+    /* ── Print ── */
+    @media print {
+      .nav { position: static; }
+      .nav-back { display: none; }
+      .section { break-inside: avoid; }
+    }
+
+    @media (max-width: 600px) {
+      .toc { columns: 1; }
+      .feature-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav class="nav">
+  <span class="nav-title">🎉 מדריך למשתמש — מארגן הושבה</span>
+  <a href="index.html" class="nav-back">← חזור לאפליקציה</a>
+</nav>
+
+<!-- Table of Contents -->
+<div class="toc-wrap">
+  <div class="toc">
+    <h3>תוכן עניינים</h3>
+    <a href="#intro">מה זה מארגן הושבה?</a>
+    <a href="#quickstart">התחלה מהירה</a>
+    <a href="#canvas">תצוגת האולם (Canvas)</a>
+    <a href="#tables">שולחנות</a>
+    <a href="#special">פריטי אולם נוספים</a>
+    <a href="#guests">מוזמנים</a>
+    <a href="#assign">שיבוץ ידני (גרירה)</a>
+    <a href="#autoassign">שיבוץ אוטומטי</a>
+    <a href="#split">פיצול מוזמנים</a>
+    <a href="#colors">צבעים ותוויות</a>
+    <a href="#events">ניהול אירועים מרובים</a>
+    <a href="#history">ביטול ושחזור (Undo/Redo)</a>
+    <a href="#export">ייצוא וייבוא</a>
+    <a href="#print">הדפסה</a>
+    <a href="#settings">הגדרות</a>
+    <a href="#shortcuts">קיצורי מקלדת</a>
+    <a href="#tips">טיפים והמלצות</a>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- ═══════════════ INTRO ═══════════════ -->
+<section class="section" id="intro">
+  <div class="section-header">
+    <span class="section-icon">🎉</span>
+    <span class="section-title">מה זה מארגן הושבה?</span>
+  </div>
+  <div class="section-body">
+    <p>מארגן הושבה הוא כלי לתכנון ויזואלי של סידורי ישיבה באירועים — חתונות, בר מצוות, ימי הולדת, כנסים ועוד. מסדרים שולחנות באולם, מוסיפים מוזמנים, ומשבצים אותם לשולחנות בגרירה פשוטה או שיבוץ אוטומטי.</p>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <span class="fc-icon">⬭</span>
+        <div class="fc-name">שולחנות</div>
+        <div class="fc-desc">עגול, מלבן או ריבוע — גרור, שנה גודל, נעל</div>
+      </div>
+      <div class="feature-card">
+        <span class="fc-icon">👥</span>
+        <div class="fc-name">מוזמנים</div>
+        <div class="fc-desc">מבוגרים, ילדים, תגיות, העדפות קרבה, הערות</div>
+      </div>
+      <div class="feature-card">
+        <span class="fc-icon">⚡</span>
+        <div class="fc-name">שיבוץ חכם</div>
+        <div class="fc-desc">שיבוץ אוטומטי עם יצירת שולחנות ופיצול</div>
+      </div>
+      <div class="feature-card">
+        <span class="fc-icon">🎨</span>
+        <div class="fc-name">צבעים</div>
+        <div class="fc-desc">צבע לכל פריט; מועבר לכרטיסי המוזמנים ולהדפסה</div>
+      </div>
+      <div class="feature-card">
+        <span class="fc-icon">🖨️</span>
+        <div class="fc-name">הדפסה</div>
+        <div class="fc-desc">תוכנית הושבה, רשימת מוזמנים, או הכל יחד</div>
+      </div>
+      <div class="feature-card">
+        <span class="fc-icon">📁</span>
+        <div class="fc-name">אירועים מרובים</div>
+        <div class="fc-desc">שמירה עצמאית לכל אירוע ב-localStorage</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ QUICKSTART ═══════════════ -->
+<section class="section" id="quickstart">
+  <div class="section-header">
+    <span class="section-icon">🚀</span>
+    <span class="section-title">התחלה מהירה — 5 צעדים</span>
+  </div>
+  <div class="section-body">
+    <ol class="steps">
+      <li>
+        <div>
+          <strong>הגדירו את האירוע</strong> — לחצו על כפתור ⚙️ בראש הדף. מלאו שם אירוע, תאריך, סוג, ומיקום. לחצו שמור.
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>בנו את האולם</strong> — מהתפריט הצדדי, הוסיפו שולחנות (עגול / מלבן / ריבוע), רחבת ריקודים 🕺, כניסה 🚪 ופריטים נוספים. גררו אותם למיקום הרצוי באולם.
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>הוסיפו מוזמנים</strong> — לחצו על "+ הוסף" בפאנל המוזמנים. הזינו שם, מספר מבוגרים וילדים, תגיות (משפחה / חברים / עבודה וכד'), והגדירו העדפת קרבה אם רלוונטי.
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>שבצו מוזמנים לשולחנות</strong> — גררו כרטיס מוזמן מהרשימה הצדדית ושחררו על שולחן באולם. לחלופין, השתמשו בשיבוץ האוטומטי ⚡.
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>הדפיסו / ייצאו</strong> — לחצו 🖨️ לתוכנית הושבה, 📋 לרשימת מוזמנים, 📄 להכל יחד, או 📊 לקובץ Excel/CSV.
+        </div>
+      </li>
+    </ol>
+    <div class="tip">
+      <span class="tip-icon">💡</span>
+      <span>הנתונים נשמרים אוטומטית בדפדפן (localStorage) כל 400ms. אין צורך ללחוץ "שמור".</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ CANVAS ═══════════════ -->
+<section class="section" id="canvas">
+  <div class="section-header">
+    <span class="section-icon">🗺️</span>
+    <span class="section-title">תצוגת האולם (Canvas)</span>
+  </div>
+  <div class="section-body">
+    <h3>ניווט בתצוגה</h3>
+    <ul class="bullets">
+      <li><strong>פאן (הזזת תצוגה)</strong> — גררו רקע ריק בעכבר שמאלי, או העכבר האמצעי</li>
+      <li><strong>זום</strong> — גלגלת עכבר, או כפתורי 🔍+ / 🔍− בפינה</li>
+      <li><strong>פינץ' (מגע)</strong> — צבטו על מסך מגע לזום</li>
+      <li><strong>התאם לתוכן</strong> — לחצו "⊞ התאם" או <kbd>0</kbd> כדי לראות את כל האולם</li>
+    </ul>
+
+    <h3>עבודה עם פריטים</h3>
+    <ul class="bullets">
+      <li><strong>בחירה</strong> — לחיצה אחת על פריט בוחרת אותו (מסגרת כחולה מודגשת)</li>
+      <li><strong>הזזה</strong> — גררו פריט נבחר למיקום חדש</li>
+      <li><strong>שינוי גודל</strong> — גררו את הנקודה בפינה הימנית-תחתונה של הפריט</li>
+      <li><strong>עריכה</strong> — לחיצה כפולה על פריט פותחת את חלון העריכה שלו</li>
+      <li><strong>מחיקה</strong> — בחרו פריט ולחצו <kbd>Delete</kbd> / <kbd>Backspace</kbd></li>
+    </ul>
+
+    <h3>כפתורי תצוגה</h3>
+    <ul class="bullets">
+      <li><strong>⊟ רשת</strong> — הצג/הסתר רשת עזר לסידור מדויק</li>
+      <li><strong>↺ איפוס תצוגה</strong> — חזרה לזום 100% ומרכז הדף</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ═══════════════ TABLES ═══════════════ -->
+<section class="section" id="tables">
+  <div class="section-header">
+    <span class="section-icon">⬭</span>
+    <span class="section-title">שולחנות</span>
+  </div>
+  <div class="section-body">
+    <h3>הוספת שולחן</h3>
+    <p>לחצו על "⬭ שולחן" בפאנל הצדדי. בחלון שיפתח הגדירו:</p>
+    <ul class="bullets">
+      <li><strong>צורה</strong>: עגול ⭕ / מלבן ▭ / ריבוע ⬜</li>
+      <li><strong>מספר מושבים</strong>: הקיבולת של השולחן</li>
+      <li><strong>מספר שולחן</strong>: אוטומטי אם ריק</li>
+      <li><strong>תווית</strong>: שם תיאורי (לדוגמא: "שולחן הורים")</li>
+      <li><strong>גודל</strong>: ברירת מחדל לפי צורה; ניתן לשנות</li>
+      <li><strong>צבע מותאם</strong>: סמנו את תיבת הסימון ובחרו צבע — יוצג על השולחן ועל כרטיסי המוזמנים</li>
+      <li><strong>כמות</strong>: ניתן להוסיף מספר שולחנות בבת אחת</li>
+    </ul>
+
+    <h3>עריכת שולחן</h3>
+    <p>לחיצה כפולה על שולחן קיים פותחת את חלון העריכה. ניתן גם:</p>
+    <ul class="bullets">
+      <li><strong>נעילה 🔒</strong> — שולחן נעול לא יושפע מהשיבוץ האוטומטי; המוזמנים הנוכחיים שמורים</li>
+      <li><strong>שכפול</strong> — יוצר עותק של השולחן (ללא מוזמנים)</li>
+      <li><strong>פנה שולחן</strong> — מסיר את כל שיבוצי המוזמנים מהשולחן</li>
+      <li><strong>מחיקה</strong> — מוחק את השולחן; המוזמנים חוזרים לרשימה הממתינה</li>
+    </ul>
+
+    <h3>צבע שולחן דינמי (כאשר אין צבע מותאם)</h3>
+    <div class="highlight">
+      <ul class="bullets" style="margin:0">
+        <li>🟢 <strong>ירוק</strong> — השולחן מלא בדיוק</li>
+        <li>🟡 <strong>צהוב</strong> — השולחן מלא חלקית</li>
+        <li>⚪ <strong>אפור</strong> — השולחן ריק</li>
+        <li>🔴 <strong>אדום</strong> — חריגה מהקיבולת</li>
+      </ul>
+    </div>
+
+    <div class="tip">
+      <span class="tip-icon">💡</span>
+      <span>כאשר מגדירים צבע מותאם לשולחן, הצבע מועבר אוטומטית לכרטיסי המוזמנים בסרגל הצד וגם לכל פלטי ההדפסה.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ SPECIAL ITEMS ═══════════════ -->
+<section class="section" id="special">
+  <div class="section-header">
+    <span class="section-icon">🏛️</span>
+    <span class="section-title">פריטי אולם נוספים</span>
+  </div>
+  <div class="section-body">
+    <p>ניתן להוסיף לאולם פריטים שאינם שולחנות לייצוג מרחבי אמיתי:</p>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <span class="fc-icon">🕺</span>
+        <div class="fc-name">רחבת ריקודים</div>
+        <div class="fc-desc">משפיע על שיבוץ חכם — ניתן להגדיר שמוזמנים יושבו קרוב/רחוק ממנה</div>
+      </div>
+      <div class="feature-card">
+        <span class="fc-icon">🎵</span>
+        <div class="fc-name">עמדת DJ</div>
+        <div class="fc-desc">פריט ויזואלי; ניתן להגדיר קרבה אליו בהגדרות המוזמן</div>
+      </div>
+      <div class="feature-card">
+        <span class="fc-icon">🚪</span>
+        <div class="fc-name">כניסה</div>
+        <div class="fc-desc">פריט ויזואלי לייצוג הכניסה לאולם</div>
+      </div>
+      <div class="feature-card">
+        <span class="fc-icon">⬛</span>
+        <div class="fc-name">צורה חופשית</div>
+        <div class="fc-desc">מלבן, ריבוע, או עיגול — לייצוג במה, בר, וכד'</div>
+      </div>
+    </div>
+
+    <h3>עריכת פריט</h3>
+    <p>לחיצה כפולה על כל פריט (שאינו שולחן) פותחת חלון עריכה שבו ניתן לשנות:</p>
+    <ul class="bullets">
+      <li><strong>תווית</strong> — טקסט שמוצג על הפריט באולם</li>
+      <li><strong>גודל</strong> — רוחב וגובה בפיקסלים</li>
+      <li><strong>צבע רקע</strong> — צבע ייחודי לפריט</li>
+      <li><strong>צורה</strong> (לצורה חופשית בלבד) — מלבן / ריבוע / עיגול</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ═══════════════ GUESTS ═══════════════ -->
+<section class="section" id="guests">
+  <div class="section-header">
+    <span class="section-icon">👥</span>
+    <span class="section-title">מוזמנים</span>
+  </div>
+  <div class="section-body">
+    <h3>הוספת מוזמן</h3>
+    <p>לחצו "+ הוסף" בפאנל המוזמנים. שדות הטופס:</p>
+    <ul class="bullets">
+      <li><strong>שם</strong> — שם המשפחה / קבוצת המוזמנים</li>
+      <li><strong>מבוגרים / ילדים</strong> — ספירת הנוכחים; הסך הכולל מחושב אוטומטית</li>
+      <li><strong>תגיות</strong> — לסינון וקיבוץ (משפחה, צד חתן, צד כלה, עבודה וכד'). ניתן ליצור תגיות חדשות</li>
+      <li><strong>העדפת קרבה</strong> — האם המוזמן מעדיף לשבת קרוב / רחוק מרחבת ריקודים, כניסה וכד'</li>
+      <li><strong>הערות</strong> — מידע נוסף (אלרגיות, נגישות וכד')</li>
+    </ul>
+
+    <h3>חיפוש וסינון</h3>
+    <ul class="bullets">
+      <li><strong>חיפוש</strong> — הקלידו בשדה החיפוש לסינון לפי שם</li>
+      <li><strong>סינון לפי תגית</strong> — לחצו על תגית בשורת הסינון לסינון הרשימה</li>
+    </ul>
+
+    <h3>כרטיס מוזמן</h3>
+    <p>כל מוזמן מוצג ככרטיס בסרגל הצד. על כל כרטיס:</p>
+    <ul class="bullets">
+      <li><strong>שם + אייקוני קרבה</strong> (אם הוגדרו)</li>
+      <li><strong>⛓ פוצל</strong> — תגית כתומה לכרטיסים שנוצרו מפיצול</li>
+      <li><strong>שולחן X</strong> — אם משובץ, מוצג מספר השולחן; לחיצה על הכרטיס ממקדת את התצוגה לשולחן</li>
+      <li><strong>גבול צבעוני</strong> — אם לשולחן יש צבע מותאם, הגבול בצד של הכרטיס יהיה בצבע השולחן</li>
+      <li><strong>✕</strong> — הסרת שיבוץ (המוזמן חוזר לממתינים)</li>
+      <li><strong>✏️</strong> — עריכת פרטי המוזמן</li>
+      <li><strong>🗑</strong> — מחיקת המוזמן</li>
+    </ul>
+
+    <div class="tip">
+      <span class="tip-icon">💡</span>
+      <span>ניתן לייבא רשימת מוזמנים מקובץ JSON (⬇️ בכותרת פאנל המוזמנים) כדי לחסוך הזנה ידנית. ראו סעיף ייצוא וייבוא.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ ASSIGN ═══════════════ -->
+<section class="section" id="assign">
+  <div class="section-header">
+    <span class="section-icon">↔️</span>
+    <span class="section-title">שיבוץ ידני (גרירה)</span>
+  </div>
+  <div class="section-body">
+    <h3>שיבוץ מוזמן לשולחן</h3>
+    <ol class="steps">
+      <li>גררו כרטיס מוזמן מהרשימה הצדדית</li>
+      <li>שחררו על שולחן באולם — השולחן יהבהב כשאפשר לשחרר</li>
+      <li>המוזמן ישובץ; ספירת הכרטיסייה תתעדכן</li>
+    </ol>
+
+    <div class="note">
+      <span class="note-icon">ℹ️</span>
+      <div>
+        <strong>חריגה מקיבולת</strong> — אם השולחן מלא, יפתח חלון עם אפשרויות:
+        <ul class="bullets" style="margin-top:6px">
+          <li><strong>פיצול חלקי</strong> — שבץ חלק מהקבוצה כאן, והשאר נותר ברשימה</li>
+          <li><strong>מבוגרים כאן, ילדים בנפרד</strong> — פיצול לפי סוג</li>
+          <li><strong>שבץ הכל בכל זאת</strong> — שיבוץ גם אם חורג (מסומן באדום)</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>הזזת מוזמן בין שולחנות</h3>
+    <p>גררו כרטיס מוזמן ממשובצים ושחררו על שולחן אחר — השיבוץ הקודם יתבטל אוטומטית.</p>
+  </div>
+</section>
+
+<!-- ═══════════════ AUTO-ASSIGN ═══════════════ -->
+<section class="section" id="autoassign">
+  <div class="section-header">
+    <span class="section-icon">⚡</span>
+    <span class="section-title">שיבוץ אוטומטי</span>
+  </div>
+  <div class="section-body">
+    <p>לחצו <strong>⚡ שיבוץ</strong> בפאנל המוזמנים לפתיחת חלון האפשרויות.</p>
+
+    <h3>אפשרויות השיבוץ</h3>
+    <ul class="bullets">
+      <li><strong>אפשר פיצול קבוצות</strong> — כאשר קבוצה גדולה מדי לשולחן אחד, מפוצלת לשולחנות מספר. כבוי = ישובץ לשולחן הרחב ביותר גם אם חורג.</li>
+      <li><strong>שמור שיבוצים קיימים</strong> — ישבץ רק מוזמנים שעדיין לא שובצו. כבוי = מאפס ומשבץ מחדש (למעט שולחנות נעולים).</li>
+      <li><strong>קחו בחשבון העדפות קרבה</strong> — ישמש את העדפות הקרבה שהוגדרו למוזמנים לניקוד עדיפות שולחנות.</li>
+      <li><strong>צור שולחנות חדשים אוטומטית</strong> — אם אין מספיק קיבולת, ייצור שולחנות חדשים. השולחנות יתפזרו סביב האולם (טבעת סביב רחבת ריקודים אם קיימת), ללא חפיפה עם פריטים קיימים.</li>
+    </ul>
+
+    <h3>כיצד פועל השיבוץ</h3>
+    <div class="flow">
+      <span class="flow-step">קיבוץ לפי תגיות</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-step">מיון לפי גודל (גדול קודם)</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-step">חיפוש שולחן מתאים (Tight Fit)</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-step">פיצול אם נדרש</span>
+    </div>
+    <p>מוזמנים עם אותן תגיות ישובצו יחד ככל האפשר. בתוך כל קבוצה, מועדפות משפחות גדולות יותר.</p>
+
+    <h3>תוצאה</h3>
+    <p>לאחר השיבוץ יוצג חלון סיכום עם:</p>
+    <ul class="bullets">
+      <li>מספר מוזמנים שישובצו בהצלחה</li>
+      <li>מספר מוזמנים שלא ניתן היה לשבץ (אם יש)</li>
+      <li>מספר כרטיסי פיצול שנוצרו</li>
+      <li>מספר שולחנות חדשים שנוצרו (אם נבחרה האפשרות)</li>
+    </ul>
+
+    <div class="tip">
+      <span class="tip-icon">💡</span>
+      <span>לאחר שיבוץ, לחצו "⊞ התאם" (או <kbd>0</kbd>) לראות את כל האולם המאורגן.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ SPLIT ═══════════════ -->
+<section class="section" id="split">
+  <div class="section-header">
+    <span class="section-icon">⛓️</span>
+    <span class="section-title">פיצול מוזמנים</span>
+  </div>
+  <div class="section-body">
+    <p>כאשר קבוצת מוזמנים גדולה מדי לשולחן אחד, ניתן לפצל אותה.</p>
+
+    <h3>פיצול ידני (גרירה)</h3>
+    <ol class="steps">
+      <li>גררו כרטיס מוזמן לשולחן שאין בו מספיק מקום</li>
+      <li>בחלון החריגה שיפתח בחרו "פצל — שבץ X כאן"</li>
+      <li>נוצר כרטיס חדש עם הנותרים — תגית ⛓ פוצל</li>
+    </ol>
+
+    <h3>פיצול אוטומטי (שיבוץ אוטומטי)</h3>
+    <p>כאשר "אפשר פיצול" מסומן בשיבוץ האוטומטי, הפיצול נעשה אוטומטית:</p>
+    <ul class="bullets">
+      <li>הכרטיס המקורי מעודכן עם חלק המוזמנים שישבו בשולחן הראשון</li>
+      <li>נוצרים כרטיסי "המשך" עם השאר — כולל תגיות, העדפות קרבה, והערות מהמקור</li>
+      <li>כרטיסי פיצול מסומנים בתגית ⛓ פוצל ומציגים את צבע השולחן שלהם</li>
+    </ul>
+
+    <div class="warning-box">
+      <span class="tip-icon">⚠️</span>
+      <span>כרטיסי פיצול הם עצמאיים — ניתן לערוך, להזיז ולמחוק אותם בנפרד. כאשר יוצרים אירוע חדש עם "שמור מוזמנים", כרטיסי פיצול לא מועברים (הם ייחודיים לשיבוץ הספציפי).</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ COLORS ═══════════════ -->
+<section class="section" id="colors">
+  <div class="section-header">
+    <span class="section-icon">🎨</span>
+    <span class="section-title">צבעים ותוויות</span>
+  </div>
+  <div class="section-body">
+    <h3>צבע לשולחן</h3>
+    <ol class="steps">
+      <li>לחיצה כפולה על שולחן → חלון עריכה</li>
+      <li>סמנו "צבע מותאם אישית לשולחן"</li>
+      <li>בחרו צבע מהחלונית</li>
+      <li>לחצו "שמור"</li>
+    </ol>
+    <p>הצבע מועבר אוטומטית ל:</p>
+    <ul class="bullets">
+      <li>כרטיסי המוזמנים בסרגל הצד (גבול צבעוני בצד)</li>
+      <li>כרטיסי השולחן בהדפסת תוכנית הושבה</li>
+      <li>עמודת השולחן ברשימת המוזמנים המודפסת</li>
+      <li>קובץ ה-JSON בייצוא/ייבוא</li>
+    </ul>
+    <p>לביטול הצבע — בטלו את סימון "צבע מותאם אישית" בחלון העריכה.</p>
+
+    <h3>צבע לפריטי אולם</h3>
+    <p>לחיצה כפולה על רחבה, DJ, כניסה, או צורה חופשית → שנו צבע רקע בחלון העריכה.</p>
+
+    <h3>תוויות</h3>
+    <p>כל פריט (שולחן ואחרים) תומך בשדה תווית חופשי — מוצג על הפריט באולם, בהדפסה, ובממשק.</p>
+  </div>
+</section>
+
+<!-- ═══════════════ EVENTS ═══════════════ -->
+<section class="section" id="events">
+  <div class="section-header">
+    <span class="section-icon">📁</span>
+    <span class="section-title">ניהול אירועים מרובים</span>
+  </div>
+  <div class="section-body">
+    <p>ניתן לנהל מספר אירועים עצמאיים — כל אחד עם שולחנות, מוזמנים והגדרות משלו.</p>
+
+    <h3>יצירת אירוע חדש</h3>
+    <ol class="steps">
+      <li>פתחו הגדרות ⚙️</li>
+      <li>בסעיף "ניהול אירועים", לחצו "+ אירוע חדש"</li>
+      <li>סמנו "שמור מוזמנים לאירוע החדש" אם רוצים להעביר את רשימת המוזמנים (ללא שיבוצים)</li>
+      <li>אשרו — נפתח אירוע חדש ריק</li>
+    </ol>
+
+    <h3>מעבר בין אירועים</h3>
+    <p>בסעיף "ניהול אירועים" בהגדרות, כל אירוע מוצג עם:</p>
+    <ul class="bullets">
+      <li>שם ותאריך האירוע</li>
+      <li>תגית "נוכחי" לאירוע הפעיל</li>
+      <li>כפתור "עבור אליו" למעבר</li>
+      <li>כפתור 🗑 למחיקת האירוע (לא ניתן למחוק את האחרון)</li>
+    </ul>
+
+    <div class="note">
+      <span class="note-icon">ℹ️</span>
+      <span>כל אירוע נשמר בנפרד ב-localStorage. מעבר בין אירועים מאפס את היסטוריית Undo/Redo כדי למנוע שגיאות.</span>
+    </div>
+
+    <h3>מיגרציה</h3>
+    <p>אם השתמשתם בגרסה ישנה של האפליקציה, הנתונים ימוגרו אוטומטית לפורמט האירועים המרובים בטעינה הראשונה.</p>
+  </div>
+</section>
+
+<!-- ═══════════════ HISTORY ═══════════════ -->
+<section class="section" id="history">
+  <div class="section-header">
+    <span class="section-icon">↩️</span>
+    <span class="section-title">ביטול ושחזור (Undo / Redo)</span>
+  </div>
+  <div class="section-body">
+    <p>כל שינוי בנתונים נשמר בתור צילום מסך (snapshot). ניתן לבטל עד 50 פעולות אחורה.</p>
+    <ul class="bullets">
+      <li><strong>ביטול</strong> — כפתור ↩️ בכותרת, או <kbd>Ctrl</kbd>+<kbd>Z</kbd></li>
+      <li><strong>שחזור</strong> — כפתור ↪️ בכותרת, או <kbd>Ctrl</kbd>+<kbd>Y</kbd></li>
+    </ul>
+    <div class="warning-box">
+      <span class="tip-icon">⚠️</span>
+      <span>מעבר בין אירועים מנקה את מחסנית ה-Undo. לא ניתן לבטל פעולות מאירוע קודם.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ EXPORT ═══════════════ -->
+<section class="section" id="export">
+  <div class="section-header">
+    <span class="section-icon">📦</span>
+    <span class="section-title">ייצוא וייבוא</span>
+  </div>
+  <div class="section-body">
+    <h3>ייצוא JSON מלא (📤)</h3>
+    <p>יוצא את כל נתוני האירוע — שולחנות, מוזמנים, שיבוצים, הגדרות — לקובץ JSON. שימושי לגיבוי ולשיתוף.</p>
+
+    <h3>ייבוא JSON מלא (📥)</h3>
+    <p>מחליף את כל נתוני האירוע הנוכחי בתוכן הקובץ. ייבוא מקובץ שיוצא קודם.</p>
+
+    <h3>ייצוא CSV / Excel (📊)</h3>
+    <p>יוצר קובץ CSV הכולל: שם, מבוגרים, ילדים, סה"כ, תגיות, מספר שולחן, ציון פיצול. ניתן לפתוח ב-Excel / Google Sheets.</p>
+
+    <h3>ייצוא מוזמנים (⬆️ בפאנל המוזמנים)</h3>
+    <p>יוצא <strong>רק את רשימת המוזמנים</strong> (ללא שיבוצים, ללא שולחנות) לקובץ JSON ניידי. שימושי להעברת מוזמנים בין אירועים.</p>
+
+    <h3>ייבוא מוזמנים (⬇️ בפאנל המוזמנים)</h3>
+    <p>ייבוא רשימת מוזמנים מקובץ JSON. שתי אפשרויות:</p>
+    <ul class="bullets">
+      <li><strong>מיזוג</strong> — מוסיף את המוזמנים המיובאים לרשימה הקיימת</li>
+      <li><strong>החלפה</strong> — מחליף את כל רשימת המוזמנים בקובץ המיובא</li>
+    </ul>
+    <div class="warning-box">
+      <span class="tip-icon">⚠️</span>
+      <span>ייבוא במצב "החלפה" עם קובץ ריק ידרוש אישור נוסף כדי למנוע מחיקה בטעות.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ PRINT ═══════════════ -->
+<section class="section" id="print">
+  <div class="section-header">
+    <span class="section-icon">🖨️</span>
+    <span class="section-title">הדפסה</span>
+  </div>
+  <div class="section-body">
+    <p>שלושה מצבי הדפסה, כולם מותאמים לדף A4:</p>
+
+    <div class="feature-grid" style="grid-template-columns: repeat(3,1fr)">
+      <div class="feature-card">
+        <span class="fc-icon">🖨️</span>
+        <div class="fc-name">תוכנית הושבה</div>
+        <div class="fc-desc">רשת כרטיסי שולחן (3 עמודות) עם רשימת מוזמנים ותפוסה</div>
+      </div>
+      <div class="feature-card">
+        <span class="fc-icon">📋</span>
+        <div class="fc-name">רשימת מוזמנים</div>
+        <div class="fc-desc">טבלה מלאה מסודרת לפי מספר שולחן ושם</div>
+      </div>
+      <div class="feature-card">
+        <span class="fc-icon">📄</span>
+        <div class="fc-name">הכל</div>
+        <div class="fc-desc">תרשים האולם + רשימת מוזמנים מלאה בדף נפרד</div>
+      </div>
+    </div>
+
+    <h3>תרשים האולם בהדפסה</h3>
+    <p>בהדפסת "הכל" (📄), נוצר תרשים SVG אוטומטי מפריטי האולם. הכיוון (לאורך/לרוחב) נקבע אוטומטית:</p>
+    <ul class="bullets">
+      <li>אם האולם רחב יותר מגבוה (יחס > 1.3) — הדפסה לרוחב (Landscape)</li>
+      <li>אחרת — הדפסה לאורך (Portrait)</li>
+    </ul>
+
+    <div class="tip">
+      <span class="tip-icon">💡</span>
+      <span>צבעים מותאמים אישית של שולחנות מוצגים גם בהדפסה — על כרטיסי השולחן ועל כרטיסי המוזמנים.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ SETTINGS ═══════════════ -->
+<section class="section" id="settings">
+  <div class="section-header">
+    <span class="section-icon">⚙️</span>
+    <span class="section-title">הגדרות</span>
+  </div>
+  <div class="section-body">
+    <p>לחצו ⚙️ בכותרת לפתיחת חלון ההגדרות. הסעיפים:</p>
+
+    <h3>פרטי האירוע</h3>
+    <ul class="bullets">
+      <li><strong>שם האירוע</strong> — מוצג בכותרת ובכל פלטי ההדפסה</li>
+      <li><strong>סוג אירוע</strong> — חתונה, בר מצוות, יום הולדת וכד'</li>
+      <li><strong>תאריך ומיקום</strong></li>
+    </ul>
+
+    <h3>הגדרות ברירת מחדל</h3>
+    <ul class="bullets">
+      <li><strong>מספר מושבים</strong> — מספר מושבים ברירת מחדל לשולחן חדש</li>
+      <li><strong>צורת שולחן</strong> — עגול / מלבן / ריבוע</li>
+    </ul>
+
+    <h3>תבניות שולחן</h3>
+    <p>הגדירו תבניות מהירות לסוגי שולחנות נפוצים (לדוג' "שולחן זוגי 8 מקומות"). תבניות מופיעות בכפתורים בחלון הוספת שולחן. כאשר "צור שולחנות אוטומטית" פועל בשיבוץ, התבנית הראשונה תשמש כבסיס.</p>
+
+    <h3>ניהול תגיות</h3>
+    <p>הוסיפו, שנו ומחקו תגיות מותאמות לאירוע.</p>
+
+    <h3>ניהול אירועים</h3>
+    <p>צפו בכל האירועים, עברו ביניהם, מחקו, או צרו אירוע חדש. ראו סעיף "ניהול אירועים מרובים".</p>
+  </div>
+</section>
+
+<!-- ═══════════════ SHORTCUTS ═══════════════ -->
+<section class="section" id="shortcuts">
+  <div class="section-header">
+    <span class="section-icon">⌨️</span>
+    <span class="section-title">קיצורי מקלדת</span>
+  </div>
+  <div class="section-body">
+    <div class="shortcuts-grid">
+      <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>Z</kbd><span class="shortcut-desc">ביטול פעולה אחרונה</span></div>
+      <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>Y</kbd><span class="shortcut-desc">שחזור פעולה</span></div>
+      <div class="shortcut-row"><kbd>0</kbd><span class="shortcut-desc">התאם תצוגה לתוכן</span></div>
+      <div class="shortcut-row"><kbd>+</kbd><span class="shortcut-desc">הגדל זום</span></div>
+      <div class="shortcut-row"><kbd>-</kbd><span class="shortcut-desc">הקטן זום</span></div>
+      <div class="shortcut-row"><kbd>Delete</kbd> / <kbd>Backspace</kbd><span class="shortcut-desc">מחק פריט נבחר</span></div>
+      <div class="shortcut-row"><kbd>Escape</kbd><span class="shortcut-desc">סגור מודל / בטל בחירה</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ TIPS ═══════════════ -->
+<section class="section" id="tips">
+  <div class="section-header">
+    <span class="section-icon">💡</span>
+    <span class="section-title">טיפים והמלצות</span>
+  </div>
+  <div class="section-body">
+    <h3>תכנון יעיל של האולם</h3>
+    <ul class="bullets">
+      <li>הוסיפו <strong>רחבת ריקודים</strong> לפני השיבוץ האוטומטי — ישפיע על מיקום השולחנות שנוצרים</li>
+      <li>סמנו <strong>🔒 נעל שולחן</strong> לשולחנות VIP / ילדים לפני הפעלת שיבוץ כולל</li>
+      <li>השתמשו בתגיות לקיבוץ — מוזמנים עם אותה תגית יושבו יחד ככל האפשר</li>
+    </ul>
+
+    <h3>העדפות קרבה</h3>
+    <ul class="bullets">
+      <li>"קרוב לרחבה" — לזוגות / משפחות אוהבות לרקוד</li>
+      <li>"רחוק מרחבה" — לקשישים / תינוקות</li>
+      <li>"קרוב לכניסה" — לאורחים שמגיעים מאוחר או עוזבים מוקדם</li>
+    </ul>
+
+    <h3>גיבוי</h3>
+    <ul class="bullets">
+      <li>ייצאו JSON מלא (📤) לפני שינויים גדולים — גיבוי ידני</li>
+      <li>הנתונים ב-localStorage ספציפיים לדפדפן ולמחשב — לא מסונכרנים אוטומטית בין מכשירים</li>
+      <li>לשיתוף עם מארגן אחר — ייצאו JSON ושלחו לו לייבוא</li>
+    </ul>
+
+    <h3>ביצועים</h3>
+    <ul class="bullets">
+      <li>מאות מוזמנים ועשרות שולחנות פועלים בצורה חלקה</li>
+      <li>השיבוץ האוטומטי עובד בצד הלקוח בלבד — מהיר גם ללא אינטרנט</li>
+      <li>האפליקציה עובדת גם ללא אינטרנט לאחר טעינה ראשונית</li>
+    </ul>
+
+    <h3>מובייל</h3>
+    <ul class="bullets">
+      <li>לחצו ☰ לפתיחת/סגירת הסרגל הצדדי</li>
+      <li>פינץ' לזום; גרירה להזזה</li>
+      <li>גרירת מוזמנים לשולחנות פועלת גם במגע</li>
+    </ul>
+  </div>
+</section>
+
+</div><!-- /content -->
+
+<script>
+  // Smooth scroll for TOC links
+  document.querySelectorAll('.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const target = document.querySelector(a.getAttribute('href'));
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+</script>
+
+</body>
+</html>

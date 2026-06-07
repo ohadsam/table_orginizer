@@ -74,7 +74,7 @@ const Print = (() => {
 
     const eventTitle = state.event.name || 'תוכנית הושבה';
     const eventType  = CONFIG.EVENT_TYPES[state.event.type] || '';
-    const eventDate  = state.event.date ? new Date(state.event.date).toLocaleDateString('he-IL') : '';
+    const eventDate  = state.event.date ? (() => { const [y,m,d] = state.event.date.split('-'); return new Date(+y,+m-1,+d).toLocaleDateString('he-IL'); })() : '';
     const venue      = state.event.venue || '';
 
     const tableCards = tables.map(t => {
@@ -165,7 +165,7 @@ const Print = (() => {
     const state    = State.get();
 
     const eventTitle = state.event.name || 'רשימת מוזמנים';
-    const eventDate  = state.event.date ? new Date(state.event.date).toLocaleDateString('he-IL') : '';
+    const eventDate  = state.event.date ? (() => { const [y,m,d] = state.event.date.split('-'); return new Date(+y,+m-1,+d).toLocaleDateString('he-IL'); })() : '';
 
     const sorted = sortedGuests();
     const stats = State.getStats();
@@ -189,7 +189,7 @@ ${buildGuestTableHTML(sorted)}`;
 
     const eventTitle = state.event.name || 'תוכנית הושבה';
     const eventType  = CONFIG.EVENT_TYPES[state.event.type] || '';
-    const eventDate  = state.event.date ? new Date(state.event.date).toLocaleDateString('he-IL') : '';
+    const eventDate  = state.event.date ? (() => { const [y,m,d] = state.event.date.split('-'); return new Date(+y,+m-1,+d).toLocaleDateString('he-IL'); })() : '';
     const venue      = state.event.venue || '';
 
     const { svg, landscape } = buildRoomDiagramSVG();

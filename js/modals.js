@@ -413,10 +413,11 @@ const Modals = (() => {
 
     const sa = document.getElementById('btnOverflowAdults');
     if (sa) sa.onclick = () => {
-      // Adults stay here, children become a new card
+      // Cache before updateGuest mutates the live object in-place
+      const origChildren = guest.children;
       State.updateGuest(guest.id, { adults: guest.adults, children: 0 });
       State.assignGuest(guest.id, table.id);
-      State.addGuest({ name: guest.name + ' (ילדים)', adults: 0, children: guest.children,
+      State.addGuest({ name: guest.name + ' (ילדים)', adults: 0, children: origChildren,
         tags: [...(guest.tags||[])], proximity: [...(guest.proximity||[])],
         notes: guest.notes || '', splitOf: guest.id });
       UI.toast(`מבוגרים שובצו לשולחן ${table.number}; ילדים נותרו ברשימה`, 'success', 4000);
@@ -424,10 +425,11 @@ const Modals = (() => {
     };
     const sk = document.getElementById('btnOverflowKids');
     if (sk) sk.onclick = () => {
-      // Children stay here, adults become a new card
+      // Cache before updateGuest mutates the live object in-place
+      const origAdults = guest.adults;
       State.updateGuest(guest.id, { adults: 0, children: guest.children });
       State.assignGuest(guest.id, table.id);
-      State.addGuest({ name: guest.name + ' (מבוגרים)', adults: guest.adults, children: 0,
+      State.addGuest({ name: guest.name + ' (מבוגרים)', adults: origAdults, children: 0,
         tags: [...(guest.tags||[])], proximity: [...(guest.proximity||[])],
         notes: guest.notes || '', splitOf: guest.id });
       UI.toast(`ילדים שובצו לשולחן ${table.number}; מבוגרים נותרו ברשימה`, 'success', 4000);
@@ -481,7 +483,7 @@ const Modals = (() => {
     if (!events.length) { wrap.innerHTML = ''; return; }
     wrap.innerHTML = events.map(ev => {
       const isCurrent = ev.id === currentId;
-      const dateStr   = ev.date ? (() => { const [y,mo,d] = ev.date.split('-'); return new Date(+y, +mo-1, +d).toLocaleDateString('he-IL'); })() : '';
+      const dateStr   = ev.date ? (() => { try { const [y,mo,d] = ev.date.split('-'); return new Date(+y, +mo-1, +d).toLocaleDateString('he-IL'); } catch(e) { return ev.date; } })() : '';
       return `
 <div class="event-item ${isCurrent ? 'event-current' : ''}">
   <div class="event-item-info">
@@ -503,7 +505,7 @@ const Modals = (() => {
     });
     wrap.querySelectorAll('.btn-delete-event').forEach(btn => {
       btn.addEventListener('click', () => {
-        const ev = events.find(e => e.id === btn.dataset.id);
+        const ev = Storage.getEventsList().events.find(e => e.id === btn.dataset.id);
         if (UI.confirmDialog(`למחוק את האירוע "${ev?.name || 'ללא שם'}"?`)) {
           Storage.deleteEvent(btn.dataset.id);
           renderEventsManager();
