@@ -18,6 +18,7 @@
   body[data-print-mode="plan"] #printPlanArea { display: block !important; }
   body[data-print-mode="list"] #printListArea { display: block !important; }
   body[data-print-mode="all"]  #printAllArea  { display: block !important; }
+  body[data-print-mode="full"] #printFullArea { display: block !important; }
 
   /* Default: show plan if mode not set */
   body:not([data-print-mode]) #printPlanArea { display: block !important; }
@@ -34,7 +35,8 @@
   /* ── Print areas ── */
   #printPlanArea,
   #printListArea,
-  #printAllArea {
+  #printAllArea,
+  #printFullArea {
     display: none;
     direction: rtl;
     background: #fff;
@@ -143,6 +145,102 @@
   .print-guest-table tfoot { display: table-footer-group; }
   .print-guest-table tr    { break-inside: avoid; page-break-inside: avoid; }
 
+  /* ── Full print: per-table pages ── */
+  .print-full-table-page {
+    padding: 8pt 0;
+    border-inline-start: 4pt solid #ccc;
+    padding-inline-start: 12pt;
+  }
+  .print-full-table-page.ok    { border-inline-start-color: #81c784; }
+  .print-full-table-page.over  { border-inline-start-color: #e57373; }
+  .print-full-table-page.empty { border-inline-start-color: #bbb; }
+
+  .print-full-table-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 6pt;
+    padding: 8pt 10pt;
+    border: 1.5pt solid #ccc;
+    border-radius: 6pt;
+    margin-bottom: 10pt;
+    background: #f9f9ff;
+  }
+  .print-full-table-title {
+    font-size: 18pt;
+    font-weight: 700;
+    color: #3949ab;
+  }
+  .print-full-table-meta {
+    font-size: 10pt;
+    color: #666;
+    display: flex;
+    gap: 12pt;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .print-locked { font-size: 9pt; color: #e65100; }
+
+  .print-full-table-body {
+    display: flex;
+    gap: 16pt;
+    align-items: flex-start;
+  }
+  .print-full-table-visual {
+    flex: 0 0 auto;
+    width: 38%;
+    max-width: 200pt;
+  }
+  .print-full-table-visual svg {
+    max-height: 200pt;
+    width: 100%;
+  }
+  .print-full-table-guest-section {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .print-full-guest-detail {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9.5pt;
+    margin-top: 4pt;
+  }
+  .print-full-guest-detail thead tr {
+    background: #3949ab;
+    color: #fff;
+  }
+  .print-full-guest-detail th,
+  .print-full-guest-detail td {
+    padding: 4pt 6pt;
+    text-align: right;
+    border: .5pt solid #ddd;
+    vertical-align: top;
+  }
+  .print-full-guest-detail tbody tr.even { background: #f9f9f9; }
+  .print-full-guest-detail tbody tr.odd  { background: #ffffff; }
+  .print-full-guest-detail tfoot .totals-row {
+    background: #e8eaf6;
+    font-weight: 700;
+    border-top: 1.5pt solid #3949ab;
+  }
+  .print-full-guest-detail thead { display: table-header-group; }
+  .print-full-guest-detail tfoot { display: table-footer-group; }
+  .print-full-guest-detail tr    { break-inside: avoid; page-break-inside: avoid; }
+
+  .print-empty-table {
+    font-size: 10pt;
+    color: #999;
+    font-style: italic;
+    margin: 8pt 0;
+  }
+
+  /* ── Room diagram ── */
+  .print-room-diagram { margin: 12pt 0; }
+  .print-room-diagram svg { max-width: 100%; height: auto; }
+  .print-section-title { font-size: 13pt; font-weight: 700; color: #3949ab; margin-bottom: 8pt; }
+
   /* Page settings — landscape override injected by print.js at runtime */
   @page {
     size: A4 portrait;
@@ -150,11 +248,6 @@
   }
   @page :first { margin-top: 10mm; }
 }
-
-  /* Room diagram */
-  .print-room-diagram { margin: 12pt 0; }
-  .print-room-diagram svg { max-width: 100%; height: auto; }
-  .print-section-title { font-size: 13pt; font-weight: 700; color: #3949ab; margin-bottom: 8pt; }
 
 /* Screen preview styles (non-print) */
 .print-only { display: none; }

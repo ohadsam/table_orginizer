@@ -578,6 +578,6 @@ const Items = (() => {
     renderItem, refreshItem, renderAll, removeItemEl,
     selectItem, getSelected, deselectAll,
     highlightTable, flashItem, tableColor,
-    renumberTables
+    distributeRectSeats, renumberTables
   };
 })();

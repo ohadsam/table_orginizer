@@ -38,6 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnPrintPlan')?.addEventListener('click', () => Print.printPlan());
   document.getElementById('btnPrintList')?.addEventListener('click', () => Print.printList());
   document.getElementById('btnPrintAll')?.addEventListener('click',  () => Print.printAll());
+  document.getElementById('btnPrintFull')?.addEventListener('click', () => Print.printFull());
   document.getElementById('btnUndo')?.addEventListener('click', () => History.undo());
   document.getElementById('btnRedo')?.addEventListener('click', () => History.redo());
   document.getElementById('eventNameDisplay')?.addEventListener('click', () => Modals.openSettings());
