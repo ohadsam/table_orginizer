@@ -115,6 +115,7 @@ const Guests = (() => {
   State.on('guestRemoved',  render);
   State.on('guestAssigned', render);
   State.on('itemRemoved',   render);   // table deleted → re-render displaced guests
+  // table color changes are handled by Guests.render() call in modals.js confirmTable()
   State.on('tagsChanged',   () => { renderTagFilter(); render(); });
   State.on('dataLoaded',    () => { renderTagFilter(); render(); });
 

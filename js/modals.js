@@ -106,6 +106,7 @@ const Modals = (() => {
       if (wVal)   updates.width  = Math.max(60, wVal);
       if (hVal)   updates.height = Math.max(60, hVal);
       State.updateItem(_editingTableId, updates);
+      Guests.render(); // refresh guest card color borders
     } else {
       const sz = CONFIG.TABLE_SIZES[_tableShapeEdit] || CONFIG.TABLE_SIZES.circle;
       const qty = Math.max(1, Math.min(50, parseInt(document.getElementById('tableQty').value) || 1));

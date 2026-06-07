@@ -29,7 +29,7 @@ const AutoAssign = (() => {
     };
   }
 
-  /* ── auto-create tables to cover the capacity deficit ── */
+  /* ── auto-create tables: collision-free placement, ring around dance floor ── */
   function autoCreateTables(pending) {
     const totalGuests = pending.reduce((s, g) => s + g.total, 0);
     const freeCap = State.getTables()
@@ -48,21 +48,93 @@ const AutoAssign = (() => {
     const height   = preset?.height || sz.height;
     const numNew   = Math.ceil(deficit / seats);
 
-    // Place below all existing items (reduce avoids Math.max(...[]) → -Infinity on empty)
-    const baseY = State.get().items.reduce((acc, i) => Math.max(acc, i.y + i.height / 2), 220) + 80;
-    const baseX = 350;
-    const cols  = Math.min(numNew, 6);
-    const gapX  = width + 50;
-    const gapY  = height + 60;
+    const existing = State.get().items;
+    const GAP = 50; // minimum edge-to-edge clearance
 
-    for (let i = 0; i < numNew; i++) {
-      Items.addTable({
-        shape, seats, width, height,
-        x: baseX + (i % cols) * gapX,
-        y: baseY + Math.floor(i / cols) * gapY
-      });
+    // Store raw half-dims; GAP is added once inside collides()
+    const obstacles = existing.map(i => ({
+      cx: i.x, cy: i.y,
+      hw: i.width  / 2,
+      hh: i.height / 2
+    }));
+
+    const tw = width  / 2;
+    const th = height / 2;
+
+    // Overlap when edge-to-edge distance < GAP
+    function collides(cx, cy, placed) {
+      return [...obstacles, ...placed].some(r =>
+        Math.abs(cx - r.cx) < tw + r.hw + GAP &&
+        Math.abs(cy - r.cy) < th + r.hh + GAP
+      );
     }
-    return numNew;
+
+    // Room area: bounding box of existing items extended outward, with generous defaults
+    let areaX = 100, areaY = 100, areaX2 = 1700, areaY2 = 1300;
+    if (existing.length) {
+      const xs = existing.flatMap(i => [i.x - i.width / 2, i.x + i.width / 2]);
+      const ys = existing.flatMap(i => [i.y - i.height / 2, i.y + i.height / 2]);
+      areaX  = Math.min(...xs) - 160;
+      areaY  = Math.min(...ys) - 160;
+      areaX2 = Math.max(...xs) + 160;
+      areaY2 = Math.max(...ys) + 160;
+      // Ensure minimum canvas size
+      if (areaX2 - areaX < 1200) { const cx = (areaX + areaX2) / 2; areaX = cx - 600; areaX2 = cx + 600; }
+      if (areaY2 - areaY < 900)  { const cy = (areaY + areaY2) / 2; areaY = cy - 450; areaY2 = cy + 450; }
+    }
+
+    // Dance floor: compute center + radius for ring placement
+    const dfs = existing.filter(i => i.type === 'dancefloor');
+    const dfCx = dfs.length ? dfs.reduce((s, d) => s + d.x, 0) / dfs.length : (areaX + areaX2) / 2;
+    const dfCy = dfs.length ? dfs.reduce((s, d) => s + d.y, 0) / dfs.length : (areaY + areaY2) / 2;
+    const dfR  = dfs.length
+      ? dfs.reduce((s, d) => s + Math.max(d.width, d.height) / 2, 0) / dfs.length
+      : 0;
+    const ringTarget = dfR + Math.max(width, height) / 2 + GAP * 1.5;
+
+    // Generate grid candidates across the room area
+    const stepX = width  + GAP;
+    const stepY = height + GAP;
+    const candidates = [];
+    for (let cx = areaX + tw + GAP / 2; cx <= areaX2 - tw - GAP / 2; cx += stepX) {
+      for (let cy = areaY + th + GAP / 2; cy <= areaY2 - th - GAP / 2; cy += stepY) {
+        const dist  = Math.hypot(cx - dfCx, cy - dfCy);
+        // Ring score (lower = better): prefer positions at ringTarget distance from dance floor
+        const score = dfs.length ? Math.abs(dist - ringTarget) : 0;
+        candidates.push({ cx, cy, score });
+      }
+    }
+
+    // Sort: ring-closest first when dance floor present; else preserve grid order (natural spread)
+    if (dfs.length) candidates.sort((a, b) => a.score - b.score);
+
+    const placed = [];
+    let created = 0;
+
+    for (const c of candidates) {
+      if (created >= numNew) break;
+      if (!collides(c.cx, c.cy, placed)) {
+        Items.addTable({ shape, seats, width, height, x: c.cx, y: c.cy });
+        placed.push({ cx: c.cx, cy: c.cy, hw: tw, hh: th }); // raw half-dims; GAP added in collides()
+        created++;
+      }
+    }
+
+    // Fallback: if grid didn't fit all tables, stack below all current items (live state)
+    if (created < numNew) {
+      const liveItems = State.get().items;
+      const baseY = liveItems.reduce((acc, i) => Math.max(acc, i.y + i.height / 2), areaY2 - 80) + GAP;
+      const cols  = Math.min(numNew - created, 6);
+      for (let i = 0; created < numNew; i++, created++) {
+        Items.addTable({
+          shape, seats, width, height,
+          x: areaX + tw + GAP + (i % cols) * stepX,
+          y: baseY + th + GAP + Math.floor(i / cols) * stepY
+        });
+      }
+    }
+
+    return created;
   }
 
   /* ── main entry — returns summary { assigned, failed, splitsCreated, tablesCreated } ── */
