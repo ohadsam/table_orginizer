@@ -466,6 +466,8 @@ The guest panel has three sections:
 | `unseatedFirst` | Unassigned guests first |
 | `nearDanceFirst` | Guests with `nearDance` proximity preference first |
 | `farDanceFirst` | Guests with `farDance` proximity preference first |
+| `tableNumAsc` | Table number ascending; unassigned (number 0) appear first. Secondary sort by name. |
+| `tableNumDesc` | Table number descending; unassigned (number 0) appear last. Secondary sort by name. |
 | `custom` | User-defined drag order (`_customOrder` array) |
 
 `custom` is activated automatically when the user drags a guest card via the reorder handle (⠿). `_customOrder` is seeded from the current state order on first drag.
