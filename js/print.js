@@ -545,11 +545,11 @@ ${buildGuestTableHTML(sorted)}`;
     const safeSize  = Math.max(6, Math.min(28, parseInt(customFontSize) || 11));
     const safeColor = /^#[0-9a-fA-F]{6}$/.test(customColor) ? customColor : '#333333';
 
-    // Inject card dimensions override (allows non-default sizes without touching print.css)
+    // Inject card dimensions override scoped to @media print (avoids affecting screen layout)
     const sizeStyleEl = document.createElement('style');
     sizeStyleEl.textContent =
-      `.seating-card{width:${safeCardSize}mm;height:${safeCardSize}mm;}` +
-      `.sc-top{height:${safeCardSize / 2}mm;}`;
+      `@media print{.seating-card{width:${safeCardSize}mm;height:${safeCardSize}mm;}` +
+      `.sc-top{height:${safeCardSize / 2}mm;}}`;
     document.head.appendChild(sizeStyleEl);
 
     // Inject background image ONCE via a <style> tag (avoids repeating the data URL per card).
@@ -589,14 +589,17 @@ ${buildGuestTableHTML(sorted)}`;
     area.innerHTML = cards;
     _injectCardsPage();
     document.body.dataset.printMode = 'cards';
-    window.print();
-    setTimeout(() => {
-      document.body.dataset.printMode = '';
-      area.innerHTML = '';
-      sizeStyleEl.remove();
-      if (bgStyleEl) bgStyleEl.remove();
-      _clearLandscape();
-    }, 2000);
+    try {
+      window.print();
+    } finally {
+      setTimeout(() => {
+        document.body.dataset.printMode = '';
+        area.innerHTML = '';
+        sizeStyleEl.remove();
+        if (bgStyleEl) bgStyleEl.remove();
+        _clearLandscape();
+      }, 2000);
+    }
   }
 
   function _injectCardsPage() {
