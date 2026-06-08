@@ -1,15 +1,17 @@
 'use strict';
 
 const Guests = (() => {
-  let _searchText    = '';
-  let _filterTags    = new Set();
-  let _filterAssigned = null;   // null=all, true=only assigned, false=only unassigned
-  let _filterTableNum = '';     // '' = no filter, else table number string
-  let _sortMode      = 'default'; // default | nameAsc | nameDesc | seatedFirst | unseatedFirst | custom
-  let _groupMode     = 'none';  // none | byTag | byTable
-  let _collapsed     = new Set();
-  let _customOrder   = [];      // guest IDs in user-defined display order
-  let _batching      = false;
+  let _searchText     = '';
+  let _filterTags     = new Set();
+  let _tagFilterMode  = 'or';      // 'or' | 'and'
+  let _filterAssigned = null;      // null=all, true=only assigned, false=only unassigned
+  let _filterTableNum = '';        // '' = no filter, else table number string
+  let _filterProximity = null;     // null=all | proximity key | 'none'
+  let _sortMode       = 'default'; // default | nameAsc | nameDesc | seatedFirst | unseatedFirst | custom | nearDanceFirst | farDanceFirst
+  let _groupMode      = 'none';    // none | byTag | byTable | byProximity
+  let _collapsed      = new Set();
+  let _customOrder    = [];        // guest IDs in user-defined display order
+  let _batching       = false;
 
   function startBatch() { _batching = true; }
   function endBatch()   { _batching = false; render(); }
@@ -20,12 +22,27 @@ const Guests = (() => {
     const search = _searchText.toLowerCase();
     return guests.filter(g => {
       if (search && !g.name.toLowerCase().includes(search)) return false;
-      if (_filterTags.size > 0 && !(g.tags || []).some(t => _filterTags.has(t))) return false;
+      if (_filterTags.size > 0) {
+        const gTags = g.tags || [];
+        if (_tagFilterMode === 'and') {
+          if (![..._filterTags].every(t => gTags.includes(t))) return false;
+        } else {
+          if (!gTags.some(t => _filterTags.has(t))) return false;
+        }
+      }
       if (_filterAssigned === true  && !g.tableId) return false;
       if (_filterAssigned === false &&  g.tableId) return false;
       if (_filterTableNum) {
         const tbl = g.tableId ? State.getItem(g.tableId) : null;
         if (!tbl || String(tbl.number) !== _filterTableNum) return false;
+      }
+      if (_filterProximity !== null) {
+        const prox = g.proximity || [];
+        if (_filterProximity === 'none') {
+          if (prox.length > 0) return false;
+        } else {
+          if (!prox.includes(_filterProximity)) return false;
+        }
       }
       return true;
     });
@@ -38,6 +55,16 @@ const Guests = (() => {
       case 'nameDesc':      return arr.sort((a, b) => b.name.localeCompare(a.name, 'he'));
       case 'seatedFirst':   return arr.sort((a, b) => (b.tableId ? 1 : 0) - (a.tableId ? 1 : 0));
       case 'unseatedFirst': return arr.sort((a, b) => (a.tableId ? 1 : 0) - (b.tableId ? 1 : 0));
+      case 'nearDanceFirst': return arr.sort((a, b) => {
+        const aH = (a.proximity || []).includes('nearDance') ? 1 : 0;
+        const bH = (b.proximity || []).includes('nearDance') ? 1 : 0;
+        return bH - aH;
+      });
+      case 'farDanceFirst': return arr.sort((a, b) => {
+        const aH = (a.proximity || []).includes('farDance') ? 1 : 0;
+        const bH = (b.proximity || []).includes('farDance') ? 1 : 0;
+        return bH - aH;
+      });
       case 'custom': {
         if (!_customOrder.length) return arr;
         const idx = new Map(_customOrder.map((id, i) => [id, i]));
@@ -63,8 +90,9 @@ const Guests = (() => {
       return;
     }
 
-    if (_groupMode === 'byTag')   _renderByTag(listEl, filtered, state);
-    else if (_groupMode === 'byTable') _renderByTable(listEl, filtered, state);
+    if (_groupMode === 'byTag')              _renderByTag(listEl, filtered, state);
+    else if (_groupMode === 'byTable')       _renderByTable(listEl, filtered, state);
+    else if (_groupMode === 'byProximity')   _renderByProximity(listEl, filtered, state);
     else _renderFlat(listEl, filtered, state);
 
     _updateClearBtn();
@@ -132,6 +160,45 @@ const Guests = (() => {
       const collapsed = _collapsed.has('table:__unassigned');
       html += _groupSection('table:__unassigned', 'לא שובצו', unassigned.length, collapsed,
         unassigned.map(g => buildGuestCard(g, state)).join(''));
+    }
+    listEl.innerHTML = html;
+    _bindGroupToggle(listEl);
+    _bindCardEvents(filtered, listEl);
+  }
+
+  function _renderByProximity(listEl, filtered, state) {
+    const proxKeys = Object.keys(CONFIG.PROXIMITY);
+    const groups = {};
+    proxKeys.forEach(k => { groups[k] = []; });
+    const noPreference = [];
+
+    filtered.forEach(g => {
+      const prox = g.proximity || [];
+      if (prox.length === 0) {
+        noPreference.push(g);
+      } else {
+        let hasKnown = false;
+        prox.forEach(k => {
+          if (groups[k]) { groups[k].push(g); hasKnown = true; }
+        });
+        if (!hasKnown) noPreference.push(g);
+      }
+    });
+
+    let html = '';
+    proxKeys.forEach(key => {
+      const grp = groups[key];
+      if (!grp.length) return;
+      const cfg = CONFIG.PROXIMITY[key];
+      const lbl = `${cfg.icon} ${cfg.label}`;
+      const collapsed = _collapsed.has('prox:' + key);
+      html += _groupSection('prox:' + key, lbl, grp.length, collapsed,
+        grp.map(g => buildGuestCard(g, state)).join(''));
+    });
+    if (noPreference.length) {
+      const collapsed = _collapsed.has('prox:__none');
+      html += _groupSection('prox:__none', 'ללא העדפה', noPreference.length, collapsed,
+        noPreference.map(g => buildGuestCard(g, state)).join(''));
     }
     listEl.innerHTML = html;
     _bindGroupToggle(listEl);
@@ -273,16 +340,34 @@ const Guests = (() => {
     const bar = document.getElementById('tagsFilter');
     if (!bar) return;
     const tags = State.get().tags;
-    bar.innerHTML = tags.map(t => {
+
+    const tagBtns = tags.map(t => {
       const color  = UI.tagColor(t);
       const active = _filterTags.has(t);
       return `<button class="tag-filter-btn ${active ? 'active' : ''}" data-tag="${UI.escHtml(t)}"
         style="color:${color};border-color:${color}${active ? ';background:' + color + '22' : ''}">${UI.escHtml(t)}</button>`;
     }).join('');
+
+    // AND/OR mode toggle — shown only when 2+ tags are selected
+    const modeBtns = _filterTags.size >= 2 ? `
+      <button class="tag-mode-btn ${_tagFilterMode === 'or'  ? 'active' : ''}" data-tag-mode="or"  title="הצג מוזמנים עם לפחות אחת מהתגיות הנבחרות">OR</button>
+      <button class="tag-mode-btn ${_tagFilterMode === 'and' ? 'active' : ''}" data-tag-mode="and" title="הצג מוזמנים עם כל התגיות הנבחרות">AND</button>
+    ` : '';
+
+    bar.innerHTML = tagBtns + modeBtns;
+
     bar.querySelectorAll('.tag-filter-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const tag = btn.dataset.tag;
         _filterTags.has(tag) ? _filterTags.delete(tag) : _filterTags.add(tag);
+        if (_filterTags.size < 2) _tagFilterMode = 'or';
+        renderTagFilter();
+        render();
+      });
+    });
+    bar.querySelectorAll('.tag-mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        _tagFilterMode = btn.dataset.tagMode;
         renderTagFilter();
         render();
       });
@@ -295,19 +380,26 @@ const Guests = (() => {
     const wrap = document.getElementById('guestsControls');
     if (!wrap) return;
 
+    const proxFilterBtns = Object.entries(CONFIG.PROXIMITY).map(([key, cfg]) =>
+      `<button class="btn-xs-filter ${_filterProximity === key ? 'active' : ''}" data-proximity="${key}" title="${cfg.label}">${cfg.icon} ${cfg.label}</button>`
+    ).join('');
+
     wrap.innerHTML = `
       <div class="guests-controls-row">
         <span class="guests-controls-label">סדר:</span>
-        <button class="btn-xs-filter ${_sortMode==='default'?'active':''}"      data-sort="default">כברירה</button>
-        <button class="btn-xs-filter ${_sortMode==='nameAsc'?'active':''}"      data-sort="nameAsc">א–ת</button>
-        <button class="btn-xs-filter ${_sortMode==='seatedFirst'?'active-success active':''}"   data-sort="seatedFirst">משובצים ↑</button>
-        <button class="btn-xs-filter ${_sortMode==='unseatedFirst'?'active-warning active':''}" data-sort="unseatedFirst">לא שובצו ↑</button>
+        <button class="btn-xs-filter ${_sortMode==='default'?'active':''}"            data-sort="default">כברירה</button>
+        <button class="btn-xs-filter ${_sortMode==='nameAsc'?'active':''}"            data-sort="nameAsc">א–ת</button>
+        <button class="btn-xs-filter ${_sortMode==='seatedFirst'?'active-success active':''}"    data-sort="seatedFirst">משובצים ↑</button>
+        <button class="btn-xs-filter ${_sortMode==='unseatedFirst'?'active-warning active':''}"  data-sort="unseatedFirst">לא שובצו ↑</button>
+        <button class="btn-xs-filter ${_sortMode==='nearDanceFirst'?'active':''}"     data-sort="nearDanceFirst" title="קרובי רחבה ראשונים">🕺↑</button>
+        <button class="btn-xs-filter ${_sortMode==='farDanceFirst'?'active':''}"      data-sort="farDanceFirst"  title="רחוקי רחבה ראשונים">🤫↑</button>
       </div>
       <div class="guests-controls-row">
         <span class="guests-controls-label">קבץ:</span>
-        <button class="btn-xs-filter ${_groupMode==='none'?'active':''}"    data-group="none">ללא</button>
-        <button class="btn-xs-filter ${_groupMode==='byTag'?'active':''}"   data-group="byTag">לפי תגית</button>
-        <button class="btn-xs-filter ${_groupMode==='byTable'?'active':''}" data-group="byTable">לפי שולחן</button>
+        <button class="btn-xs-filter ${_groupMode==='none'?'active':''}"           data-group="none">ללא</button>
+        <button class="btn-xs-filter ${_groupMode==='byTag'?'active':''}"          data-group="byTag">לפי תגית</button>
+        <button class="btn-xs-filter ${_groupMode==='byTable'?'active':''}"        data-group="byTable">לפי שולחן</button>
+        <button class="btn-xs-filter ${_groupMode==='byProximity'?'active':''}"    data-group="byProximity">לפי רחבה</button>
       </div>
       <div class="guests-controls-row">
         <span class="guests-controls-label">סינון:</span>
@@ -315,7 +407,13 @@ const Guests = (() => {
         <button class="btn-xs-filter ${_filterAssigned===true?'active-success active':''}"  data-assigned="true">שובץ</button>
         <button class="btn-xs-filter ${_filterAssigned===false?'active-warning active':''}" data-assigned="false">לא שובץ</button>
         <input class="filter-table-input" id="filterTableNum" type="number" min="1" placeholder="שולחן #" value="${_filterTableNum}" title="סנן לפי מספר שולחן">
-        <button class="btn-clear-filters${(_filterAssigned!==null||_filterTableNum||_filterTags.size>0||_searchText)?' visible':''}" id="btnClearFilters" title="נקה סינונים">✕ נקה</button>
+        <button class="btn-clear-filters${(_filterAssigned!==null||_filterTableNum||_filterTags.size>0||_searchText||_filterProximity!==null)?' visible':''}" id="btnClearFilters" title="נקה סינונים">✕ נקה</button>
+      </div>
+      <div class="guests-controls-row">
+        <span class="guests-controls-label">רחבה:</span>
+        <button class="btn-xs-filter ${_filterProximity===null?'active':''}"           data-proximity="null">הכל</button>
+        ${proxFilterBtns}
+        <button class="btn-xs-filter ${_filterProximity==='none'?'active-warning active':''}" data-proximity="none">ללא העדפה</button>
       </div>`;
 
     wrap.querySelectorAll('[data-sort]').forEach(btn => {
@@ -341,6 +439,14 @@ const Guests = (() => {
         render();
       });
     });
+    wrap.querySelectorAll('[data-proximity]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const v = btn.dataset.proximity;
+        _filterProximity = v === 'null' ? null : v;
+        renderControls();
+        render();
+      });
+    });
     const tblInput = wrap.querySelector('#filterTableNum');
     if (tblInput) {
       tblInput.addEventListener('input', () => {
@@ -356,9 +462,11 @@ const Guests = (() => {
   }
 
   function clearFilters() {
-    _filterAssigned = null;
-    _filterTableNum = '';
+    _filterAssigned  = null;
+    _filterTableNum  = '';
     _filterTags.clear();
+    _tagFilterMode   = 'or';
+    _filterProximity = null;
     _searchText = '';
     const inp = document.getElementById('guestSearch');
     if (inp) inp.value = '';
@@ -370,12 +478,14 @@ const Guests = (() => {
   function _updateClearBtn() {
     const btn = document.getElementById('btnClearFilters');
     if (!btn) return;
-    const hasFilter = _filterAssigned !== null || _filterTableNum || _filterTags.size > 0 || _searchText;
+    const hasFilter = _filterAssigned !== null || _filterTableNum || _filterTags.size > 0 || _searchText || _filterProximity !== null;
     btn.classList.toggle('visible', !!hasFilter);
   }
 
   function _updateSortUI() {
-    document.querySelectorAll('[data-sort]').forEach(btn => {
+    const wrap = document.getElementById('guestsControls');
+    if (!wrap) return;
+    wrap.querySelectorAll('[data-sort]').forEach(btn => {
       const mode = btn.dataset.sort;
       btn.className = 'btn-xs-filter';
       if (mode === _sortMode) {
@@ -383,6 +493,19 @@ const Guests = (() => {
         else if (mode === 'unseatedFirst') btn.classList.add('active', 'active-warning');
         else btn.classList.add('active');
       }
+    });
+  }
+
+  /* ── Collapse toggle for filters area ── */
+  function _initToggleFilters() {
+    const btn  = document.getElementById('btnToggleFilters');
+    const area = document.getElementById('guestsFiltersArea');
+    if (!btn || !area) return;
+    btn.addEventListener('click', () => {
+      const collapsed = area.classList.toggle('collapsed');
+      btn.textContent = collapsed ? '▼' : '▲';
+      btn.classList.toggle('collapsed-state', collapsed);
+      btn.title = collapsed ? 'הצג פילטרים ותגיות' : 'הסתר פילטרים ותגיות';
     });
   }
 
@@ -416,6 +539,7 @@ const Guests = (() => {
 
   function init() {
     initSearch();
+    _initToggleFilters();
     renderTagFilter();
     renderControls();
     render();
