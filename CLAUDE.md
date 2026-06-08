@@ -272,16 +272,18 @@ Four modes, each with its own hidden `<div>` in `index.html`:
 
 ### Room diagram SVG (`printAll`, `printFull`)
 
-`Print.buildRoomDiagramSVG()` computes a bounding box from all canvas items and renders a simplified SVG (no seat circles). Landscape mode is auto-detected: if `width/height > 1.3`, a `@page { size: A4 landscape; }` rule is injected via a `<style id="_printOrientStyle">` tag right before `window.print()` and removed in a setTimeout cleanup.
+`Print.buildRoomDiagramSVG()` computes a bounding box from all canvas items and renders a simplified SVG (no seat circles). Returns `{ svg }`. Font sizes and guest names use the same per-table scaling as `buildTableSVG()` in `items.js`: `scale = Math.min(W,H) / 130`, then clamp-based sizes using the same settings keys. Guest names render one per SVG `<text>` line with overflow indicator. SVG inline `max-height:120mm` ensures the diagram (≈120mm) fits on the same page as the header (~50mm) within landscape A4 (~186mm usable).
 
-**Important**: `@page` rules cannot be nested inside CSS selectors. The landscape rule must be top-level, which is why it is injected by JS rather than being in `print.css`.
+**Important**: `@page` rules cannot be nested inside CSS selectors. The landscape rule must be top-level — `printAll` and `printFull` call `_injectLandscape()` which writes `@page { size: A4 landscape; margin: 12mm 15mm; }` into a `<style id="_printOrientStyle">` tag before `window.print()` and `_clearLandscape()` removes it in a `setTimeout`. All pages in `printAll`/`printFull` are landscape (avoids blank-page bugs from CSS named-page transitions in Chromium). `printPlan` and `printList` remain portrait.
 
 ### Full print (`printFull`)
 
 `Print.printFull()` produces a comprehensive multi-page document:
-1. **Page 1** — event header, stats summary, room diagram SVG (landscape if `width/height > 1.3` using `@page :first { size: A4 landscape; }`).
-2. **One page per table** (via `page-break-before:always` inline style) — a header with all table properties (see below), a large visual SVG of the table with seat circles (filled/empty), and a detailed guest table with columns: #, name, adults, children, total, tags, notes.
+1. **Page 1** — event header, stats summary, room diagram SVG.
+2. **One page per table** (via `page-break-before:always`) — a header with all table properties (see below), a large visual SVG of the table with seat circles (filled/empty), and a detailed guest table with columns: #, name, adults, children, total, tags, notes.
 3. **Final page** — full guest list sorted by table then name, using the same `buildGuestTableHTML` helper.
+
+All pages in `printFull` print landscape (injected `@page { size: A4 landscape; }`).
 
 **Per-table page header** contains all properties also visible in the Full Details modal:
 - Table number and label (title row, large font)
@@ -291,7 +293,7 @@ Four modes, each with its own hidden `<div>` in `index.html`:
 
 **`_buildTableVisualSVG(item, occ)`**: renders a print-sized SVG of the table body and seat circles, seat occupancy indicators, number, label, and guest names (same positioning math as `buildTableSVG()` in `items.js`). **`occ` must be passed** from the caller — passing `undefined` causes all seats to render empty (they compare `i < undefined` → always false). Uses `Items.distributeRectSeats` for rect seat layout (exported from `items.js`) to keep canvas and print rendering consistent. Font sizes/colors follow the same settings keys (`fontGuestSize/fontGuestColor` etc.), with print-appropriate defaults (`numSize=22`, `labelSize=13`, `guestSize=10`, `occuSize=9`).
 
-**Page orientation**: Diagram and per-table pages use `.print-landscape-page` CSS class which sets `page: landscape-page` (a CSS named page defined in `print.css` as `@page landscape-page { size: A4 landscape; }`). Guest list pages have no named-page class and print portrait. `printAll`: diagram page → landscape, guest list → portrait. `printFull`: diagram page → landscape, per-table pages → landscape, final guest list → portrait.
+**Page orientation**: `printAll` and `printFull` always print landscape via `_injectLandscape()` / `_clearLandscape()` helper pair (JS-injected `@page` rule). CSS named-page rules are not used because Chromium inserts a blank page before the first element that transitions from the default unnamed page to a named page.
 
 **Tags escaping**: All user-supplied tag strings are passed through `UI.escHtml` in both `buildGuestRows` (shared helper) and `printFull`'s per-table guest detail rows.
 
