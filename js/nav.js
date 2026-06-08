@@ -165,23 +165,48 @@ const ItemNav = (() => {
   function _tipHtml(item) {
     const label = UI.escHtml(_itemLabel(item));
     if (item.type === 'table') {
+      const guests = State.getTableGuests(item.id);
       const occ    = State.getTableOccupancy(item.id);
       const maxDim = Math.max(item.width, item.height);
       const scale  = maxDim > 0 ? 140 / maxDim : 1;
       const tw     = Math.round(item.width  * scale);
       const th     = Math.round(item.height * scale);
       const svgStr = Items.buildTableSVG(item);
+
+      const MAX_SHOW = 12;
+      const shown    = guests.slice(0, MAX_SHOW);
+      const extra    = guests.length - shown.length;
+
+      const guestRows = shown.map(g => {
+        const tags = (g.tags || []).map(t => {
+          const c = UI.tagColor(t);
+          return `<span class="nav-tip-tag" style="background:${c}22;color:${c};border-color:${c}44">${UI.escHtml(t)}</span>`;
+        }).join('');
+        const seatsStr = g.total > 1 ? ` <span class="nav-tip-seats">(${g.total})</span>` : '';
+        return `<div class="nav-tip-guest-row">
+          <span class="nav-tip-guest-name">${UI.escHtml(g.name || '')}${seatsStr}</span>
+          ${tags ? `<span class="nav-tip-guest-tags">${tags}</span>` : ''}
+        </div>`;
+      }).join('');
+
+      const guestsBlock = guests.length === 0
+        ? `<div class="nav-tip-empty">שולחן ריק</div>`
+        : `<div class="nav-tip-guests">${guestRows}</div>${extra > 0 ? `<div class="nav-tip-more">+${extra} עוד…</div>` : ''}`;
+
       return `<div class="nav-tip-svg" style="width:${tw}px;height:${th}px;overflow:hidden">
                 <div style="transform:scale(${scale.toFixed(4)});transform-origin:0 0;display:inline-block;line-height:0">${svgStr}</div>
               </div>
               <div class="nav-tip-label">${label}</div>
-              <div class="nav-tip-occ">${occ}/${item.seats} מושבים</div>`;
+              <div class="nav-tip-occ">${occ}/${item.seats} מושבים</div>
+              ${guestsBlock}`;
     }
     const icons = { dancefloor: '🕺', dj: '🎵', door: '🚪' };
     const icon  = icons[item.type] || '⬜';
     const color = _itemColor(item);
+    const dims  = `${Math.round(item.width)}×${Math.round(item.height)} px`;
     return `<div class="nav-tip-special" style="background:${color}">${icon}</div>
-            <div class="nav-tip-label">${label}</div>`;
+            <div class="nav-tip-label">${label}</div>
+            <div class="nav-tip-occ">${dims}</div>`;
   }
 
   return { init, collapse };
