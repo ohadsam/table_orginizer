@@ -507,15 +507,18 @@ ${buildGuestTableHTML(sorted)}`;
     setTimeout(() => { document.body.dataset.printMode = ''; }, 2000);
   }
 
-  /* ── Seating cards (8×8 cm tent cards) ── */
+  /* ── Seating cards (variable-size tent cards, default 8×8 cm) ── */
   function printCards(opts) {
     const {
       customText    = '',
       customFont    = 'inherit',
       customFontSize = 11,
       customColor   = '#333333',
-      bgImage       = null
+      bgImage       = null,
+      cardSize      = 80
     } = opts || {};
+
+    const safeCardSize = Math.max(50, Math.min(120, parseInt(cardSize) || 80));
 
     const guests = State.get().guests;
     if (!guests.length) { UI.toast('אין מוזמנים להדפסה', 'info', 2000); return; }
@@ -541,6 +544,13 @@ ${buildGuestTableHTML(sorted)}`;
     const safeFont  = SAFE_FONTS.has(customFont) ? customFont : 'inherit';
     const safeSize  = Math.max(6, Math.min(28, parseInt(customFontSize) || 11));
     const safeColor = /^#[0-9a-fA-F]{6}$/.test(customColor) ? customColor : '#333333';
+
+    // Inject card dimensions override scoped to @media print (avoids affecting screen layout)
+    const sizeStyleEl = document.createElement('style');
+    sizeStyleEl.textContent =
+      `@media print{.seating-card{width:${safeCardSize}mm;height:${safeCardSize}mm;}` +
+      `.sc-top{height:${safeCardSize / 2}mm;}}`;
+    document.head.appendChild(sizeStyleEl);
 
     // Inject background image ONCE via a <style> tag (avoids repeating the data URL per card).
     // Escape ' and ) to prevent CSS injection should the data URL contain those characters.
@@ -579,13 +589,17 @@ ${buildGuestTableHTML(sorted)}`;
     area.innerHTML = cards;
     _injectCardsPage();
     document.body.dataset.printMode = 'cards';
-    window.print();
-    setTimeout(() => {
-      document.body.dataset.printMode = '';
-      area.innerHTML = '';
-      if (bgStyleEl) bgStyleEl.remove();
-      _clearLandscape();
-    }, 2000);
+    try {
+      window.print();
+    } finally {
+      setTimeout(() => {
+        document.body.dataset.printMode = '';
+        area.innerHTML = '';
+        sizeStyleEl.remove();
+        if (bgStyleEl) bgStyleEl.remove();
+        _clearLandscape();
+      }, 2000);
+    }
   }
 
   function _injectCardsPage() {

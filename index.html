@@ -628,7 +628,7 @@
 
       <!-- Live preview -->
       <div class="cards-preview-wrap">
-        <div class="cards-preview-label">תצוגה מקדימה (8×8 ס"מ)</div>
+        <div id="cardsPreviewLabel" class="cards-preview-label">תצוגה מקדימה (8×8 ס"מ)</div>
         <div id="cardPreview" class="card-preview-box">
           <div id="cardPreviewTop" class="card-preview-top"></div>
           <div class="card-preview-bottom">
@@ -643,6 +643,18 @@
       </div>
 
       <hr class="modal-divider">
+
+      <!-- Card size -->
+      <div class="form-group">
+        <label class="form-label">גודל כרטיס</label>
+        <select class="input-select" id="cardSizeSelect">
+          <option value="60">6×6 ס"מ</option>
+          <option value="70">7×7 ס"מ</option>
+          <option value="80" selected>8×8 ס"מ (ברירת מחדל)</option>
+          <option value="90">9×9 ס"מ</option>
+          <option value="100">10×10 ס"מ</option>
+        </select>
+      </div>
 
       <!-- Background image -->
       <div class="form-group">
