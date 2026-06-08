@@ -425,7 +425,13 @@ Label, width (min 40), height (min 40), color picker. Shape selector shown only 
 
 ## Guest List Controls
 
-The guest panel renders a `#guestsControls` block via `Guests.renderControls()` with three rows:
+The guest panel has two sections:
+1. **`.guests-search`** — search input + `#btnToggleFilters` collapse button (▲/▼)
+2. **`#guestsFiltersArea`** — collapsible wrapper containing `#tagsFilter` and `#guestsControls`
+
+`#btnToggleFilters` toggles the `.collapsed` class on `#guestsFiltersArea` (which sets `display:none`), updates button text (▲/▼), and toggles `.collapsed-state` CSS class on the button.
+
+`Guests.renderControls()` renders four rows inside `#guestsControls`:
 
 ### Sort modes
 | Value | Behaviour |
@@ -435,6 +441,8 @@ The guest panel renders a `#guestsControls` block via `Guests.renderControls()` 
 | `nameDesc` | Hebrew locale Z→A |
 | `seatedFirst` | Assigned guests first |
 | `unseatedFirst` | Unassigned guests first |
+| `nearDanceFirst` | Guests with `nearDance` proximity preference first |
+| `farDanceFirst` | Guests with `farDance` proximity preference first |
 | `custom` | User-defined drag order (`_customOrder` array) |
 
 `custom` is activated automatically when the user drags a guest card via the reorder handle (⠿). `_customOrder` is seeded from the current state order on first drag.
@@ -445,18 +453,21 @@ The guest panel renders a `#guestsControls` block via `Guests.renderControls()` 
 | `none` | Flat list |
 | `byTag` | One collapsible section per tag; guests with multiple tags appear in each matching section |
 | `byTable` | One collapsible section per table (sorted by number), plus "לא שובצו" at the bottom |
+| `byProximity` | One collapsible section per proximity key (from `CONFIG.PROXIMITY`), plus "ללא העדפה" at the bottom |
 
-Collapse state is stored in the `_collapsed` Set (keyed `tag:TAG` or `table:ID`). Toggling does not trigger a full re-render — it only adds/removes the `collapsed` CSS class.
+Collapse state is stored in the `_collapsed` Set (keyed `tag:TAG`, `table:ID`, or `prox:KEY`). Toggling does not trigger a full re-render — it only adds/removes the `collapsed` CSS class.
 
-**Multi-tag duplicate binding**: In `byTag` mode a guest may appear in multiple sections, each with the same `data-guest-id` attribute. `_bindCardEvents` uses `listEl.querySelectorAll('[data-guest-id="..."]')` to wire all occurrences. The `id` attribute is NOT used on guest cards to avoid invalid duplicate IDs in `byTag` mode.
+**Multi-tag/multi-proximity duplicate binding**: In `byTag` and `byProximity` modes a guest may appear in multiple sections, each with the same `data-guest-id` attribute. `_bindCardEvents` uses `listEl.querySelectorAll('[data-guest-id="..."]')` to wire all occurrences. The `id` attribute is NOT used on guest cards to avoid invalid duplicate IDs.
 
 ### Filter controls
 - **Assigned toggle** (`_filterAssigned`): `null` = all, `true` = assigned only, `false` = unassigned only.
 - **Table number** (`_filterTableNum`): free-text input filtered against `State.getItem(g.tableId)?.number`.
 - **Tag filter** (`_filterTags` Set): rendered in `#tagsFilter` bar above the list; clicking a tag toggles it.
+- **Tag filter mode** (`_tagFilterMode`): `'or'` (any selected tag) or `'and'` (all selected tags). OR/AND toggle buttons appear in the tag bar when 2+ tags are selected. Resets to `'or'` when fewer than 2 tags are active.
+- **Proximity filter** (`_filterProximity`): `null` = all, or a proximity key (`'nearDance'`, `'farDance'`, `'nearEntrance'`), or `'none'` = guests with no proximity preference.
 - **Search** (`_searchText`): `#guestSearch` text input, substring match on guest name.
 
-`clearFilters()` resets all four dimensions and re-renders both the tag bar and controls row.
+`clearFilters()` resets all six dimensions (including `_filterProximity` and `_tagFilterMode`) and re-renders the tag bar and controls row.
 
 The "✕ נקה" button gains the `.visible` class when any filter is active; hidden otherwise.
 
@@ -491,6 +502,7 @@ The reorder handle (⠿ span) is separate from the pointer-based canvas-drag sys
 - **saveNow null guard**: `saveNow()` returns early if `_currentId` is null — prevents orphan writes during initialization or after a `deleteEvent` clears the ID before switching.
 - **Guest card IDs**: Guest cards use `data-guest-id` (not `id`) so that `byTag` grouping can render the same guest in multiple sections without invalid duplicate `id` attributes. Always bind card events via `querySelectorAll('[data-guest-id="..."]')`.
 - **Drag reorder vs. canvas drag**: Guest cards are `draggable="false"` by default. Only `pointerdown` on `.guest-reorder-handle` sets `draggable="true"`. Never set `draggable="true"` unconditionally — it would conflict with the pointer-based canvas drag for assigning guests to tables.
+- **Tag AND/OR mode**: `_tagFilterMode` resets to `'or'` whenever `_filterTags.size < 2`. The OR/AND toggle buttons are only rendered in `renderTagFilter()` when `_filterTags.size >= 2`.
 - **Batch during multi-updateItem loops**: Wrap any loop that calls `State.updateItem` multiple times in `Guests.startBatch()` / `Guests.endBatch()` to prevent O(n) sidebar re-renders.
 
 ## File Structure
