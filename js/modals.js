@@ -1216,12 +1216,115 @@ const Modals = (() => {
     updateEventHeader();
   }
 
+  /* ── Print Cards modal ── */
+  function openPrintCards() {
+    let _bgDataUrl = null;
+
+    function _updatePreview() {
+      const text  = document.getElementById('cardCustomText').value.trim();
+      const font  = document.getElementById('cardCustomFont').value;
+      const size  = parseInt(document.getElementById('cardCustomFontSize').value) || 11;
+      const color = document.getElementById('cardCustomFontColor').value;
+
+      // Background image in preview (validate data URL before use)
+      const topEl = document.getElementById('cardPreviewTop');
+      if (_bgDataUrl && /^data:image\//.test(_bgDataUrl)) {
+        topEl.style.backgroundImage  = `url('${_bgDataUrl.replace(/'/g, '%27').replace(/\)/g, '%29')}')`;
+        topEl.style.backgroundSize   = 'cover';
+        topEl.style.backgroundPosition = 'center';
+        document.getElementById('cardsBgNote').style.display = '';
+      } else {
+        topEl.style.backgroundImage = '';
+        document.getElementById('cardsBgNote').style.display = 'none';
+      }
+
+      // Custom text in preview
+      const customEl = document.getElementById('cardPreviewCustom');
+      if (text) {
+        customEl.textContent   = text;
+        customEl.style.display = '';
+        customEl.style.fontFamily = font;
+        customEl.style.fontSize   = size + 'pt';
+        customEl.style.color      = color;
+        document.getElementById('cardCustomFmtRow').style.display = '';
+      } else {
+        customEl.style.display = 'none';
+        document.getElementById('cardCustomFmtRow').style.display = 'none';
+      }
+    }
+
+    // Reset form
+    document.getElementById('cardCustomText').value      = '';
+    document.getElementById('cardCustomFont').value      = 'inherit';
+    document.getElementById('cardCustomFontSize').value  = '11';
+    document.getElementById('cardCustomFontColor').value = '#333333';
+    document.getElementById('cardCustomFmtRow').style.display  = 'none';
+    document.getElementById('cardsBgNote').style.display        = 'none';
+    document.getElementById('cardPreviewCustom').style.display  = 'none';
+    document.getElementById('btnClearCardBg').style.display     = 'none';
+    document.getElementById('cardBgName').textContent           = '';
+    _bgDataUrl = null;
+
+    // Guest count summary
+    const all    = State.get().guests;
+    const seated = all.filter(g => g.tableId).length;
+    document.getElementById('cardPrintSummary').textContent =
+      `יודפסו ${all.length} כרטיסים (${seated} עם שיבוץ, ${all.length - seated} ללא שיבוץ)`;
+
+    // Live-preview handlers
+    ['cardCustomText','cardCustomFont','cardCustomFontSize','cardCustomFontColor'].forEach(id => {
+      const el = document.getElementById(id);
+      el.oninput  = _updatePreview;
+      el.onchange = _updatePreview;
+    });
+
+    document.getElementById('btnUploadCardBg').onclick = () =>
+      document.getElementById('cardBgInput').click();
+
+    document.getElementById('cardBgInput').onchange = e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        _bgDataUrl = ev.target.result;
+        document.getElementById('btnClearCardBg').style.display = '';
+        document.getElementById('cardBgName').textContent = file.name;
+        e.target.value = '';
+        _updatePreview();
+      };
+      reader.readAsDataURL(file);
+    };
+
+    document.getElementById('btnClearCardBg').onclick = () => {
+      _bgDataUrl = null;
+      document.getElementById('btnClearCardBg').style.display = 'none';
+      document.getElementById('cardBgName').textContent = '';
+      _updatePreview();
+    };
+
+    document.getElementById('btnDoPrintCards').onclick = () => {
+      const opts = {
+        customText:     document.getElementById('cardCustomText').value.trim(),
+        customFont:     document.getElementById('cardCustomFont').value,
+        customFontSize: parseInt(document.getElementById('cardCustomFontSize').value) || 11,
+        customColor:    document.getElementById('cardCustomFontColor').value,
+        bgImage:        _bgDataUrl
+      };
+      UI.closeModal('modalPrintCards');
+      Print.printCards(opts);
+    };
+
+    _updatePreview();
+    UI.openModal('modalPrintCards');
+  }
+
   return {
     init,
     openAddTable, openEditTable,
     openEditItem, openAddGuest, openEditGuest,
     openAddShape, openSettings, openAutoAssign,
     openFindTable, openItemDetails,
+    openPrintCards,
     handleGuestDrop, updateEventHeader,
     renderTagsManager, renderPresetManager, renderTablePresets,
     renderEventsManager, showAutoAssignResult

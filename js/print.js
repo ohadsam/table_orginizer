@@ -507,5 +507,92 @@ ${buildGuestTableHTML(sorted)}`;
     setTimeout(() => { document.body.dataset.printMode = ''; }, 2000);
   }
 
-  return { printPlan, printList, printAll, printFull };
+  /* ── Seating cards (8×8 cm tent cards) ── */
+  function printCards(opts) {
+    const {
+      customText    = '',
+      customFont    = 'inherit',
+      customFontSize = 11,
+      customColor   = '#333333',
+      bgImage       = null
+    } = opts || {};
+
+    const guests = State.get().guests;
+    if (!guests.length) { UI.toast('אין מוזמנים להדפסה', 'info', 2000); return; }
+
+    // Sort by table number (unassigned last), then by name
+    const sorted = [...guests].sort((a, b) => {
+      const ta = State.getItem(a.tableId);
+      const tb = State.getItem(b.tableId);
+      const na = ta ? (ta.number ?? 9999) : 9999;
+      const nb = tb ? (tb.number ?? 9999) : 9999;
+      if (na !== nb) return na - nb;
+      return (a.name || '').localeCompare(b.name || '', 'he');
+    });
+
+    // Whitelist font to prevent CSS injection
+    const SAFE_FONTS = new Set([
+      'inherit',
+      "'Arial',sans-serif",
+      "'Times New Roman',Times,serif",
+      'Georgia,serif',
+      "'Courier New',monospace"
+    ]);
+    const safeFont  = SAFE_FONTS.has(customFont) ? customFont : 'inherit';
+    const safeSize  = Math.max(6, Math.min(28, parseInt(customFontSize) || 11));
+    const safeColor = /^#[0-9a-fA-F]{6}$/.test(customColor) ? customColor : '#333333';
+
+    // Inject background image ONCE via a <style> tag (avoids repeating the data URL per card).
+    // Escape ' and ) to prevent CSS injection should the data URL contain those characters.
+    let bgStyleEl = null;
+    if (bgImage && /^data:image\//.test(bgImage)) {
+      const safeBg = bgImage.replace(/'/g, '%27').replace(/\)/g, '%29');
+      bgStyleEl = document.createElement('style');
+      bgStyleEl.textContent =
+        `.sc-top{background-image:url('${safeBg}');background-size:cover;` +
+        `background-position:center;background-repeat:no-repeat;` +
+        `-webkit-print-color-adjust:exact;print-color-adjust:exact;}`;
+      document.head.appendChild(bgStyleEl);
+    }
+
+    const customStyle = `font-family:${safeFont};font-size:${safeSize}pt;color:${safeColor}`;
+
+    const cards = sorted.map(g => {
+      const table     = State.getItem(g.tableId);
+      const tableText = table
+        ? `שולחן ${UI.escHtml(String(table.number ?? ''))}${table.label ? ' — ' + UI.escHtml(table.label) : ''}`
+        : 'ללא שיבוץ';
+      const customRow = customText
+        ? `<div class="sc-custom" style="${customStyle}">${UI.escHtml(customText)}</div>`
+        : '';
+      return `<div class="seating-card">
+        <div class="sc-top"></div>
+        <div class="sc-bottom">
+          <div class="sc-name">${UI.escHtml(g.name || '')}</div>
+          <div class="sc-table">${tableText}</div>
+          ${customRow}
+        </div>
+      </div>`;
+    }).join('');
+
+    const area = document.getElementById('printCardsArea');
+    area.innerHTML = cards;
+    _injectCardsPage();
+    document.body.dataset.printMode = 'cards';
+    window.print();
+    setTimeout(() => {
+      document.body.dataset.printMode = '';
+      area.innerHTML = '';
+      if (bgStyleEl) bgStyleEl.remove();
+      _clearLandscape();
+    }, 2000);
+  }
+
+  function _injectCardsPage() {
+    let s = document.getElementById('_printOrientStyle');
+    if (!s) { s = document.createElement('style'); s.id = '_printOrientStyle'; document.head.appendChild(s); }
+    s.textContent = '@page { size: A4 portrait; margin: 8mm; }';
+  }
+
+  return { printPlan, printList, printAll, printFull, printCards };
 })();
