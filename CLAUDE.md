@@ -398,6 +398,7 @@ Every canvas item has a `⋮` action button (top-left corner, visible on hover/s
 - **שכפל** — calls `State.duplicateItem(id)`; new item is selected
 - **שנה טקסט** — inline input + Enter/✓ → `State.updateItem(id, { label })`; calls `Guests.render()` for tables
 - **שנה צבע** — inline color picker; `input` event gives live item preview; ✓ button confirms and calls `Guests.render()` for tables; ✕ sets `color: null` (reverts to occupancy color for tables, default type color for special items)
+- **גודל גופן / צבע גופן** — two inline rows (`#ctxFontSizeRow`, `#ctxFontColorRow`) shown **only for non-table items**. ✓ saves to `item.fontSize` / `item.fontColor`; ✕ clears to null (auto). Applied in `buildSpecialHTML()` via inline style on the `.special-label` span. Both fields are hex-sanitized before rendering.
 - **מחק** — confirm dialog → `State.removeItem(id)`
 
 ### Context menu pitfalls
