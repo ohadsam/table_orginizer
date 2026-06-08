@@ -19,12 +19,13 @@ const ItemNav = (() => {
     State.on('itemRemoved', _renderAll);
     State.on('dataLoaded',  _renderAll);
 
-    // Sync: only refresh the color dot on guest assignment changes
+    // Sync: only refresh the color dot on guest assignment/edit changes
     State.on('guestAssigned', ({ tableId, prevTableId }) => {
       _refreshDot(tableId);
       _refreshDot(prevTableId);
     });
-    State.on('guestRemoved', ({ tableId }) => _refreshDot(tableId));
+    State.on('guestRemoved',  ({ tableId }) => _refreshDot(tableId));
+    State.on('guestUpdated',  (guest)       => _refreshDot(guest.tableId));
 
     _renderAll();
   }
@@ -38,9 +39,19 @@ const ItemNav = (() => {
     btn.title = _open ? 'סגור תפריט פריטים' : 'פתח תפריט פריטים';
   }
 
+  /* ── Collapse (called by canvas before fitAll/focusOnItem) ── */
+  function collapse() {
+    if (!_open || !_panel) return;
+    _open = false;
+    _panel.classList.remove('nav-open');
+    const btn = document.getElementById('itemNavToggleBtn');
+    if (btn) { btn.textContent = '▶'; btn.title = 'פתח תפריט פריטים'; }
+  }
+
   /* ── Render list ── */
   function _renderAll() {
     if (!_list) return;
+    _hideTip();   // innerHTML removal doesn't fire mouseleave; dismiss manually
     _list.innerHTML = '';
     const items = [...State.get().items].sort((a, b) => {
       if (a.type === 'table' && b.type !== 'table') return -1;
@@ -70,7 +81,7 @@ const ItemNav = (() => {
     const dot = document.createElement('span');
     dot.className = 'nav-item-dot';
     dot.style.background = _itemColor(item);
-    if (item.shape === 'circle') dot.style.borderRadius = '50%';
+    if (item.type === 'table' && item.shape === 'circle') dot.style.borderRadius = '50%';
 
     const lbl = document.createElement('span');
     lbl.className = 'nav-item-label';
@@ -173,5 +184,5 @@ const ItemNav = (() => {
             <div class="nav-tip-label">${label}</div>`;
   }
 
-  return { init };
+  return { init, collapse };
 })();

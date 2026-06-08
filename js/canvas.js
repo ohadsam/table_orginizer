@@ -91,6 +91,7 @@ const Canvas = (() => {
 
   function fitAll() {
     _closeMobileSidebar();
+    if (typeof ItemNav !== 'undefined') ItemNav.collapse();
     const items = State.get().items;
     if (!items.length) { zoom = 0.6; panX = 40; panY = 40; applyTransform(); return; }
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -211,6 +212,7 @@ const Canvas = (() => {
     const it = State.getItem(id);
     if (!it) return;
     _closeMobileSidebar();
+    if (typeof ItemNav !== 'undefined') ItemNav.collapse();
     const vr = viewport.getBoundingClientRect();
     zoom = Math.max(0.6, Math.min(CONFIG.MAX_ZOOM, zoom));
     panX = _canvasAreaW(vr) / 2 - it.x * zoom;
