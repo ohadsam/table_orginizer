@@ -671,6 +671,7 @@ const Items = (() => {
     renderItem, refreshItem, renderAll, removeItemEl,
     selectItem, getSelected, deselectAll,
     highlightTable, flashItem, tableColor,
-    distributeRectSeats, renumberTables
+    distributeRectSeats, renumberTables,
+    buildTableSVG, openCtxMenu
   };
 })();
