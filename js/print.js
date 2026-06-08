@@ -328,7 +328,10 @@ ${buildGuestTableHTML(sorted)}`;
       const colorClass = occ === 0 ? 'empty' : (occ <= t.seats ? 'ok' : 'over');
       const borderStyle = t.color ? `border-color:${t.color};` : '';
       const headerBg    = t.color ? `background:${t.color}22;` : '';
-      const shapeHe     = t.shape === 'circle' ? 'עיגול' : 'מלבן';
+      const shapeHe     = { circle: 'עיגול', rectangle: 'מלבן', square: 'ריבוע' }[t.shape] || '';
+      const colorSwatch = t.color
+        ? `<span style="display:inline-block;width:10pt;height:10pt;background:${t.color};border:1pt solid #999;border-radius:2pt;vertical-align:middle;margin-inline-end:3pt"></span>`
+        : '';
 
       const guestRows = guests.map((g, i) => {
         const tags      = (g.tags || []).join(', ');
@@ -347,14 +350,17 @@ ${buildGuestTableHTML(sorted)}`;
       html += `
 <div class="print-full-table-page ${colorClass}" style="page-break-before:always;${borderStyle}">
   <div class="print-full-table-header" style="${headerBg}">
-    <div class="print-full-table-title">שולחן ${t.number || '?'}${t.label ? ' — ' + UI.escHtml(t.label) : ''}</div>
+    <div class="print-full-table-title">שולחן ${t.number || '?'}${t.label ? ' &mdash; ' + UI.escHtml(t.label) : ''}</div>
     <div class="print-full-table-meta">
-      <span>${occ} / ${t.seats} מושבים &bull; ${shapeHe}</span>
-      ${t.locked ? '<span class="print-locked">🔒 נעול</span>' : ''}
+      <span>${occ} / ${t.seats} מושבים</span>
+      ${shapeHe ? `<span>&bull; צורה: ${shapeHe}</span>` : ''}
+      <span>&bull; גודל: ${t.width}&times;${t.height}</span>
+      ${t.color ? `<span>&bull; ${colorSwatch}צבע מותאם</span>` : ''}
+      ${t.locked ? '<span class="print-locked">&bull; 🔒 נעול</span>' : ''}
     </div>
   </div>
   <div class="print-full-table-body">
-    <div class="print-full-table-visual">${_buildTableVisualSVG(t)}</div>
+    <div class="print-full-table-visual">${_buildTableVisualSVG(t, occ)}</div>
     <div class="print-full-table-guest-section">
       ${guests.length ? `
       <table class="print-full-guest-detail">
