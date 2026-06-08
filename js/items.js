@@ -279,12 +279,17 @@ const Items = (() => {
     const minDim    = Math.min(W, H);
 
     // Scaled font sizes (base calibrated at 130px table)
+    const stt       = State.get().settings;
     const scale     = minDim / 130;
-    const numFont   = item.fontSize || Math.max(10, Math.min(24, Math.round(15 * scale)));
-    const labelFont = Math.max(7,  Math.min(14, Math.round(10 * scale)));
-    const guestFont = Math.max(6,  Math.min(11, Math.round(8  * scale)));
-    const occuFont  = Math.max(6,  Math.min(9,  Math.round(7  * scale)));
-    const lineH     = guestFont + 2.5;
+    const numFont   = item.fontSize || stt.fontNumberSize   || Math.max(10, Math.min(24, Math.round(15 * scale)));
+    const labelFont = stt.fontLabelSize    || Math.max(7,  Math.min(14, Math.round(10 * scale)));
+    const guestFont = stt.fontGuestSize    || Math.max(6,  Math.min(11, Math.round(8  * scale)));
+    const occuFont  = stt.fontOccupancySize || Math.max(6, Math.min(9,  Math.round(7  * scale)));
+    const numColor   = stt.fontNumberColor   || '#1a237e';
+    const labelColor = stt.fontLabelColor    || '#37474f';
+    const guestColor = stt.fontGuestColor    || '#546e7a';
+    const occuColor  = stt.fontOccupancyColor || '#888888';
+    const lineH      = guestFont + 2.5;
 
     let svgInner = '';
 
@@ -303,17 +308,17 @@ const Items = (() => {
       }
 
       // Occupancy ratio (small, top of circle body)
-      svgInner += `<text x="${cx}" y="${cy - r + occuFont + 1}" text-anchor="middle" font-size="${occuFont}" fill="#888">${occupancy}/${item.seats}</text>`;
+      svgInner += `<text x="${cx}" y="${cy - r + occuFont + 1}" text-anchor="middle" font-size="${occuFont}" fill="${occuColor}">${occupancy}/${item.seats}</text>`;
 
       // Table number — large, bold, prominent
       const numY = cy - (item.label ? numFont * 0.45 : numFont * 0.2);
-      svgInner += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="#1a237e">${item.number || ''}</text>`;
+      svgInner += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="${numColor}">${item.number || ''}</text>`;
 
       // Label below number (with visual gap)
       let textY;
       if (item.label) {
         textY = numY + numFont * 0.65 + labelFont * 0.35 + 3;
-        svgInner += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${labelFont}" font-weight="600" fill="#37474f">${UI.escHtml(item.label)}</text>`;
+        svgInner += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${labelFont}" font-weight="600" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
         textY += labelFont * 0.65 + 3;
       } else {
         textY = numY + numFont * 0.6 + 2;
@@ -324,11 +329,11 @@ const Items = (() => {
       const maxG = (guests.length > rawMaxG) ? Math.max(0, rawMaxG - 1) : rawMaxG;
       guests.slice(0, maxG).forEach(g => {
         const nm = g.name.length > 12 ? g.name.slice(0, 11) + '…' : g.name;
-        svgInner += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${guestFont}" fill="#546e7a">${UI.escHtml(nm)}</text>`;
+        svgInner += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${guestFont}" fill="${guestColor}">${UI.escHtml(nm)}</text>`;
         textY += lineH;
       });
       const extra = guests.length - maxG;
-      if (extra > 0) svgInner += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${occuFont}" fill="#90a4ae">+${extra}</text>`;
+      if (extra > 0) svgInner += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${occuFont}" fill="${occuColor}">+${extra}</text>`;
 
     } else {
       // Rectangle / square
@@ -345,17 +350,17 @@ const Items = (() => {
       const cx = W / 2, cy = H / 2;
 
       // Occupancy (small, top of rect interior)
-      svgInner += `<text x="${cx}" y="${pad + occuFont + 1}" text-anchor="middle" font-size="${occuFont}" fill="#888">${occupancy}/${item.seats}</text>`;
+      svgInner += `<text x="${cx}" y="${pad + occuFont + 1}" text-anchor="middle" font-size="${occuFont}" fill="${occuColor}">${occupancy}/${item.seats}</text>`;
 
       // Table number — large, bold
       const numY = cy - (item.label ? numFont * 0.45 : numFont * 0.2);
-      svgInner += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="#1a237e">${item.number || ''}</text>`;
+      svgInner += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="${numColor}">${item.number || ''}</text>`;
 
       // Label
       let textY;
       if (item.label) {
         textY = numY + numFont * 0.65 + labelFont * 0.35 + 3;
-        svgInner += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${labelFont}" font-weight="600" fill="#37474f">${UI.escHtml(item.label)}</text>`;
+        svgInner += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${labelFont}" font-weight="600" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
         textY += labelFont * 0.65 + 3;
       } else {
         textY = numY + numFont * 0.6 + 2;
@@ -367,11 +372,11 @@ const Items = (() => {
       const maxG    = (guests.length > rawMaxG) ? Math.max(0, rawMaxG - 1) : rawMaxG;
       guests.slice(0, maxG).forEach(g => {
         const nm = g.name.length > 16 ? g.name.slice(0, 15) + '…' : g.name;
-        svgInner += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${guestFont}" fill="#546e7a">${UI.escHtml(nm)}</text>`;
+        svgInner += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${guestFont}" fill="${guestColor}">${UI.escHtml(nm)}</text>`;
         textY += lineH;
       });
       const extra = guests.length - maxG;
-      if (extra > 0) svgInner += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${occuFont}" fill="#90a4ae">+${extra}</text>`;
+      if (extra > 0) svgInner += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${occuFont}" fill="${occuColor}">+${extra}</text>`;
     }
 
     if (item.locked) {
