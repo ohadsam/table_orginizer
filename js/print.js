@@ -71,9 +71,12 @@ const Print = (() => {
         const icon = icons[item.type] || '';
         const br   = item.shape === 'circle' ? Math.min(W, H) / 2 : 6;
         const lbl  = item.label || { dancefloor: 'רחבת ריקודים', dj: 'עמדת DJ', door: 'כניסה' }[item.type] || '';
+        const icoSize = item.iconSize || 14;
+        const lblSize = item.fontSize || 9;
+        const lblColor = /^#[0-9a-fA-F]{3,8}$/.test(item.fontColor || '') ? item.fontColor : '#333';
         body += `<rect x="0" y="0" width="${W}" height="${H}" rx="${br}" fill="${bg}" stroke="#aaa" stroke-width="1.5"/>`;
-        body += `<text x="${W / 2}" y="${H / 2 - 4}" text-anchor="middle" dominant-baseline="middle" font-size="14">${icon}</text>`;
-        body += `<text x="${W / 2}" y="${H / 2 + 12}" text-anchor="middle" font-size="9" fill="#333">${UI.escHtml(lbl)}</text>`;
+        body += `<text x="${W / 2}" y="${H / 2 - 4}" text-anchor="middle" dominant-baseline="middle" font-size="${icoSize}">${icon}</text>`;
+        body += `<text x="${W / 2}" y="${H / 2 + lblSize + 2}" text-anchor="middle" font-size="${lblSize}" fill="${lblColor}">${UI.escHtml(lbl)}</text>`;
       }
       body += '</g>';
     });
@@ -91,10 +94,14 @@ const Print = (() => {
     const stt = State.get().settings;
     const numColor   = stt.fontNumberColor   || '#1a237e';
     const labelColor = stt.fontLabelColor    || '#37474f';
+    const guestColor = stt.fontGuestColor    || '#546e7a';
     const occuColor  = stt.fontOccupancyColor || '#888888';
-    // Print visual SVG uses fixed sizes (scaled to print medium) with optional color overrides
-    const numSize   = stt.fontNumberSize || 22;
-    const labelSize = stt.fontLabelSize  || 13;
+    const numSize   = stt.fontNumberSize  || 22;
+    const labelSize = stt.fontLabelSize   || 13;
+    const guestSize = stt.fontGuestSize   || 10;
+    const occuSize  = stt.fontOccupancySize || 9;
+    const lineH = guestSize + 2.5;
+    const guests = State.getTableGuests(item.id);
     let body = '';
 
     if (item.shape === 'circle') {
@@ -111,10 +118,26 @@ const Print = (() => {
           : CONFIG.COLORS.seatEmpty;
         body += `<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="${R}" fill="${fill}" stroke="#fff" stroke-width="1.2"/>`;
       }
-      const numY = cy - (item.label ? numSize * 0.6 : 2);
+      body += `<text x="${cx}" y="${cy - r + occuSize + 1}" text-anchor="middle" font-size="${occuSize}" fill="${occuColor}">${occ}/${item.seats}</text>`;
+      const numY = cy - (item.label ? numSize * 0.45 : numSize * 0.2);
       body += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="${numSize}" font-weight="800" fill="${numColor}">${item.number || ''}</text>`;
-      if (item.label) body += `<text x="${cx}" y="${numY + numSize * 0.7 + labelSize}" text-anchor="middle" font-size="${labelSize}" font-weight="600" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
-      body += `<text x="${cx}" y="${cy - r + 11}" text-anchor="middle" font-size="9" fill="${occuColor}">${occ}/${item.seats}</text>`;
+      let textY;
+      if (item.label) {
+        textY = numY + numSize * 0.65 + labelSize * 0.35 + 3;
+        body += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${labelSize}" font-weight="600" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
+        textY += labelSize * 0.65 + 14;
+      } else {
+        textY = numY + numSize * 0.6 + 2;
+      }
+      const rawMaxG = Math.max(0, Math.floor((cy + r - 5 - textY) / lineH));
+      const maxG = (guests.length > rawMaxG) ? Math.max(0, rawMaxG - 1) : rawMaxG;
+      guests.slice(0, maxG).forEach(g => {
+        const nm = g.name.length > 12 ? g.name.slice(0, 11) + '…' : g.name;
+        body += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${guestSize}" fill="${guestColor}">${UI.escHtml(nm)}</text>`;
+        textY += lineH;
+      });
+      const extra = guests.length - maxG;
+      if (extra > 0) body += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${occuSize}" fill="${occuColor}">+${extra}</text>`;
     } else {
       const pad = R + 4;
       const rw = W - pad * 2, rh = H - pad * 2;
@@ -127,10 +150,27 @@ const Print = (() => {
         body += `<circle cx="${(pad + sx).toFixed(1)}" cy="${(pad + sy).toFixed(1)}" r="${R}" fill="${fill}" stroke="#fff" stroke-width="1.2"/>`;
       });
       const cx = W / 2, cy = H / 2;
-      const numY = cy - (item.label ? numSize * 0.6 : 2);
+      body += `<text x="${cx}" y="${pad + occuSize + 1}" text-anchor="middle" font-size="${occuSize}" fill="${occuColor}">${occ}/${item.seats}</text>`;
+      const numY = cy - (item.label ? numSize * 0.45 : numSize * 0.2);
       body += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="${numSize}" font-weight="800" fill="${numColor}">${item.number || ''}</text>`;
-      if (item.label) body += `<text x="${cx}" y="${numY + numSize * 0.7 + labelSize}" text-anchor="middle" font-size="${labelSize}" font-weight="600" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
-      body += `<text x="${cx}" y="${pad + 11}" text-anchor="middle" font-size="9" fill="${occuColor}">${occ}/${item.seats}</text>`;
+      let textY;
+      if (item.label) {
+        textY = numY + numSize * 0.65 + labelSize * 0.35 + 3;
+        body += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${labelSize}" font-weight="600" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
+        textY += labelSize * 0.65 + 14;
+      } else {
+        textY = numY + numSize * 0.6 + 2;
+      }
+      const availH = H - pad - 4 - textY;
+      const rawMaxG = Math.max(0, Math.floor(availH / lineH));
+      const maxG = (guests.length > rawMaxG) ? Math.max(0, rawMaxG - 1) : rawMaxG;
+      guests.slice(0, maxG).forEach(g => {
+        const nm = g.name.length > 16 ? g.name.slice(0, 15) + '…' : g.name;
+        body += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${guestSize}" fill="${guestColor}">${UI.escHtml(nm)}</text>`;
+        textY += lineH;
+      });
+      const extra = guests.length - maxG;
+      if (extra > 0) body += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${occuSize}" fill="${occuColor}">+${extra}</text>`;
     }
     if (item.locked) body += `<text x="${W - 4}" y="14" text-anchor="end" font-size="13">🔒</text>`;
 
@@ -264,45 +304,34 @@ ${buildGuestTableHTML(sorted)}`;
     const eventDate  = state.event.date ? (() => { const [y,m,d] = state.event.date.split('-'); return new Date(+y,+m-1,+d).toLocaleDateString('he-IL'); })() : '';
     const venue      = state.event.venue || '';
 
-    const { svg, landscape } = buildRoomDiagramSVG();
+    const { svg } = buildRoomDiagramSVG();
     const sorted = sortedGuests();
 
     allArea.innerHTML = `
-<div class="print-header">
-  <h1>${UI.escHtml(eventTitle)}</h1>
-  ${eventType ? `<p class="print-subtitle">${UI.escHtml(eventType)}</p>` : ''}
-  ${eventDate ? `<p class="print-meta">📅 ${UI.escHtml(eventDate)}</p>` : ''}
-  ${venue     ? `<p class="print-meta">📍 ${UI.escHtml(venue)}</p>` : ''}
-  <hr>
-  ${buildStatsSummary()}
+<div class="print-landscape-page">
+  <div class="print-header">
+    <h1>${UI.escHtml(eventTitle)}</h1>
+    ${eventType ? `<p class="print-subtitle">${UI.escHtml(eventType)}</p>` : ''}
+    ${eventDate ? `<p class="print-meta">📅 ${UI.escHtml(eventDate)}</p>` : ''}
+    ${venue     ? `<p class="print-meta">📍 ${UI.escHtml(venue)}</p>` : ''}
+    <hr>
+    ${buildStatsSummary()}
+  </div>
+  <div class="print-room-diagram">
+    <h2 class="print-section-title">תרשים האולם</h2>
+    ${svg}
+  </div>
 </div>
-<div class="print-room-diagram">
-  <h2 class="print-section-title">תרשים האולם</h2>
-  ${svg}
-</div>
-<div style="page-break-before:always"></div>
-<div class="print-header">
-  <h1>${UI.escHtml(eventTitle)} — רשימת מוזמנים</h1>
-</div>
-${buildGuestTableHTML(sorted)}`;
-
-    // Inject top-level @page rule for landscape — nested @page inside selectors is invalid CSS
-    let orientStyle = document.getElementById('_printOrientStyle');
-    if (!orientStyle) {
-      orientStyle = document.createElement('style');
-      orientStyle.id = '_printOrientStyle';
-      document.head.appendChild(orientStyle);
-    }
-    orientStyle.textContent = landscape
-      ? '@page { size: A4 landscape; margin: 12mm 15mm; }'
-      : '';
+<div style="page-break-before:always">
+  <div class="print-header">
+    <h1>${UI.escHtml(eventTitle)} — רשימת מוזמנים</h1>
+  </div>
+  ${buildGuestTableHTML(sorted)}
+</div>`;
 
     document.body.dataset.printMode = 'all';
     window.print();
-    setTimeout(() => {
-      document.body.dataset.printMode = '';
-      if (orientStyle) orientStyle.textContent = '';
-    }, 2000);
+    setTimeout(() => { document.body.dataset.printMode = ''; }, 2000);
   }
 
   /* ── Print full: diagram + one page per table + guest list ── */
@@ -318,20 +347,22 @@ ${buildGuestTableHTML(sorted)}`;
       : '';
     const venue = state.event.venue || '';
 
-    // Page 1 — event header + room diagram
-    const { svg, landscape } = buildRoomDiagramSVG();
+    // Page 1 — event header + room diagram (landscape)
+    const { svg } = buildRoomDiagramSVG();
     let html = `
-<div class="print-header">
-  <h1>${UI.escHtml(eventTitle)}</h1>
-  ${eventType ? `<p class="print-subtitle">${UI.escHtml(eventType)}</p>` : ''}
-  ${eventDate ? `<p class="print-meta">📅 ${UI.escHtml(eventDate)}</p>` : ''}
-  ${venue     ? `<p class="print-meta">📍 ${UI.escHtml(venue)}</p>` : ''}
-  <hr>
-  ${buildStatsSummary()}
-</div>
-<div class="print-room-diagram">
-  <h2 class="print-section-title">תרשים האולם</h2>
-  ${svg}
+<div class="print-landscape-page">
+  <div class="print-header">
+    <h1>${UI.escHtml(eventTitle)}</h1>
+    ${eventType ? `<p class="print-subtitle">${UI.escHtml(eventType)}</p>` : ''}
+    ${eventDate ? `<p class="print-meta">📅 ${UI.escHtml(eventDate)}</p>` : ''}
+    ${venue     ? `<p class="print-meta">📍 ${UI.escHtml(venue)}</p>` : ''}
+    <hr>
+    ${buildStatsSummary()}
+  </div>
+  <div class="print-room-diagram">
+    <h2 class="print-section-title">תרשים האולם</h2>
+    ${svg}
+  </div>
 </div>`;
 
     // One page per table
@@ -361,7 +392,7 @@ ${buildGuestTableHTML(sorted)}`;
       }).join('');
 
       html += `
-<div class="print-full-table-page ${colorClass}" style="page-break-before:always;${borderStyle}">
+<div class="print-full-table-page print-landscape-page ${colorClass}" style="page-break-before:always;${borderStyle}">
   <div class="print-full-table-header" style="${headerBg}">
     <div class="print-full-table-title">שולחן ${t.number || '?'}${t.label ? ' &mdash; ' + UI.escHtml(t.label) : ''}</div>
     <div class="print-full-table-meta">
@@ -411,23 +442,9 @@ ${buildGuestTableHTML(sorted)}`;
 
     fullArea.innerHTML = html;
 
-    // Landscape only for the first page if the room diagram is wide; per-table pages stay portrait
-    let orientStyle = document.getElementById('_printOrientStyle');
-    if (!orientStyle) {
-      orientStyle = document.createElement('style');
-      orientStyle.id = '_printOrientStyle';
-      document.head.appendChild(orientStyle);
-    }
-    orientStyle.textContent = landscape
-      ? '@page :first { size: A4 landscape; margin: 12mm 15mm; }'
-      : '';
-
     document.body.dataset.printMode = 'full';
     window.print();
-    setTimeout(() => {
-      document.body.dataset.printMode = '';
-      if (orientStyle) orientStyle.textContent = '';
-    }, 2000);
+    setTimeout(() => { document.body.dataset.printMode = ''; }, 2000);
   }
 
   function buildStatsSummary() {

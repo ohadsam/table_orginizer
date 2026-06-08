@@ -289,9 +289,9 @@ Four modes, each with its own hidden `<div>` in `index.html`:
 
 **Shape label mapping**: `{ circle: 'עיגול', rectangle: 'מלבן', square: 'ריבוע' }` — all three shapes distinguished correctly.
 
-**`_buildTableVisualSVG(item, occ)`**: renders a print-sized SVG of the table body and seat circles. **`occ` must be passed** from the caller — passing `undefined` causes all seats to render empty (they compare `i < undefined` → always false). Uses `Items.distributeRectSeats` for rect seat layout (exported from `items.js`) to keep canvas and print rendering consistent.
+**`_buildTableVisualSVG(item, occ)`**: renders a print-sized SVG of the table body and seat circles, seat occupancy indicators, number, label, and guest names (same positioning math as `buildTableSVG()` in `items.js`). **`occ` must be passed** from the caller — passing `undefined` causes all seats to render empty (they compare `i < undefined` → always false). Uses `Items.distributeRectSeats` for rect seat layout (exported from `items.js`) to keep canvas and print rendering consistent. Font sizes/colors follow the same settings keys (`fontGuestSize/fontGuestColor` etc.), with print-appropriate defaults (`numSize=22`, `labelSize=13`, `guestSize=10`, `occuSize=9`).
 
-**Landscape handling difference**: `printAll` applies `@page { size: landscape }` globally (all pages landscape). `printFull` applies `@page :first { size: landscape }` so only the first page (room diagram) is landscape; per-table pages remain portrait.
+**Page orientation**: Diagram and per-table pages use `.print-landscape-page` CSS class which sets `page: landscape-page` (a CSS named page defined in `print.css` as `@page landscape-page { size: A4 landscape; }`). Guest list pages have no named-page class and print portrait. `printAll`: diagram page → landscape, guest list → portrait. `printFull`: diagram page → landscape, per-table pages → landscape, final guest list → portrait.
 
 **Tags escaping**: All user-supplied tag strings are passed through `UI.escHtml` in both `buildGuestRows` (shared helper) and `printFull`'s per-table guest detail rows.
 
