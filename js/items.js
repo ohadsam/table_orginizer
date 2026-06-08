@@ -212,6 +212,7 @@ const Items = (() => {
   }
 
   function renderAll() {
+    _selectedId = null;
     room().innerHTML = '';
     State.get().items.forEach(renderItem);
   }

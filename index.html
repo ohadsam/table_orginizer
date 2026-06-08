@@ -395,28 +395,34 @@
           <span></span>
           <span class="font-col-header">גודל</span>
           <span class="font-col-header">צבע</span>
+          <span></span>
         </div>
         <div class="font-settings-row">
           <span class="font-row-label">מספר שולחן</span>
           <input type="number" id="settingFontNumberSize" class="input" min="6" max="48" placeholder="אוטומטי" title="גודל גופן (ריק = מותאם אוטומטית לגודל השולחן)">
           <input type="color" id="settingFontNumberColor" class="input-color" title="צבע גופן — מספר שולחן">
+          <button type="button" class="btn-font-reset" data-row="number" title="שחזר לברירת מחדל — מספר שולחן">↺</button>
         </div>
         <div class="font-settings-row">
           <span class="font-row-label">תווית</span>
           <input type="number" id="settingFontLabelSize" class="input" min="6" max="40" placeholder="אוטומטי" title="גודל גופן (ריק = מותאם אוטומטית)">
           <input type="color" id="settingFontLabelColor" class="input-color" title="צבע גופן — תווית שולחן">
+          <button type="button" class="btn-font-reset" data-row="label" title="שחזר לברירת מחדל — תווית">↺</button>
         </div>
         <div class="font-settings-row">
           <span class="font-row-label">שמות מוזמנים</span>
           <input type="number" id="settingFontGuestSize" class="input" min="6" max="20" placeholder="אוטומטי" title="גודל גופן (ריק = מותאם אוטומטית)">
           <input type="color" id="settingFontGuestColor" class="input-color" title="צבע גופן — שמות מוזמנים">
+          <button type="button" class="btn-font-reset" data-row="guest" title="שחזר לברירת מחדל — שמות מוזמנים">↺</button>
         </div>
         <div class="font-settings-row">
           <span class="font-row-label">תפוסה</span>
           <input type="number" id="settingFontOccupancySize" class="input" min="6" max="16" placeholder="אוטומטי" title="גודל גופן (ריק = מותאם אוטומטית)">
           <input type="color" id="settingFontOccupancyColor" class="input-color" title="צבע גופן — תפוסה">
+          <button type="button" class="btn-font-reset" data-row="occupancy" title="שחזר לברירת מחדל — תפוסה">↺</button>
         </div>
       </div>
+      <button type="button" class="btn btn-sm btn-secondary btn-reset-all-fonts" id="btnResetAllFonts" title="שחזר את כל הגדרות הגופן לברירות המחדל">↺ שחזר הכל לברירת מחדל</button>
       <hr class="settings-divider">
       <div class="settings-section-title">ניהול תגיות</div>
       <div class="tags-manager" id="tagsManager"></div>
