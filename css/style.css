@@ -535,6 +535,8 @@ input, select, textarea { font-family: inherit; }
 }
 .ctx-apply-btn:hover { background: #e0e0e0; }
 .ctx-clear-btn { color: #e53935; }
+.ctx-save-all-btn { background: #e8f5e9; color: #2e7d32; font-weight: 600; }
+.ctx-save-all-btn:hover { background: #c8e6c9; }
 
 /* ════════════════════ BUTTONS ════════════════════ */
 .btn {

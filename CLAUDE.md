@@ -397,8 +397,10 @@ Every canvas item has a `⋮` action button (top-left corner, visible on hover/s
 - **📋 פרטים מלאים** — calls `Modals.openItemDetails(id)`; opens the full-details modal
 - **שכפל** — calls `State.duplicateItem(id)`; new item is selected
 - **שנה טקסט** — inline input + Enter/✓ → `State.updateItem(id, { label })`; calls `Guests.render()` for tables
-- **שנה צבע** — inline color picker; `input` event gives live item preview; ✓ button confirms and calls `Guests.render()` for tables; ✕ sets `color: null` (reverts to occupancy color for tables, default type color for special items)
+- **שנה צבע** — inline color picker; ✓ button confirms (`State.updateItem`) and calls `Guests.render()` for tables; ✕ sets `color: null` (reverts to occupancy color for tables, default type color for special items)
 - **גודל גופן / צבע גופן** — two inline rows (`#ctxFontSizeRow`, `#ctxFontColorRow`) shown **only for non-table items**. ✓ saves to `item.fontSize` / `item.fontColor`; ✕ clears to null (auto). Applied in `buildSpecialHTML()` via inline style on the `.special-label` span. Both fields are hex-sanitized before rendering.
+- **גודל אייקון** — inline row (`#ctxIconSizeRow`) shown **only for non-table items**. ✓ saves to `item.iconSize`; ✕ clears to null (auto = CSS `font-size: 24px`). Applied in `buildSpecialHTML()` via inline `font-size` on the `.special-icon` span.
+- **✓ שמור וסגור** — (`#ctxSaveAll`) shown **only for non-table items**; closes the menu. For non-table items all inline row ✓/✕ buttons apply their change immediately **without** closing the menu (via `_closeIfTable()` helper), so the user can adjust multiple properties before clicking this button.
 - **מחק** — confirm dialog → `State.removeItem(id)`
 
 ### Context menu pitfalls
