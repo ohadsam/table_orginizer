@@ -493,7 +493,7 @@ const Guests = (() => {
     const textEl  = document.getElementById('filterActiveText');
     if (bar && area && textEl) {
       const showBar = !!hasFilter && area.classList.contains('collapsed');
-      bar.hidden = !showBar;
+      bar.classList.toggle('visible', showBar);
       if (showBar) {
         const parts = [];
         if (_searchText) parts.push(`"${_searchText.slice(0, 10)}${_searchText.length > 10 ? '…' : ''}"`);

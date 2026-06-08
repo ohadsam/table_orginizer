@@ -196,7 +196,7 @@ input, select, textarea { font-family: inherit; }
 
 /* Active-filter banner (shows below search when filters are collapsed) */
 .filter-active-bar {
-  display: flex;
+  display: none;
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
@@ -204,6 +204,7 @@ input, select, textarea { font-family: inherit; }
   border-bottom: 1px solid #ffe082;
   flex-shrink: 0;
 }
+.filter-active-bar.visible { display: flex; }
 .filter-active-label {
   flex: 1;
   font-size: 11px;
