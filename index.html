@@ -385,6 +385,35 @@
         </select>
       </div>
       <hr class="settings-divider">
+      <div class="settings-section-title">מראה טקסט בשולחנות</div>
+      <div class="font-settings-grid">
+        <div class="font-settings-header">
+          <span></span>
+          <span class="font-col-header">גודל</span>
+          <span class="font-col-header">צבע</span>
+        </div>
+        <div class="font-settings-row">
+          <span class="font-row-label">מספר שולחן</span>
+          <input type="number" id="settingFontNumberSize" class="input" min="6" max="48" placeholder="אוטומטי" title="גודל גופן (ריק = מותאם אוטומטית לגודל השולחן)">
+          <input type="color" id="settingFontNumberColor" class="input-color" title="צבע גופן — מספר שולחן">
+        </div>
+        <div class="font-settings-row">
+          <span class="font-row-label">תווית</span>
+          <input type="number" id="settingFontLabelSize" class="input" min="6" max="40" placeholder="אוטומטי" title="גודל גופן (ריק = מותאם אוטומטית)">
+          <input type="color" id="settingFontLabelColor" class="input-color" title="צבע גופן — תווית שולחן">
+        </div>
+        <div class="font-settings-row">
+          <span class="font-row-label">שמות מוזמנים</span>
+          <input type="number" id="settingFontGuestSize" class="input" min="6" max="20" placeholder="אוטומטי" title="גודל גופן (ריק = מותאם אוטומטית)">
+          <input type="color" id="settingFontGuestColor" class="input-color" title="צבע גופן — שמות מוזמנים">
+        </div>
+        <div class="font-settings-row">
+          <span class="font-row-label">תפוסה</span>
+          <input type="number" id="settingFontOccupancySize" class="input" min="6" max="16" placeholder="אוטומטי" title="גודל גופן (ריק = מותאם אוטומטית)">
+          <input type="color" id="settingFontOccupancyColor" class="input-color" title="צבע גופן — תפוסה">
+        </div>
+      </div>
+      <hr class="settings-divider">
       <div class="settings-section-title">ניהול תגיות</div>
       <div class="tags-manager" id="tagsManager"></div>
       <div class="add-tag-inline">

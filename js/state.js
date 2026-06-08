@@ -13,7 +13,15 @@ const State = (() => {
         defaultShape: 'circle',
         defaultFriendsShape: 'circle',
         defaultParentsShape: 'rectangle',
-        showGrid: false
+        showGrid: false,
+        fontNumberSize: null,
+        fontLabelSize: null,
+        fontGuestSize: null,
+        fontOccupancySize: null,
+        fontNumberColor: '#1a237e',
+        fontLabelColor: '#37474f',
+        fontGuestColor: '#546e7a',
+        fontOccupancyColor: '#888888'
       },
       canvas: { zoom: 0.6, panX: 40, panY: 40 },
       items: [],

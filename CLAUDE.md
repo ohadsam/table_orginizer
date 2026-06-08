@@ -195,6 +195,8 @@ The Add Table modal has a **type selector** row (shown only in add mode, hidden 
 
 New settings fields: `defaultFriendsShape` (default `'circle'`) and `defaultParentsShape` (default `'rectangle'`) are stored in `createDefaultState().settings` and configured via `settingFriendsShape` / `settingParentsShape` selects in the settings modal.
 
+Font appearance settings (`fontNumberSize`, `fontLabelSize`, `fontGuestSize`, `fontOccupancySize`, `fontNumberColor`, `fontLabelColor`, `fontGuestColor`, `fontOccupancyColor`) are also in `createDefaultState().settings`. Size fields default to `null` (auto-scaled). They are edited in the "מראה טקסט בשולחנות" section of the settings modal and apply to both canvas rendering and print output.
+
 ## Find Table (🔍 button)
 
 Every guest card has a 🔍 button that opens `modalFindTable` via `Modals.openFindTable(guestId)`.
@@ -315,14 +317,29 @@ Every table element fires `mouseenter`/`mousemove`/`mouseleave` events that show
 
 ### Table SVG font scaling
 
-`buildTableSVG()` computes `scale = minDim / 130` where `minDim = Math.min(width, height)`. All font sizes are clamped and scaled relative to this:
+`buildTableSVG()` computes `scale = minDim / 130` where `minDim = Math.min(width, height)`. Font sizes follow this priority:
 
-| Variable | Formula | Min–Max |
-|----------|---------|---------|
-| `numFont` | `item.fontSize \|\| round(15 * scale)` | 10–24 |
-| `labelFont` | `round(10 * scale)` | 7–14 |
-| `guestFont` | `round(8 * scale)` | 6–11 |
-| `occuFont` | `round(7 * scale)` | 6–9 |
+1. `item.fontSize` — per-table manual override (number modal `#tableFontSize`); replaces `numFont` only
+2. `settings.fontNumberSize / fontLabelSize / fontGuestSize / fontOccupancySize` — global event settings
+3. Auto-scaled fallback (clamped):
+
+| Variable | Formula (fallback) | Min–Max |
+|----------|--------------------|---------|
+| `numFont` | `item.fontSize \|\| stt.fontNumberSize \|\| round(15 * scale)` | 10–24 |
+| `labelFont` | `stt.fontLabelSize \|\| round(10 * scale)` | 7–14 |
+| `guestFont` | `stt.fontGuestSize \|\| round(8 * scale)` | 6–11 |
+| `occuFont` | `stt.fontOccupancySize \|\| round(7 * scale)` | 6–9 |
+
+Font **colors** follow the same source (no per-table override, global settings only):
+
+| Variable | Setting key | Default |
+|----------|-------------|---------|
+| `numColor` | `fontNumberColor` | `#1a237e` |
+| `labelColor` | `fontLabelColor` | `#37474f` |
+| `guestColor` | `fontGuestColor` | `#546e7a` |
+| `occuColor` | `fontOccupancyColor` | `#888888` |
+
+These settings are also applied in `print.js` (`buildRoomDiagramSVG` — colors only; `_buildTableVisualSVG` — both colors and number/label sizes). All settings persist in JSON export/import automatically via `State.serialize()`.
 
 `item.fontSize` is a per-table manual override (stored in state, editable in the table modal via `#tableFontSize`). When set, it replaces `numFont` only.
 

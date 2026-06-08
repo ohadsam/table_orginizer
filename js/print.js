@@ -19,6 +19,12 @@ const Print = (() => {
     const vbW = maxX - minX, vbH = maxY - minY;
     const landscape = (vbW / vbH) > 1.3;
 
+    const stt = State.get().settings;
+    const numColor   = stt.fontNumberColor   || '#1a237e';
+    const labelColor = stt.fontLabelColor    || '#37474f';
+    const guestColor = stt.fontGuestColor    || '#546e7a';
+    const occuColor  = stt.fontOccupancyColor || '#888888';
+
     let body = '';
     items.forEach(item => {
       const lx = item.x - item.width  / 2 - minX;
@@ -35,27 +41,27 @@ const Print = (() => {
           const r = Math.min(W, H) / 2 - 5;
           const cx = W / 2, cy = H / 2;
           body += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${bg}" stroke="#888" stroke-width="1.5"/>`;
-          body += `<text x="${cx}" y="${cy - (item.label ? 12 : 6)}" text-anchor="middle" dominant-baseline="middle" font-size="16" font-weight="800" fill="#1a237e">${item.number || ''}</text>`;
+          body += `<text x="${cx}" y="${cy - (item.label ? 12 : 6)}" text-anchor="middle" dominant-baseline="middle" font-size="16" font-weight="800" fill="${numColor}">${item.number || ''}</text>`;
           if (item.label) {
-            body += `<text x="${cx}" y="${cy + 6}" text-anchor="middle" font-size="10" font-weight="700" fill="#37474f">${UI.escHtml(item.label)}</text>`;
-            body += `<text x="${cx}" y="${cy + 18}" text-anchor="middle" font-size="8" fill="#555">${occ}/${item.seats}</text>`;
-            if (nameStr) body += `<text x="${cx}" y="${cy + 28}" text-anchor="middle" font-size="6" fill="#888">${nameStr}</text>`;
+            body += `<text x="${cx}" y="${cy + 6}" text-anchor="middle" font-size="10" font-weight="700" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
+            body += `<text x="${cx}" y="${cy + 18}" text-anchor="middle" font-size="8" fill="${occuColor}">${occ}/${item.seats}</text>`;
+            if (nameStr) body += `<text x="${cx}" y="${cy + 28}" text-anchor="middle" font-size="6" fill="${guestColor}">${nameStr}</text>`;
           } else {
-            body += `<text x="${cx}" y="${cy + 8}" text-anchor="middle" font-size="8" fill="#555">${occ}/${item.seats}</text>`;
-            if (nameStr) body += `<text x="${cx}" y="${cy + 20}" text-anchor="middle" font-size="6" fill="#888">${nameStr}</text>`;
+            body += `<text x="${cx}" y="${cy + 8}" text-anchor="middle" font-size="8" fill="${occuColor}">${occ}/${item.seats}</text>`;
+            if (nameStr) body += `<text x="${cx}" y="${cy + 20}" text-anchor="middle" font-size="6" fill="${guestColor}">${nameStr}</text>`;
           }
         } else {
           const p = 3;
           body += `<rect x="${p}" y="${p}" width="${W - p * 2}" height="${H - p * 2}" rx="5" fill="${bg}" stroke="#888" stroke-width="1.5"/>`;
           const cx = W / 2, cy = H / 2;
-          body += `<text x="${cx}" y="${cy - (item.label ? 12 : 6)}" text-anchor="middle" dominant-baseline="middle" font-size="15" font-weight="800" fill="#1a237e">${item.number || ''}</text>`;
+          body += `<text x="${cx}" y="${cy - (item.label ? 12 : 6)}" text-anchor="middle" dominant-baseline="middle" font-size="15" font-weight="800" fill="${numColor}">${item.number || ''}</text>`;
           if (item.label) {
-            body += `<text x="${cx}" y="${cy + 5}" text-anchor="middle" font-size="9" font-weight="700" fill="#37474f">${UI.escHtml(item.label)}</text>`;
-            body += `<text x="${cx}" y="${cy + 17}" text-anchor="middle" font-size="8" fill="#555">${occ}/${item.seats}</text>`;
-            if (nameStr) body += `<text x="${cx}" y="${cy + 26}" text-anchor="middle" font-size="6" fill="#888">${nameStr}</text>`;
+            body += `<text x="${cx}" y="${cy + 5}" text-anchor="middle" font-size="9" font-weight="700" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
+            body += `<text x="${cx}" y="${cy + 17}" text-anchor="middle" font-size="8" fill="${occuColor}">${occ}/${item.seats}</text>`;
+            if (nameStr) body += `<text x="${cx}" y="${cy + 26}" text-anchor="middle" font-size="6" fill="${guestColor}">${nameStr}</text>`;
           } else {
-            body += `<text x="${cx}" y="${cy + 8}" text-anchor="middle" font-size="8" fill="#555">${occ}/${item.seats}</text>`;
-            if (nameStr) body += `<text x="${cx}" y="${cy + 18}" text-anchor="middle" font-size="6" fill="#888">${nameStr}</text>`;
+            body += `<text x="${cx}" y="${cy + 8}" text-anchor="middle" font-size="8" fill="${occuColor}">${occ}/${item.seats}</text>`;
+            if (nameStr) body += `<text x="${cx}" y="${cy + 18}" text-anchor="middle" font-size="6" fill="${guestColor}">${nameStr}</text>`;
           }
         }
         if (item.locked) body += `<text x="${W - 3}" y="14" text-anchor="end" font-size="11">🔒</text>`;
@@ -82,6 +88,13 @@ const Print = (() => {
     const hasSpace = occ <= item.seats;
     const bgColor  = item.color || Items.tableColor(occ, item.seats);
     const R = CONFIG.SEAT_RADIUS;
+    const stt = State.get().settings;
+    const numColor   = stt.fontNumberColor   || '#1a237e';
+    const labelColor = stt.fontLabelColor    || '#37474f';
+    const occuColor  = stt.fontOccupancyColor || '#888888';
+    // Print visual SVG uses fixed sizes (scaled to print medium) with optional color overrides
+    const numSize   = stt.fontNumberSize || 22;
+    const labelSize = stt.fontLabelSize  || 13;
     let body = '';
 
     if (item.shape === 'circle') {
@@ -98,10 +111,10 @@ const Print = (() => {
           : CONFIG.COLORS.seatEmpty;
         body += `<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="${R}" fill="${fill}" stroke="#fff" stroke-width="1.2"/>`;
       }
-      const numY = cy - (item.label ? 12 : 2);
-      body += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="22" font-weight="800" fill="#1a237e">${item.number || ''}</text>`;
-      if (item.label) body += `<text x="${cx}" y="${numY + 26}" text-anchor="middle" font-size="13" font-weight="600" fill="#37474f">${UI.escHtml(item.label)}</text>`;
-      body += `<text x="${cx}" y="${cy - r + 11}" text-anchor="middle" font-size="9" fill="#888">${occ}/${item.seats}</text>`;
+      const numY = cy - (item.label ? numSize * 0.6 : 2);
+      body += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="${numSize}" font-weight="800" fill="${numColor}">${item.number || ''}</text>`;
+      if (item.label) body += `<text x="${cx}" y="${numY + numSize * 0.7 + labelSize}" text-anchor="middle" font-size="${labelSize}" font-weight="600" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
+      body += `<text x="${cx}" y="${cy - r + 11}" text-anchor="middle" font-size="9" fill="${occuColor}">${occ}/${item.seats}</text>`;
     } else {
       const pad = R + 4;
       const rw = W - pad * 2, rh = H - pad * 2;
@@ -114,10 +127,10 @@ const Print = (() => {
         body += `<circle cx="${(pad + sx).toFixed(1)}" cy="${(pad + sy).toFixed(1)}" r="${R}" fill="${fill}" stroke="#fff" stroke-width="1.2"/>`;
       });
       const cx = W / 2, cy = H / 2;
-      const numY = cy - (item.label ? 12 : 2);
-      body += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="22" font-weight="800" fill="#1a237e">${item.number || ''}</text>`;
-      if (item.label) body += `<text x="${cx}" y="${numY + 26}" text-anchor="middle" font-size="13" font-weight="600" fill="#37474f">${UI.escHtml(item.label)}</text>`;
-      body += `<text x="${cx}" y="${pad + 11}" text-anchor="middle" font-size="9" fill="#888">${occ}/${item.seats}</text>`;
+      const numY = cy - (item.label ? numSize * 0.6 : 2);
+      body += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="${numSize}" font-weight="800" fill="${numColor}">${item.number || ''}</text>`;
+      if (item.label) body += `<text x="${cx}" y="${numY + numSize * 0.7 + labelSize}" text-anchor="middle" font-size="${labelSize}" font-weight="600" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
+      body += `<text x="${cx}" y="${pad + 11}" text-anchor="middle" font-size="9" fill="${occuColor}">${occ}/${item.seats}</text>`;
     }
     if (item.locked) body += `<text x="${W - 4}" y="14" text-anchor="end" font-size="13">🔒</text>`;
 

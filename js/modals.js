@@ -888,6 +888,16 @@ const Modals = (() => {
     document.getElementById('settingDefaultShape').value  = s.settings.defaultShape;
     document.getElementById('settingFriendsShape').value  = s.settings.defaultFriendsShape || 'circle';
     document.getElementById('settingParentsShape').value  = s.settings.defaultParentsShape || 'rectangle';
+    // Font size settings (empty string when null = auto)
+    document.getElementById('settingFontNumberSize').value    = s.settings.fontNumberSize    ?? '';
+    document.getElementById('settingFontLabelSize').value     = s.settings.fontLabelSize     ?? '';
+    document.getElementById('settingFontGuestSize').value     = s.settings.fontGuestSize     ?? '';
+    document.getElementById('settingFontOccupancySize').value = s.settings.fontOccupancySize ?? '';
+    // Font color settings
+    document.getElementById('settingFontNumberColor').value    = s.settings.fontNumberColor    || '#1a237e';
+    document.getElementById('settingFontLabelColor').value     = s.settings.fontLabelColor     || '#37474f';
+    document.getElementById('settingFontGuestColor').value     = s.settings.fontGuestColor     || '#546e7a';
+    document.getElementById('settingFontOccupancyColor').value = s.settings.fontOccupancyColor || '#888888';
     renderTagsManager();
     renderPresetManager();
     renderEventsManager();
@@ -983,6 +993,17 @@ const Modals = (() => {
     State.setSetting('defaultShape', document.getElementById('settingDefaultShape').value);
     State.setSetting('defaultFriendsShape', document.getElementById('settingFriendsShape').value);
     State.setSetting('defaultParentsShape', document.getElementById('settingParentsShape').value);
+    // Font size settings (null when empty = auto-scaled)
+    const _fs = v => { const n = parseInt(v); return (isNaN(n) || n < 1) ? null : n; };
+    State.setSetting('fontNumberSize',    _fs(document.getElementById('settingFontNumberSize').value));
+    State.setSetting('fontLabelSize',     _fs(document.getElementById('settingFontLabelSize').value));
+    State.setSetting('fontGuestSize',     _fs(document.getElementById('settingFontGuestSize').value));
+    State.setSetting('fontOccupancySize', _fs(document.getElementById('settingFontOccupancySize').value));
+    // Font color settings
+    State.setSetting('fontNumberColor',    document.getElementById('settingFontNumberColor').value);
+    State.setSetting('fontLabelColor',     document.getElementById('settingFontLabelColor').value);
+    State.setSetting('fontGuestColor',     document.getElementById('settingFontGuestColor').value);
+    State.setSetting('fontOccupancyColor', document.getElementById('settingFontOccupancyColor').value);
     Storage.updateCurrentMeta();
     updateEventHeader();
     UI.closeModal('modalSettings');
