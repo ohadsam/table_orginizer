@@ -7,7 +7,7 @@ const Guests = (() => {
   let _filterAssigned = null;      // null=all, true=only assigned, false=only unassigned
   let _filterTableNum = '';        // '' = no filter, else table number string
   let _filterProximity = null;     // null=all | proximity key | 'none'
-  let _sortMode       = 'default'; // default | nameAsc | nameDesc | seatedFirst | unseatedFirst | custom | nearDanceFirst | farDanceFirst
+  let _sortMode       = 'default'; // default | nameAsc | nameDesc | seatedFirst | unseatedFirst | custom | nearDanceFirst | farDanceFirst | tableNumAsc | tableNumDesc
   let _groupMode      = 'none';    // none | byTag | byTable | byProximity
   let _collapsed      = new Set();
   let _customOrder    = [];        // guest IDs in user-defined display order
@@ -64,6 +64,16 @@ const Guests = (() => {
         const aH = (a.proximity || []).includes('farDance') ? 1 : 0;
         const bH = (b.proximity || []).includes('farDance') ? 1 : 0;
         return bH - aH;
+      });
+      case 'tableNumAsc': return arr.sort((a, b) => {
+        const nA = a.tableId ? (State.getItem(a.tableId)?.number ?? 0) : 0;
+        const nB = b.tableId ? (State.getItem(b.tableId)?.number ?? 0) : 0;
+        return nA !== nB ? nA - nB : a.name.localeCompare(b.name, 'he');
+      });
+      case 'tableNumDesc': return arr.sort((a, b) => {
+        const nA = a.tableId ? (State.getItem(a.tableId)?.number ?? 0) : 0;
+        const nB = b.tableId ? (State.getItem(b.tableId)?.number ?? 0) : 0;
+        return nA !== nB ? nB - nA : a.name.localeCompare(b.name, 'he');
       });
       case 'custom': {
         if (!_customOrder.length) return arr;
@@ -390,6 +400,8 @@ const Guests = (() => {
         <span class="guests-controls-label">סדר:</span>
         <button class="btn-xs-filter ${_sortMode==='default'?'active':''}"            data-sort="default">כברירה</button>
         <button class="btn-xs-filter ${_sortMode==='nameAsc'?'active':''}"            data-sort="nameAsc">א–ת</button>
+        <button class="btn-xs-filter ${_sortMode==='tableNumAsc'?'active':''}"        data-sort="tableNumAsc"  title="מיון לפי מספר שולחן עולה — ללא שיבוץ בהתחלה">שולחן ↑</button>
+        <button class="btn-xs-filter ${_sortMode==='tableNumDesc'?'active':''}"       data-sort="tableNumDesc" title="מיון לפי מספר שולחן יורד — ללא שיבוץ בסוף">שולחן ↓</button>
         <button class="btn-xs-filter ${_sortMode==='seatedFirst'?'active-success active':''}"    data-sort="seatedFirst">משובצים ↑</button>
         <button class="btn-xs-filter ${_sortMode==='unseatedFirst'?'active-warning active':''}"  data-sort="unseatedFirst">לא שובצו ↑</button>
         <button class="btn-xs-filter ${_sortMode==='nearDanceFirst'?'active':''}"     data-sort="nearDanceFirst" title="קרובי רחבה ראשונים">🕺↑</button>
