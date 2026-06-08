@@ -17,7 +17,7 @@ All JS uses the IIFE module pattern (`const Foo = (() => { ... return {...}; })(
 ```
 config.js → state.js → ui.js → canvas.js → drag.js →
 items.js → guests.js → modals.js → storage.js →
-print.js → history.js → autoassign.js → app.js
+print.js → history.js → autoassign.js → nav.js → app.js
 ```
 `app.js` is the only entry point — it wires everything in `DOMContentLoaded`.
 
@@ -37,6 +37,7 @@ print.js → history.js → autoassign.js → app.js
 | `print.js` | Builds print-area HTML (plan, list, all, full) and triggers `window.print()` |
 | `history.js` | Undo/Redo via full-state JSON snapshots (max 50, debounced 350ms) |
 | `autoassign.js` | Smart auto-assign: affinity groups, proximity scoring, real split, auto-create tables |
+| `nav.js` | Collapsible item-navigation panel (left edge); renders all canvas items as a color-coded list; hover tooltips; click to select+focus; right-click opens context menu |
 | `app.js` | DOMContentLoaded init, header button wiring, keyboard shortcuts |
 
 ## State & Event Bus
@@ -50,14 +51,14 @@ State.emit('eventName', data)     // publish (also fires 'change')
 
 | Event | Payload | Who emits | Who listens |
 |-------|---------|-----------|-------------|
-| `itemAdded` | item | state.js | items.js (render) |
-| `itemUpdated` | item | state.js | items.js (refresh) |
-| `itemRemoved` | id | state.js | items.js (remove el), guests.js (re-render displaced) |
+| `itemAdded` | item | state.js | items.js (render), nav.js (renderAll) |
+| `itemUpdated` | item | state.js | items.js (refresh), nav.js (renderAll) |
+| `itemRemoved` | id | state.js | items.js (remove el), guests.js (re-render displaced), nav.js (renderAll) |
 | `guestAdded` | guest | state.js | guests.js (render) |
 | `guestUpdated` | guest | state.js | guests.js (render), items.js (refresh table) |
-| `guestRemoved` | `{id, tableId}` | state.js | guests.js (render), items.js (refresh table) |
-| `guestAssigned` | `{guestId, tableId, prevTableId}` | state.js | guests.js (render), items.js (refresh both tables) |
-| `dataLoaded` | — | state.js | items.js (renderAll), guests.js (renderTagFilter+render), modals.js (updateEventHeader) |
+| `guestRemoved` | `{id, tableId}` | state.js | guests.js (render), items.js (refresh table), nav.js (refreshDot) |
+| `guestAssigned` | `{guestId, tableId, prevTableId}` | state.js | guests.js (render), items.js (refresh both tables), nav.js (refreshDot both) |
+| `dataLoaded` | — | state.js | items.js (renderAll), guests.js (renderTagFilter+render), modals.js (updateEventHeader), nav.js (renderAll) |
 | `change` | `{evt, data}` | state.js (auto) | storage.js (save), app.js (updateStats), history.js (scheduleCapture) |
 | `eventSwitched` | — | storage.js | history.js (reset — clears undo/redo stacks) |
 
@@ -445,6 +446,47 @@ Label, width (min 40), height (min 40), color picker. Shape selector shown only 
 - `openItemDetails` always rebuilds body HTML from live state, so calling it again after an unassign gives a fresh view
 - `openEditGuest` is called directly (not via `Modals.`) since both functions are inside the same IIFE
 
+## Item Navigation Panel (`nav.js`)
+
+`ItemNav` (`js/nav.js`) is a collapsible panel pinned to the left edge of the screen (below the header). It lists every canvas item for quick orientation and navigation.
+
+### HTML structure
+```html
+<div id="itemNavPanel">
+  <button id="itemNavToggleBtn">▶</button>
+  <div id="itemNavContent">
+    <div class="item-nav-header">פריטי האולם</div>
+    <div id="itemNavList"></div>
+  </div>
+</div>
+```
+
+### Behavior
+- **Toggle**: `▶` / `◀` button collapses/expands the panel. Class `nav-open` on `#itemNavPanel` shows the content.
+- **List order**: tables sorted by number (ascending), then all non-table items.
+- **Color dot**: reflects the item's current color — occupancy-based for tables without a custom color, or `item.color` if set. Shape of dot: circular (`border-radius:50%`) for circle tables, square otherwise.
+- **Click** → `Items.selectItem(id)` + `Canvas.focusOnItem(id)`.
+- **Right-click** → `Items.openCtxMenu(id, clientX, clientY)` — same context menu as right-clicking the canvas item.
+- **Hover tooltip**: a singleton `div.nav-item-tooltip` appended to `<body>`. For tables: scaled SVG preview (140px max), label, and occupancy. For special items: colored icon block and label. Tooltip position is clamped to viewport edges.
+- **Print**: hidden via `#itemNavPanel { display: none !important; }` in `print.css`.
+
+### State synchronization
+| Event | Action |
+|-------|--------|
+| `itemAdded` | Full re-render of list |
+| `itemUpdated` | Full re-render of list |
+| `itemRemoved` | Full re-render of list |
+| `dataLoaded` | Full re-render of list |
+| `guestAssigned` | `_refreshDot(tableId)` + `_refreshDot(prevTableId)` — cheap color-only update |
+| `guestRemoved` | `_refreshDot(tableId)` — cheap color-only update |
+
+### Exports used from `items.js`
+- `Items.selectItem(id)` — select the item on canvas
+- `Items.openCtxMenu(id, viewX, viewY)` — open the item's context menu at viewport coordinates
+- `Items.buildTableSVG(item)` — generate the table SVG string for the tooltip preview
+
+Both `buildTableSVG` and `openCtxMenu` were made public (added to the `items.js` return object) specifically for use by this panel.
+
 ## Guest List Controls
 
 The guest panel has three sections:
@@ -555,6 +597,7 @@ table_orginizer/
 │   ├── print.js
 │   ├── history.js
 │   ├── autoassign.js
+│   ├── nav.js
 │   └── app.js
 └── .nojekyll           # Required for GitHub Pages (prevents Jekyll processing)
 ```

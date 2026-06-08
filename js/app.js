@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
   Guests.init();
   Modals.init();
   History.init();
+  ItemNav.init();
 
   /* ── Render existing items if loaded ── */
   // Items.renderAll() is already triggered by State.on('dataLoaded') in items.js

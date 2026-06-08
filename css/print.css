@@ -252,3 +252,8 @@
 
 /* Screen preview styles (non-print) */
 .print-only { display: none; }
+
+/* Hide the item navigation panel from all print output */
+@media print {
+  #itemNavPanel { display: none !important; }
+}
