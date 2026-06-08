@@ -467,7 +467,7 @@ Label, width (min 40), height (min 40), color picker. Shape selector shown only 
 - **Color dot**: reflects the item's current color — occupancy-based for tables without a custom color, or `item.color` if set. Shape of dot: circular (`border-radius:50%`) for circle tables, square otherwise.
 - **Click** → `Items.selectItem(id)` + `Canvas.focusOnItem(id)`.
 - **Right-click** → `Items.openCtxMenu(id, clientX, clientY)` — same context menu as right-clicking the canvas item.
-- **Hover tooltip**: a singleton `div.nav-item-tooltip` appended to `<body>`. For tables: scaled SVG preview (140px max), label, and occupancy. For special items: colored icon block and label. Tooltip position is clamped to viewport edges.
+- **Hover tooltip**: a singleton `div.nav-item-tooltip` appended to `<body>`. For tables: scaled SVG preview (140px max), label, occupancy, and a scrollable guest list showing up to 12 guests with their names, seat count (if >1), and color-coded tag badges; empty tables show "שולחן ריק". For special items: colored icon block, label, and dimensions. Tooltip position is clamped to viewport edges (both left and right).
 - **Print**: hidden via `#itemNavPanel { display: none !important; }` in `print.css`.
 
 ### State synchronization
