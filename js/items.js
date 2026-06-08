@@ -320,7 +320,7 @@ const Items = (() => {
       if (item.label) {
         textY = numY + numFont * 0.65 + labelFont * 0.35 + 3;
         svgInner += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${labelFont}" font-weight="600" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
-        textY += labelFont * 0.65 + 7;
+        textY += labelFont * 0.65 + 14;
       } else {
         textY = numY + numFont * 0.6 + 2;
       }
@@ -362,7 +362,7 @@ const Items = (() => {
       if (item.label) {
         textY = numY + numFont * 0.65 + labelFont * 0.35 + 3;
         svgInner += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${labelFont}" font-weight="600" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
-        textY += labelFont * 0.65 + 7;
+        textY += labelFont * 0.65 + 14;
       } else {
         textY = numY + numFont * 0.6 + 2;
       }
@@ -420,12 +420,11 @@ const Items = (() => {
     const _safeHex = c => (c && /^#[0-9a-fA-F]{3,8}$/.test(c)) ? c : null;
     const fSize  = (item.fontSize  > 0) ? item.fontSize  : null;
     const fColor = _safeHex(item.fontColor);
-    const lblStyle = [
-      fSize  ? `font-size:${fSize}px`   : '',
-      fColor ? `color:${fColor}`        : ''
-    ].filter(Boolean).join(';');
+    const iSize  = (item.iconSize  > 0) ? item.iconSize  : null;
+    const lblStyle  = [fSize ? `font-size:${fSize}px` : '', fColor ? `color:${fColor}` : ''].filter(Boolean).join(';');
+    const iconStyle = iSize ? ` style="font-size:${iSize}px"` : '';
     return `<div class="special-item-inner" style="background:${bg};border-radius:${br};border:1.5px solid ${item.borderColor||'#aaa'}">
-      <span class="special-icon">${icon}</span>
+      <span class="special-icon"${iconStyle}>${icon}</span>
       <span class="special-label"${lblStyle ? ` style="${lblStyle}"` : ''}>${UI.escHtml(item.label || item.type)}</span>
     </div>`;
   }
@@ -466,9 +465,23 @@ const Items = (() => {
          <button id="ctxApplyFontColor" class="ctx-apply-btn" title="שמור צבע גופן">✓</button>
          <button id="ctxClearFontColor" class="ctx-apply-btn ctx-clear-btn" title="אפס צבע">✕</button>
        </div>
+       <div class="ctx-inline-row" id="ctxIconSizeRow">
+         <span class="ctx-row-lbl" title="גודל אייקון">🔡</span>
+         <input id="ctxIconSizeInput" class="ctx-inline-input" type="number" min="8" max="120" placeholder="אוטומטי">
+         <button id="ctxApplyIconSize" class="ctx-apply-btn" title="שמור גודל אייקון">✓</button>
+         <button id="ctxClearIconSize" class="ctx-apply-btn ctx-clear-btn" title="אפס">✕</button>
+       </div>
+       <button class="ctx-menu-btn ctx-save-all-btn" id="ctxSaveAll">✓&nbsp; שמור וסגור</button>
        <hr class="ctx-menu-sep">
        <button class="ctx-menu-btn ctx-danger" id="ctxDelete">🗑&nbsp; מחק</button>`;
     document.body.appendChild(m);
+
+    // For non-table items the inline rows stay open so the user can tweak
+    // multiple properties before clicking "שמור וסגור". Table items close immediately.
+    const _closeIfTable = () => {
+      const _it = State.getItem(_ctxItemId);
+      if (!_it || _it.type === 'table') _closeCtxMenu();
+    };
 
     m.querySelector('#ctxDetails').onclick = () => {
       if (_ctxItemId) Modals.openItemDetails(_ctxItemId);
@@ -491,7 +504,7 @@ const Items = (() => {
         State.updateItem(_ctxItemId, { color: m.querySelector('#ctxColorInput').value });
         if (State.getItem(_ctxItemId)?.type === 'table') Guests.render();
       }
-      _closeCtxMenu();
+      _closeIfTable();
     };
 
     m.querySelector('#ctxClearColor').onclick = () => {
@@ -499,7 +512,7 @@ const Items = (() => {
         State.updateItem(_ctxItemId, { color: null });
         if (State.getItem(_ctxItemId)?.type === 'table') Guests.render();
       }
-      _closeCtxMenu();
+      _closeIfTable();
     };
 
     m.querySelector('#ctxApplyFontSize').onclick = () => {
@@ -507,20 +520,32 @@ const Items = (() => {
         const v = parseInt(m.querySelector('#ctxFontSizeInput').value);
         State.updateItem(_ctxItemId, { fontSize: (isNaN(v) || v < 1) ? null : v });
       }
-      _closeCtxMenu();
+      _closeIfTable();
     };
     m.querySelector('#ctxClearFontSize').onclick = () => {
       if (_ctxItemId) State.updateItem(_ctxItemId, { fontSize: null });
-      _closeCtxMenu();
+      _closeIfTable();
     };
     m.querySelector('#ctxApplyFontColor').onclick = () => {
       if (_ctxItemId) State.updateItem(_ctxItemId, { fontColor: m.querySelector('#ctxFontColorInput').value });
-      _closeCtxMenu();
+      _closeIfTable();
     };
     m.querySelector('#ctxClearFontColor').onclick = () => {
       if (_ctxItemId) State.updateItem(_ctxItemId, { fontColor: null });
-      _closeCtxMenu();
+      _closeIfTable();
     };
+    m.querySelector('#ctxApplyIconSize').onclick = () => {
+      if (_ctxItemId) {
+        const v = parseInt(m.querySelector('#ctxIconSizeInput').value);
+        State.updateItem(_ctxItemId, { iconSize: (isNaN(v) || v < 1) ? null : v });
+      }
+      _closeIfTable();
+    };
+    m.querySelector('#ctxClearIconSize').onclick = () => {
+      if (_ctxItemId) State.updateItem(_ctxItemId, { iconSize: null });
+      _closeIfTable();
+    };
+    m.querySelector('#ctxSaveAll').onclick = () => { _closeCtxMenu(); };
 
     m.querySelector('#ctxDelete').onclick = () => {
       const id = _ctxItemId;
@@ -546,8 +571,10 @@ const Items = (() => {
     if (!_ctxItemId) return;
     const val = document.getElementById('ctxTextInput').value.trim();
     State.updateItem(_ctxItemId, { label: val });
-    if (State.getItem(_ctxItemId)?.type === 'table') Guests.render();
-    _closeCtxMenu();
+    const cur = State.getItem(_ctxItemId);
+    if (cur?.type === 'table') Guests.render();
+    if (!cur || cur.type === 'table') _closeCtxMenu();
+    // else: non-table item still exists → keep menu open
   }
 
   function openCtxMenu(id, viewX, viewY) {
@@ -560,13 +587,16 @@ const Items = (() => {
     document.getElementById('ctxColorInput').value =
       item.color || (item.type === 'table' ? '#e3f2fd'
         : (CONFIG.COLORS[item.type] || CONFIG.COLORS.shape || '#cccccc'));
-    // Font size/color rows: shown only for non-table items
+    // Non-table rows: font size/color, icon size, save-all button
     const isSpecial = item.type !== 'table';
-    document.getElementById('ctxFontSep').style.display      = isSpecial ? '' : 'none';
-    document.getElementById('ctxFontSizeRow').style.display  = isSpecial ? '' : 'none';
-    document.getElementById('ctxFontColorRow').style.display = isSpecial ? '' : 'none';
+    document.getElementById('ctxFontSep').style.display       = isSpecial ? '' : 'none';
+    document.getElementById('ctxFontSizeRow').style.display   = isSpecial ? '' : 'none';
+    document.getElementById('ctxFontColorRow').style.display  = isSpecial ? '' : 'none';
+    document.getElementById('ctxIconSizeRow').style.display   = isSpecial ? '' : 'none';
+    document.getElementById('ctxSaveAll').style.display       = isSpecial ? '' : 'none';
     if (isSpecial) {
       document.getElementById('ctxFontSizeInput').value  = item.fontSize  || '';
+      document.getElementById('ctxIconSizeInput').value  = item.iconSize  || '';
       const safeClr = (item.fontColor && /^#[0-9a-fA-F]{3,8}$/.test(item.fontColor)) ? item.fontColor : '#222222';
       document.getElementById('ctxFontColorInput').value = safeClr;
     }
