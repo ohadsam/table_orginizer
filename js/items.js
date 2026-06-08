@@ -320,7 +320,7 @@ const Items = (() => {
       if (item.label) {
         textY = numY + numFont * 0.65 + labelFont * 0.35 + 3;
         svgInner += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${labelFont}" font-weight="600" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
-        textY += labelFont * 0.65 + 3;
+        textY += labelFont * 0.65 + 7;
       } else {
         textY = numY + numFont * 0.6 + 2;
       }
@@ -362,7 +362,7 @@ const Items = (() => {
       if (item.label) {
         textY = numY + numFont * 0.65 + labelFont * 0.35 + 3;
         svgInner += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${labelFont}" font-weight="600" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
-        textY += labelFont * 0.65 + 3;
+        textY += labelFont * 0.65 + 7;
       } else {
         textY = numY + numFont * 0.6 + 2;
       }
@@ -414,12 +414,19 @@ const Items = (() => {
   /* ── Special items ── */
   function buildSpecialHTML(item) {
     const icons = { dancefloor: '🕺', dj: '🎵', door: '🚪' };
-    const icon = icons[item.type] || '⬛';
-    const bg = item.color || CONFIG.COLORS[item.type] || CONFIG.COLORS.shape;
-    const br = item.shape === 'circle' ? '50%' : '8px';
+    const icon  = icons[item.type] || '⬛';
+    const bg    = item.color || CONFIG.COLORS[item.type] || CONFIG.COLORS.shape;
+    const br    = item.shape === 'circle' ? '50%' : '8px';
+    const _safeHex = c => (c && /^#[0-9a-fA-F]{3,8}$/.test(c)) ? c : null;
+    const fSize  = (item.fontSize  > 0) ? item.fontSize  : null;
+    const fColor = _safeHex(item.fontColor);
+    const lblStyle = [
+      fSize  ? `font-size:${fSize}px`   : '',
+      fColor ? `color:${fColor}`        : ''
+    ].filter(Boolean).join(';');
     return `<div class="special-item-inner" style="background:${bg};border-radius:${br};border:1.5px solid ${item.borderColor||'#aaa'}">
       <span class="special-icon">${icon}</span>
-      <span class="special-label">${UI.escHtml(item.label || item.type)}</span>
+      <span class="special-label"${lblStyle ? ` style="${lblStyle}"` : ''}>${UI.escHtml(item.label || item.type)}</span>
     </div>`;
   }
 
@@ -445,6 +452,19 @@ const Items = (() => {
          <input id="ctxColorInput" class="ctx-inline-color" type="color">
          <button id="ctxApplyColor" class="ctx-apply-btn" title="שמור צבע">✓</button>
          <button id="ctxClearColor" class="ctx-apply-btn ctx-clear-btn" title="הסר צבע מותאם">✕</button>
+       </div>
+       <hr class="ctx-menu-sep" id="ctxFontSep">
+       <div class="ctx-inline-row" id="ctxFontSizeRow">
+         <span class="ctx-row-lbl" title="גודל גופן">Aa</span>
+         <input id="ctxFontSizeInput" class="ctx-inline-input" type="number" min="6" max="72" placeholder="אוטומטי">
+         <button id="ctxApplyFontSize" class="ctx-apply-btn" title="שמור גודל גופן">✓</button>
+         <button id="ctxClearFontSize" class="ctx-apply-btn ctx-clear-btn" title="אפס">✕</button>
+       </div>
+       <div class="ctx-inline-row" id="ctxFontColorRow">
+         <span class="ctx-row-lbl" title="צבע גופן">A</span>
+         <input id="ctxFontColorInput" class="ctx-inline-color" type="color">
+         <button id="ctxApplyFontColor" class="ctx-apply-btn" title="שמור צבע גופן">✓</button>
+         <button id="ctxClearFontColor" class="ctx-apply-btn ctx-clear-btn" title="אפס צבע">✕</button>
        </div>
        <hr class="ctx-menu-sep">
        <button class="ctx-menu-btn ctx-danger" id="ctxDelete">🗑&nbsp; מחק</button>`;
@@ -479,6 +499,26 @@ const Items = (() => {
         State.updateItem(_ctxItemId, { color: null });
         if (State.getItem(_ctxItemId)?.type === 'table') Guests.render();
       }
+      _closeCtxMenu();
+    };
+
+    m.querySelector('#ctxApplyFontSize').onclick = () => {
+      if (_ctxItemId) {
+        const v = parseInt(m.querySelector('#ctxFontSizeInput').value);
+        State.updateItem(_ctxItemId, { fontSize: (isNaN(v) || v < 1) ? null : v });
+      }
+      _closeCtxMenu();
+    };
+    m.querySelector('#ctxClearFontSize').onclick = () => {
+      if (_ctxItemId) State.updateItem(_ctxItemId, { fontSize: null });
+      _closeCtxMenu();
+    };
+    m.querySelector('#ctxApplyFontColor').onclick = () => {
+      if (_ctxItemId) State.updateItem(_ctxItemId, { fontColor: m.querySelector('#ctxFontColorInput').value });
+      _closeCtxMenu();
+    };
+    m.querySelector('#ctxClearFontColor').onclick = () => {
+      if (_ctxItemId) State.updateItem(_ctxItemId, { fontColor: null });
       _closeCtxMenu();
     };
 
@@ -520,6 +560,16 @@ const Items = (() => {
     document.getElementById('ctxColorInput').value =
       item.color || (item.type === 'table' ? '#e3f2fd'
         : (CONFIG.COLORS[item.type] || CONFIG.COLORS.shape || '#cccccc'));
+    // Font size/color rows: shown only for non-table items
+    const isSpecial = item.type !== 'table';
+    document.getElementById('ctxFontSep').style.display      = isSpecial ? '' : 'none';
+    document.getElementById('ctxFontSizeRow').style.display  = isSpecial ? '' : 'none';
+    document.getElementById('ctxFontColorRow').style.display = isSpecial ? '' : 'none';
+    if (isSpecial) {
+      document.getElementById('ctxFontSizeInput').value  = item.fontSize  || '';
+      const safeClr = (item.fontColor && /^#[0-9a-fA-F]{3,8}$/.test(item.fontColor)) ? item.fontColor : '#222222';
+      document.getElementById('ctxFontColorInput').value = safeClr;
+    }
     _ctxMenu.style.display = 'block';
     const mw = _ctxMenu.offsetWidth  || 190;
     const mh = _ctxMenu.offsetHeight || 180;
