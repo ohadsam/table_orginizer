@@ -576,7 +576,7 @@ The reorder handle (⠿ span) is separate from the pointer-based canvas-drag sys
 | `bgImage` | string|null | `null` | Data URL (`data:image/...`); validated before use |
 | `cardSize` | number | `80` | Card width & height in mm; clamped 50–120. Available sizes in modal: 60/70/80/90/100 mm |
 
-**Card size**: `cardSize` is validated/clamped to 50–120mm. A `<style>` element overrides `.seating-card { width:Xmm; height:Xmm; }` and `.sc-top { height:X/2mm; }` at print time and is removed in the post-print cleanup timeout. On A4 portrait with 8mm margins, cards ≤90mm fit 2 per row; 100mm cards also fit 2 per row (usable width ≈ 186mm, 2×100mm = 200mm > 186mm → wraps to 1 per row — controlled naturally by flex wrap). Default 8×8 cm: 2 columns × 3 rows = **6 cards per page**.
+**Card size**: `cardSize` is validated/clamped to 50–120mm. A `<style>` element overrides `.seating-card { width:Xmm; height:Xmm; }` and `.sc-top { height:X/2mm; }` at print time and is removed in the post-print cleanup timeout. On A4 portrait with 8mm @page margins, usable width ≈ 186mm (210 − 16mm margins − 8mm padding). Cards up to 90mm fit 2 per row (2×90mm + 5mm gap = 185mm); 100mm cards wrap to **1 per row** (2×100mm = 200mm > 186mm). Note: 90mm has only ~1mm clearance — browser sub-pixel rounding could cause wrapping on some print engines. Default 8×8 cm: 2 columns × 3 rows = **6 cards per page**.
 
 **Background image security**: `bgImage` is validated against `/^data:image\//`. The data URL is injected into a single `<style>` element (not repeated inline per card) to avoid inflating the DOM for large images.
 

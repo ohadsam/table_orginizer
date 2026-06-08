@@ -306,7 +306,7 @@
     color: #111;
     line-height: 1.2;
     word-break: break-word;
-    max-width: 70mm;
+    max-width: 100%;
   }
 
   .sc-table {
