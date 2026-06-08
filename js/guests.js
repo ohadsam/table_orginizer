@@ -473,13 +473,38 @@ const Guests = (() => {
     renderTagFilter();
     renderControls();
     render();
+    _updateClearBtn(); // ensure indicators clear immediately even if render() is batching
   }
 
   function _updateClearBtn() {
-    const btn = document.getElementById('btnClearFilters');
-    if (!btn) return;
     const hasFilter = _filterAssigned !== null || _filterTableNum || _filterTags.size > 0 || _searchText || _filterProximity !== null;
-    btn.classList.toggle('visible', !!hasFilter);
+
+    // Clear button inside controls panel
+    const btn = document.getElementById('btnClearFilters');
+    if (btn) btn.classList.toggle('visible', !!hasFilter);
+
+    // Toggle button: orange indicator when any filter is active
+    const toggleBtn = document.getElementById('btnToggleFilters');
+    if (toggleBtn) toggleBtn.classList.toggle('filter-active', !!hasFilter);
+
+    // Active-filter banner: visible only when filter area is collapsed AND has active filters
+    const area    = document.getElementById('guestsFiltersArea');
+    const bar     = document.getElementById('filterActiveBar');
+    const textEl  = document.getElementById('filterActiveText');
+    if (bar && area && textEl) {
+      const showBar = !!hasFilter && area.classList.contains('collapsed');
+      bar.hidden = !showBar;
+      if (showBar) {
+        const parts = [];
+        if (_searchText) parts.push(`"${_searchText.slice(0, 10)}${_searchText.length > 10 ? '…' : ''}"`);
+        if (_filterTags.size > 0) parts.push(`${_filterTags.size} תגית${_filterTags.size > 1 ? 'ות' : ''}`);
+        if (_filterAssigned !== null) parts.push(_filterAssigned ? 'שובצו' : 'לא שובצו');
+        if (_filterProximity === 'none') parts.push('ללא העדפה');
+        else if (_filterProximity && CONFIG.PROXIMITY[_filterProximity]) parts.push(CONFIG.PROXIMITY[_filterProximity].icon);
+        if (_filterTableNum) parts.push(`שולחן ${_filterTableNum}`);
+        textEl.textContent = `🔍 פילטר פעיל${parts.length ? ': ' + parts.join(', ') : ''}`;
+      }
+    }
   }
 
   function _updateSortUI() {
@@ -506,6 +531,7 @@ const Guests = (() => {
       btn.textContent = collapsed ? '▼' : '▲';
       btn.classList.toggle('collapsed-state', collapsed);
       btn.title = collapsed ? 'הצג פילטרים ותגיות' : 'הסתר פילטרים ותגיות';
+      _updateClearBtn(); // refresh banner visibility on collapse/expand
     });
   }
 
@@ -540,6 +566,8 @@ const Guests = (() => {
   function init() {
     initSearch();
     _initToggleFilters();
+    const barClear = document.getElementById('btnClearFiltersBar');
+    if (barClear) barClear.addEventListener('click', clearFilters);
     renderTagFilter();
     renderControls();
     render();

@@ -442,11 +442,16 @@ Label, width (min 40), height (min 40), color picker. Shape selector shown only 
 
 ## Guest List Controls
 
-The guest panel has two sections:
+The guest panel has three sections:
 1. **`.guests-search`** — search input + `#btnToggleFilters` collapse button (▲/▼)
-2. **`#guestsFiltersArea`** — collapsible wrapper containing `#tagsFilter` and `#guestsControls`
+2. **`#filterActiveBar`** — hidden by default; shown below search when the filter area is collapsed **and** any filter is active. Displays a summary like `"🔍 פילטר פעיל: 2 תגיות"` and a quick-clear button (`#btnClearFiltersBar`).
+3. **`#guestsFiltersArea`** — collapsible wrapper containing `#tagsFilter` and `#guestsControls`. Has `max-height: 185px` and `overflow-y: auto` so it never steals space from the guest list.
 
-`#btnToggleFilters` toggles the `.collapsed` class on `#guestsFiltersArea` (which sets `display:none`), updates button text (▲/▼), and toggles `.collapsed-state` CSS class on the button.
+`#btnToggleFilters` toggles the `.collapsed` class on `#guestsFiltersArea` (which sets `display:none`), updates button text (▲/▼), toggles `.collapsed-state` CSS class on the button, and calls `_updateClearBtn()` to refresh the banner and filter indicator.
+
+`_updateClearBtn()` also toggles `.filter-active` on `#btnToggleFilters` whenever any filter is active (shows orange dot indicator regardless of collapse state).
+
+**Layout notes**: `.guests-filters-area` is `flex-shrink: 0` so it never shrinks below its `max-height`. `.guests-list` has `min-height: 0` so flex can correctly shrink it to a small height when needed (without this, `overflow-y: auto` on a flex child doesn't scroll correctly).
 
 `Guests.renderControls()` renders four rows inside `#guestsControls`:
 
