@@ -31,6 +31,7 @@
     <button class="btn btn-icon" id="btnPrintList"  title="הדפס רשימת מוזמנים מלאה">📋</button>
     <button class="btn btn-icon" id="btnPrintAll"   title="הדפס הכל — תרשים אולם ורשימת מוזמנים">📄</button>
     <button class="btn btn-icon" id="btnPrintFull"  title="הדפס מלא — תרשים + עמוד מפורט לכל שולחן + רשימת מוזמנים">📑</button>
+    <button class="btn btn-icon" id="btnPrintCards" title="הדפס כרטיסי הושבה — כרטיס 8×8 ס&quot;מ לכל מוזמן">🎟️</button>
     <a href="help.html" target="_blank" class="btn btn-icon" title="פתח מדריך למשתמש בחלון חדש">❓</a>
   </div>
 </header>
@@ -607,12 +608,88 @@
 <div class="toast-container" id="toastContainer"></div>
 <input type="file" id="importFileInput"  accept=".json" style="display:none">
 <input type="file" id="importGuestsInput" accept=".json" style="display:none">
+<input type="file" id="cardBgInput" accept="image/*" style="display:none">
 
 <!-- Hidden print areas -->
-<div id="printPlanArea" class="print-only"></div>
-<div id="printListArea" class="print-only"></div>
-<div id="printAllArea"  class="print-only"></div>
-<div id="printFullArea" class="print-only"></div>
+<div id="printPlanArea"  class="print-only"></div>
+<div id="printListArea"  class="print-only"></div>
+<div id="printAllArea"   class="print-only"></div>
+<div id="printFullArea"  class="print-only"></div>
+<div id="printCardsArea" class="print-only"></div>
+
+<!-- ═══════════════════ PRINT CARDS MODAL ═══════════════════ -->
+<div class="modal-overlay" id="modalPrintCards">
+  <div class="modal-dialog modal-md">
+    <div class="modal-header">
+      <span class="modal-title">🎟️ הדפסת כרטיסי הושבה</span>
+      <button class="modal-close" data-close-modal="modalPrintCards">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Live preview -->
+      <div class="cards-preview-wrap">
+        <div class="cards-preview-label">תצוגה מקדימה (8×8 ס"מ)</div>
+        <div id="cardPreview" class="card-preview-box">
+          <div id="cardPreviewTop" class="card-preview-top"></div>
+          <div class="card-preview-bottom">
+            <div id="cardPreviewName" class="card-preview-name">ישראל ישראלי</div>
+            <div id="cardPreviewTable" class="card-preview-table">שולחן 5</div>
+            <div id="cardPreviewCustom" class="card-preview-custom"></div>
+          </div>
+        </div>
+        <div id="cardsBgNote" class="cards-bg-note" style="display:none">
+          ⚠️ להדפסת תמונת רקע יש להפעיל "הדפסת גרפיקת רקע" בהגדרות ההדפסה
+        </div>
+      </div>
+
+      <hr class="modal-divider">
+
+      <!-- Background image -->
+      <div class="form-group">
+        <label class="form-label">תמונת רקע <span class="text-muted">(אופציונלי)</span></label>
+        <div class="cards-bg-row">
+          <button type="button" class="btn btn-secondary btn-sm" id="btnUploadCardBg">⬆ העלה תמונה</button>
+          <button type="button" class="btn btn-sm" id="btnClearCardBg" style="display:none">✕ הסר</button>
+          <span id="cardBgName" class="cards-bg-filename"></span>
+        </div>
+      </div>
+
+      <!-- Custom text -->
+      <div class="form-group">
+        <label class="form-label">שורת טקסט חופשית <span class="text-muted">(אופציונלי)</span></label>
+        <input type="text" class="input-text" id="cardCustomText" placeholder='לדוגמה: &#x05D7;&#x05EA;&#x05D5;&#x05E0;&#x05EA; &#x05D9;&#x05D5;&#x05E1;&#x05D9; &amp; &#x05D3;&#x05E0;&#x05D4; | &#x05E1;&#x05D9;&#x05D5;&#x05DD; &#x05E7;&#x05D5;&#x05E8;&#x05E1;...'>
+      </div>
+
+      <!-- Custom text formatting (shown when text entered) -->
+      <div id="cardCustomFmtRow" class="form-group cards-fmt-row" style="display:none">
+        <div class="cards-fmt-cell">
+          <label class="form-label-sm">גופן</label>
+          <select class="input-select" id="cardCustomFont">
+            <option value="inherit">ברירת מחדל</option>
+            <option value="'Arial',sans-serif">Arial</option>
+            <option value="'Times New Roman',Times,serif">Times New Roman</option>
+            <option value="Georgia,serif">Georgia</option>
+            <option value="'Courier New',monospace">Courier New</option>
+          </select>
+        </div>
+        <div class="cards-fmt-cell">
+          <label class="form-label-sm">גודל (pt)</label>
+          <input type="number" class="input-text" id="cardCustomFontSize" value="11" min="6" max="28" style="width:64px">
+        </div>
+        <div class="cards-fmt-cell">
+          <label class="form-label-sm">צבע</label>
+          <input type="color" id="cardCustomFontColor" value="#333333">
+        </div>
+      </div>
+
+      <div id="cardPrintSummary" class="cards-summary"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="btnDoPrintCards">🖨 הדפס כרטיסים</button>
+      <button class="btn" data-close-modal="modalPrintCards">ביטול</button>
+    </div>
+  </div>
+</div>
 
 <!-- ═══════════════════ ITEM NAV PANEL ═══════════════════ -->
 <div id="itemNavPanel">

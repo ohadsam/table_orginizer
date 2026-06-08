@@ -1269,3 +1269,101 @@ textarea.input { resize: vertical; min-height: 60px; }
   #itemNavPanel { display: none; }
 }
 
+
+/* ── Print Cards Modal ── */
+.cards-preview-wrap {
+  text-align: center;
+  margin-bottom: 12px;
+}
+.cards-preview-label {
+  font-size: 8.5pt;
+  color: #888;
+  margin-bottom: 6px;
+}
+/* Preview: scaled-down 8×8 cm card (~48% at 96 dpi) */
+.card-preview-box {
+  display: inline-flex;
+  flex-direction: column;
+  width: 144px;
+  height: 144px;
+  border: 1px solid #ccc;
+  border-radius: 2px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,.14);
+  direction: rtl;
+  background: #fff;
+}
+.card-preview-top {
+  height: 50%;
+  flex-shrink: 0;
+  border-bottom: 1px dashed #bbb;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.card-preview-bottom {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 4px 8px;
+  text-align: center;
+}
+.card-preview-name  { font-size: 10.5pt; font-weight: 700; color: #111; line-height: 1.2; }
+.card-preview-table { font-size: 8pt;   color: #444; }
+.card-preview-custom { font-size: 7.5pt; color: #333; word-break: break-word; }
+.cards-bg-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cards-bg-filename {
+  font-size: 8.5pt;
+  color: #555;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cards-bg-note {
+  font-size: 8pt;
+  color: #bf360c;
+  background: #fff3e0;
+  border-radius: 4px;
+  padding: 4px 8px;
+  margin-top: 6px;
+  display: inline-block;
+}
+.cards-fmt-row {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+.cards-fmt-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.form-label-sm {
+  font-size: 8pt;
+  color: #666;
+  font-weight: 600;
+}
+.cards-summary {
+  font-size: 9pt;
+  color: #555;
+  text-align: center;
+  margin-top: 10px;
+  padding: 6px 10px;
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+.modal-divider {
+  border: none;
+  border-top: 1px solid #e0e0e0;
+  margin: 12px 0;
+}

@@ -262,7 +262,7 @@ Exported files omit table assignments and split markers so the list is portable 
 
 ## Print
 
-Four modes, each with its own hidden `<div>` in `index.html`:
+Five modes, each with its own hidden `<div>` in `index.html`:
 
 | Mode | Print area | Content |
 |------|-----------|---------|
@@ -270,6 +270,7 @@ Four modes, each with its own hidden `<div>` in `index.html`:
 | `list` | `#printListArea` | Sortable guest table with table number column |
 | `all` | `#printAllArea` | Room SVG diagram + page break + full guest table |
 | `full` | `#printFullArea` | Room diagram + **one page per table** (visual SVG + full guest detail) + final guest table |
+| `cards` | `#printCardsArea` | Grid of 8×8 cm foldable seating cards (2 per row, A4 portrait) |
 
 ### Room diagram SVG (`printAll`, `printFull`)
 
@@ -555,6 +556,34 @@ The reorder handle (⠿ span) is separate from the pointer-based canvas-drag sys
 ### Batching
 
 `Guests.startBatch()` / `Guests.endBatch()` suppress intermediate renders during bulk `State.updateItem` loops (e.g., `distributeTablesEvenly`, `renumberTables`). `endBatch()` calls `render()` exactly once.
+
+## Seating Cards (`printCards`)
+
+`Print.printCards(opts)` prints one 8×8 cm foldable tent card per guest. Cards are sorted by table number then name.
+
+**Card anatomy** (portrait, fold-in-half horizontally):
+- Top half (`sc-top`): empty area, or background image if provided; dashed fold line at the border.
+- Bottom half (`sc-bottom`): guest name (large, bold), table line (`שולחן N — label`), optional custom text row.
+
+**Options object:**
+
+| Field | Type | Default | Notes |
+|-------|------|---------|-------|
+| `customText` | string | `''` | Optional extra line on every card |
+| `customFont` | string | `'inherit'` | Must be one of the whitelisted font values |
+| `customFontSize` | number | `11` | In pt; clamped 6–28 |
+| `customColor` | string | `'#333333'` | Must match `/^#[0-9a-fA-F]{6}$/` |
+| `bgImage` | string|null | `null` | Data URL (`data:image/...`); validated before use |
+
+**Background image security**: `bgImage` is validated against `/^data:image\//`. The data URL is injected into a single `<style>` element (not repeated inline per card) to avoid inflating the DOM for large images.
+
+**Font whitelist**: `customFont` is validated against a fixed Set of allowed values: `inherit`, `'Arial',sans-serif`, `'Times New Roman',Times,serif`, `Georgia,serif`, `'Courier New',monospace`.
+
+**CSS**: `body[data-print-mode="cards"]` activates `#printCardsArea { display: flex !important; }`. Cards use `@page { margin: 8mm }` injected via `_injectCardsPage()` (reuses `_printOrientStyle` element). On A4 portrait with 8mm margins, 2 columns × 3 rows = **6 cards per page**.
+
+**Background image note**: Browser must have "Print background graphics" enabled; a warning banner is shown in the modal when an image is loaded.
+
+**Modal** (`modalPrintCards`): Live preview card (144×144 px ≈ 48% scale), background image upload, optional custom text with font/size/color controls. Guest count summary shown at bottom.
 
 ## Print Improvements
 
