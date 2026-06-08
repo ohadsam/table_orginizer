@@ -278,10 +278,16 @@ Four modes, each with its own hidden `<div>` in `index.html`:
 
 `Print.printFull()` produces a comprehensive multi-page document:
 1. **Page 1** — event header, stats summary, room diagram SVG (landscape if `width/height > 1.3` using `@page :first { size: A4 landscape; }`).
-2. **One page per table** (via `page-break-before:always` inline style) — table number/label header, a large visual SVG of the table with seat circles (filled/empty), and a detailed guest table with columns: #, name, adults, children, total, tags, notes.
+2. **One page per table** (via `page-break-before:always` inline style) — a header with all table properties (see below), a large visual SVG of the table with seat circles (filled/empty), and a detailed guest table with columns: #, name, adults, children, total, tags, notes.
 3. **Final page** — full guest list sorted by table then name, using the same `buildGuestTableHTML` helper.
 
-**`_buildTableVisualSVG(item, occ)`**: renders a print-sized SVG of the table body and seat circles. Accepts `occ` from the caller to avoid a redundant `State.getTableOccupancy` call. Uses `Items.distributeRectSeats` for rect seat layout (exported from `items.js`) to keep canvas and print rendering consistent.
+**Per-table page header** contains all properties also visible in the Full Details modal:
+- Table number and label (title row, large font)
+- Occupancy (`occ / seats מושבים`), shape (עיגול / מלבן / ריבוע), dimensions (`w×h`), custom color swatch (if set), lock badge (if locked) — all in the meta row
+
+**Shape label mapping**: `{ circle: 'עיגול', rectangle: 'מלבן', square: 'ריבוע' }` — all three shapes distinguished correctly.
+
+**`_buildTableVisualSVG(item, occ)`**: renders a print-sized SVG of the table body and seat circles. **`occ` must be passed** from the caller — passing `undefined` causes all seats to render empty (they compare `i < undefined` → always false). Uses `Items.distributeRectSeats` for rect seat layout (exported from `items.js`) to keep canvas and print rendering consistent.
 
 **Landscape handling difference**: `printAll` applies `@page { size: landscape }` globally (all pages landscape). `printFull` applies `@page :first { size: landscape }` so only the first page (room diagram) is landscape; per-table pages remain portrait.
 
