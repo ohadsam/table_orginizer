@@ -301,7 +301,7 @@ const Guests = (() => {
   function buildGuestCard(g, state) {
     const table    = g.tableId ? State.getItem(g.tableId) : null;
     const tableNum = table?.number ?? '?';
-    const tableClr = table?.color || null;
+    const tableClr = (table?.color && /^#[0-9a-fA-F]{3,8}$/.test(table.color)) ? table.color : null;
     const tags     = (g.tags || []).map(t => UI.tagBadge(t)).join('');
     const prox     = (g.proximity || [])
       .map(k => CONFIG.PROXIMITY[k]
@@ -309,8 +309,9 @@ const Guests = (() => {
       .join('');
     const splitBadge = g.splitOf
       ? `<span class="split-badge" title="כרטיס זה נוצר מפיצול">⛓ פוצל</span>` : '';
+    const badgeStyle = tableClr ? ` style="background:${tableClr}"` : '';
     const assigned = g.tableId
-      ? `<span class="guest-table-badge" title="לחץ על הכרטיס למעבר לשולחן">שולחן ${tableNum}${table?.label ? ' — ' + UI.escHtml(table.label) : ''}</span>` : '';
+      ? `<span class="guest-table-badge"${badgeStyle} title="לחץ על הכרטיס למעבר לשולחן">שולחן ${tableNum}${table?.label ? ' — ' + UI.escHtml(table.label) : ''}</span>` : '';
     const unassignBtn = g.tableId
       ? `<button class="btn-icon-xs btn-unassign-guest" title="הסר שיבוץ">✕</button>` : '';
     const colorStyle = tableClr ? `border-inline-end: 4px solid ${tableClr};` : '';

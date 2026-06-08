@@ -159,7 +159,7 @@ Every canvas item (table, dancefloor, dj, door, shape) can have a custom color s
 - **Tables**: color checkbox + color picker in the table edit modal. When enabled, `item.color` is stored; when disabled, `item.color = null` and the dynamic occupancy-based color is used.
 - **Special items**: color picker always shown in the edit modal. Defaults to `CONFIG.COLORS[item.type]`.
 - **Rendering**: `items.js buildTableSVG()` uses `item.color || tableColor(occ, seats)`. Special items use `item.color || CONFIG.COLORS[item.type]`.
-- **Guest sidebar cards**: tables with a custom color show a colored `border-inline-end` on every guest card assigned to that table.
+- **Guest sidebar cards**: tables with a custom color show a colored `border-inline-end` on every guest card assigned to that table, and the table-number badge background also uses the custom color (via inline `style="background:COLOR"` on the `.guest-table-badge` span).
 - **Print output**: table card borders and header backgrounds use the custom color. Guest list rows use `border-inline-end` on the table color column.
 
 ## Button Tooltips
