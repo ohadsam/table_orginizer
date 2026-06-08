@@ -559,7 +559,7 @@ The reorder handle (⠿ span) is separate from the pointer-based canvas-drag sys
 
 ## Seating Cards (`printCards`)
 
-`Print.printCards(opts)` prints one 8×8 cm foldable tent card per guest. Cards are sorted by table number then name.
+`Print.printCards(opts)` prints one foldable tent card per guest (default 8×8 cm). Cards are sorted by table number then name.
 
 **Card anatomy** (portrait, fold-in-half horizontally):
 - Top half (`sc-top`): empty area, or background image if provided; dashed fold line at the border.
@@ -574,16 +574,19 @@ The reorder handle (⠿ span) is separate from the pointer-based canvas-drag sys
 | `customFontSize` | number | `11` | In pt; clamped 6–28 |
 | `customColor` | string | `'#333333'` | Must match `/^#[0-9a-fA-F]{6}$/` |
 | `bgImage` | string|null | `null` | Data URL (`data:image/...`); validated before use |
+| `cardSize` | number | `80` | Card width & height in mm; clamped 50–120. Available sizes in modal: 60/70/80/90/100 mm |
+
+**Card size**: `cardSize` is validated/clamped to 50–120mm. A `<style>` element overrides `.seating-card { width:Xmm; height:Xmm; }` and `.sc-top { height:X/2mm; }` at print time and is removed in the post-print cleanup timeout. On A4 portrait with 8mm margins, cards ≤90mm fit 2 per row; 100mm cards also fit 2 per row (usable width ≈ 186mm, 2×100mm = 200mm > 186mm → wraps to 1 per row — controlled naturally by flex wrap). Default 8×8 cm: 2 columns × 3 rows = **6 cards per page**.
 
 **Background image security**: `bgImage` is validated against `/^data:image\//`. The data URL is injected into a single `<style>` element (not repeated inline per card) to avoid inflating the DOM for large images.
 
 **Font whitelist**: `customFont` is validated against a fixed Set of allowed values: `inherit`, `'Arial',sans-serif`, `'Times New Roman',Times,serif`, `Georgia,serif`, `'Courier New',monospace`.
 
-**CSS**: `body[data-print-mode="cards"]` activates `#printCardsArea { display: flex !important; }`. Cards use `@page { margin: 8mm }` injected via `_injectCardsPage()` (reuses `_printOrientStyle` element). On A4 portrait with 8mm margins, 2 columns × 3 rows = **6 cards per page**.
+**CSS**: `body[data-print-mode="cards"]` activates `#printCardsArea { display: flex !important; }`. Cards use `@page { margin: 8mm }` injected via `_injectCardsPage()` (reuses `_printOrientStyle` element).
 
 **Background image note**: Browser must have "Print background graphics" enabled; a warning banner is shown in the modal when an image is loaded.
 
-**Modal** (`modalPrintCards`): Live preview card (144×144 px ≈ 48% scale), background image upload, optional custom text with font/size/color controls. Guest count summary shown at bottom.
+**Modal** (`modalPrintCards`): Live preview card (size scales with selection at 1.8px per mm), card size selector (60/70/80/90/100 mm), background image upload, optional custom text with font/size/color controls. Guest count summary shown at bottom.
 
 ## Print Improvements
 

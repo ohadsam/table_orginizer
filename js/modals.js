@@ -1221,10 +1221,18 @@ const Modals = (() => {
     let _bgDataUrl = null;
 
     function _updatePreview() {
-      const text  = document.getElementById('cardCustomText').value.trim();
-      const font  = document.getElementById('cardCustomFont').value;
-      const size  = parseInt(document.getElementById('cardCustomFontSize').value) || 11;
-      const color = document.getElementById('cardCustomFontColor').value;
+      const text    = document.getElementById('cardCustomText').value.trim();
+      const font    = document.getElementById('cardCustomFont').value;
+      const size    = parseInt(document.getElementById('cardCustomFontSize').value) || 11;
+      const color   = document.getElementById('cardCustomFontColor').value;
+      const sizeMm  = parseInt(document.getElementById('cardSizeSelect').value) || 80;
+      const sizePx  = Math.round(sizeMm * 1.8);
+      const sizeCm  = sizeMm / 10;
+      const prevBox = document.getElementById('cardPreview');
+      prevBox.style.width  = sizePx + 'px';
+      prevBox.style.height = sizePx + 'px';
+      document.getElementById('cardsPreviewLabel').textContent =
+        `תצוגה מקדימה (${sizeCm}×${sizeCm} ס"מ)`;
 
       // Background image in preview (validate data URL before use)
       const topEl = document.getElementById('cardPreviewTop');
@@ -1258,6 +1266,7 @@ const Modals = (() => {
     document.getElementById('cardCustomFont').value      = 'inherit';
     document.getElementById('cardCustomFontSize').value  = '11';
     document.getElementById('cardCustomFontColor').value = '#333333';
+    document.getElementById('cardSizeSelect').value      = '80';
     document.getElementById('cardCustomFmtRow').style.display  = 'none';
     document.getElementById('cardsBgNote').style.display        = 'none';
     document.getElementById('cardPreviewCustom').style.display  = 'none';
@@ -1272,7 +1281,7 @@ const Modals = (() => {
       `יודפסו ${all.length} כרטיסים (${seated} עם שיבוץ, ${all.length - seated} ללא שיבוץ)`;
 
     // Live-preview handlers
-    ['cardCustomText','cardCustomFont','cardCustomFontSize','cardCustomFontColor'].forEach(id => {
+    ['cardCustomText','cardCustomFont','cardCustomFontSize','cardCustomFontColor','cardSizeSelect'].forEach(id => {
       const el = document.getElementById(id);
       el.oninput  = _updatePreview;
       el.onchange = _updatePreview;
@@ -1308,7 +1317,8 @@ const Modals = (() => {
         customFont:     document.getElementById('cardCustomFont').value,
         customFontSize: parseInt(document.getElementById('cardCustomFontSize').value) || 11,
         customColor:    document.getElementById('cardCustomFontColor').value,
-        bgImage:        _bgDataUrl
+        bgImage:        _bgDataUrl,
+        cardSize:       parseInt(document.getElementById('cardSizeSelect').value) || 80
       };
       UI.closeModal('modalPrintCards');
       Print.printCards(opts);
