@@ -195,7 +195,7 @@ The Add Table modal has a **type selector** row (shown only in add mode, hidden 
 
 New settings fields: `defaultFriendsShape` (default `'circle'`) and `defaultParentsShape` (default `'rectangle'`) are stored in `createDefaultState().settings` and configured via `settingFriendsShape` / `settingParentsShape` selects in the settings modal.
 
-Font appearance settings (`fontNumberSize`, `fontLabelSize`, `fontGuestSize`, `fontOccupancySize`, `fontNumberColor`, `fontLabelColor`, `fontGuestColor`, `fontOccupancyColor`) are also in `createDefaultState().settings`. Size fields default to `null` (auto-scaled). They are edited in the "מראה טקסט בשולחנות" section of the settings modal and apply to both canvas rendering and print output.
+Font appearance settings (`fontNumberSize`, `fontLabelSize`, `fontGuestSize`, `fontOccupancySize`, `fontNumberColor`, `fontLabelColor`, `fontGuestColor`, `fontOccupancyColor`) are also in `createDefaultState().settings`. Size fields default to `null` (auto-scaled). They are edited in the "מראה טקסט בשולחנות" section of the settings modal and apply to both canvas rendering and print output. Saving the settings modal calls `Items.renderAll()` so existing canvas items immediately reflect the new sizes/colors. Each row has a per-row ↺ reset button (`btn-font-reset[data-row]`) and there is a global `#btnResetAllFonts` button — both reset input fields only (state is updated on save). Handlers are wired via `btn.onclick` in `openSettings()` each time the modal opens.
 
 ## Find Table (🔍 button)
 

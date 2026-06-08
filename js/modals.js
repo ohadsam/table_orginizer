@@ -898,6 +898,30 @@ const Modals = (() => {
     document.getElementById('settingFontLabelColor').value     = s.settings.fontLabelColor     || '#37474f';
     document.getElementById('settingFontGuestColor').value     = s.settings.fontGuestColor     || '#546e7a';
     document.getElementById('settingFontOccupancyColor').value = s.settings.fontOccupancyColor || '#888888';
+    // Wire per-row reset buttons
+    const _fontDefaults = {
+      number:    { sizeId: 'settingFontNumberSize',    colorId: 'settingFontNumberColor',    color: '#1a237e' },
+      label:     { sizeId: 'settingFontLabelSize',     colorId: 'settingFontLabelColor',     color: '#37474f' },
+      guest:     { sizeId: 'settingFontGuestSize',     colorId: 'settingFontGuestColor',     color: '#546e7a' },
+      occupancy: { sizeId: 'settingFontOccupancySize', colorId: 'settingFontOccupancyColor', color: '#888888' }
+    };
+    document.querySelectorAll('.btn-font-reset').forEach(btn => {
+      btn.onclick = () => {
+        const d = _fontDefaults[btn.dataset.row];
+        if (!d) return;
+        document.getElementById(d.sizeId).value  = '';
+        document.getElementById(d.colorId).value = d.color;
+      };
+    });
+    const btnResetAll = document.getElementById('btnResetAllFonts');
+    if (btnResetAll) {
+      btnResetAll.onclick = () => {
+        Object.values(_fontDefaults).forEach(d => {
+          document.getElementById(d.sizeId).value  = '';
+          document.getElementById(d.colorId).value = d.color;
+        });
+      };
+    }
     renderTagsManager();
     renderPresetManager();
     renderEventsManager();
@@ -1004,6 +1028,7 @@ const Modals = (() => {
     State.setSetting('fontLabelColor',     document.getElementById('settingFontLabelColor').value);
     State.setSetting('fontGuestColor',     document.getElementById('settingFontGuestColor').value);
     State.setSetting('fontOccupancyColor', document.getElementById('settingFontOccupancyColor').value);
+    Items.renderAll();
     Storage.updateCurrentMeta();
     updateEventHeader();
     UI.closeModal('modalSettings');
