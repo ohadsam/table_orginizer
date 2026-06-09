@@ -510,6 +510,16 @@ ${buildGuestTableHTML(sorted)}`;
   /* ── Seating cards (variable-size tent cards, default 8×8 cm) ── */
   function printCards(opts) {
     const {
+      nameFont       = 'inherit',
+      nameFontSize   = 16,
+      nameColor      = '#111111',
+      nameBold       = true,
+      nameItalic     = false,
+      tableFont      = 'inherit',
+      tableFontSize  = 12,
+      tableColor     = '#333333',
+      tableBold      = false,
+      tableItalic    = false,
       customText     = '',
       customFont     = 'inherit',
       customFontSize = 11,
@@ -560,9 +570,23 @@ ${buildGuestTableHTML(sorted)}`;
       'Impact,sans-serif',
       "'Comic Sans MS',cursive"
     ]);
+
+    const safeNameFont  = SAFE_FONTS.has(nameFont)  ? nameFont  : 'inherit';
+    const safeNameSize  = Math.max(6, Math.min(40, parseInt(nameFontSize)  || 16));
+    const safeNameColor = /^#[0-9a-fA-F]{6}$/.test(nameColor)  ? nameColor  : '#111111';
+
+    const safeTableFont  = SAFE_FONTS.has(tableFont)  ? tableFont  : 'inherit';
+    const safeTableSize  = Math.max(6, Math.min(40, parseInt(tableFontSize) || 12));
+    const safeTableColor = /^#[0-9a-fA-F]{6}$/.test(tableColor) ? tableColor : '#333333';
+
     const safeFont  = SAFE_FONTS.has(customFont) ? customFont : 'inherit';
     const safeSize  = Math.max(6, Math.min(28, parseInt(customFontSize) || 11));
     const safeColor = /^#[0-9a-fA-F]{6}$/.test(customColor) ? customColor : '#333333';
+
+    const nameStyle  = `font-family:${safeNameFont};font-size:${safeNameSize}pt;color:${safeNameColor};` +
+                       `font-weight:${nameBold ? '700' : '400'};${nameItalic ? 'font-style:italic;' : ''}`;
+    const tableStyle = `font-family:${safeTableFont};font-size:${safeTableSize}pt;color:${safeTableColor};` +
+                       `${tableBold ? 'font-weight:700;' : ''}${tableItalic ? 'font-style:italic;' : ''}`;
 
     // Inject card dimensions (@media print scoped to avoid affecting screen)
     const sizeStyleEl = document.createElement('style');
@@ -602,8 +626,8 @@ ${buildGuestTableHTML(sorted)}`;
       return `<div class="seating-card">
         <div class="sc-top"></div>
         <div class="sc-bottom">
-          <div class="sc-name">${UI.escHtml(g.name || '')}</div>
-          <div class="sc-table">${tableText}</div>
+          <div class="sc-name" style="${nameStyle}">${UI.escHtml(g.name || '')}</div>
+          <div class="sc-table" style="${tableStyle}">${tableText}</div>
           ${customRow}
         </div>
       </div>`;

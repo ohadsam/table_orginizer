@@ -1223,24 +1223,44 @@ const Modals = (() => {
 
     function _readForm() {
       return {
-        version:        1,
-        cardSize:       parseInt(document.getElementById('cardSizeSelect').value)       || 80,
-        customText:     document.getElementById('cardCustomText').value.trim(),
-        customFont:     document.getElementById('cardCustomFont').value,
-        customFontSize: parseInt(document.getElementById('cardCustomFontSize').value)   || 11,
-        customColor:    document.getElementById('cardCustomFontColor').value,
-        customBold:     document.getElementById('cardCustomBold').classList.contains('active'),
-        customItalic:   document.getElementById('cardCustomItalic').classList.contains('active'),
-        showLabel:      document.getElementById('cardShowLabel').checked,
-        blankEnabled:   document.getElementById('cardBlankEnabled').checked,
-        blankCount:     parseInt(document.getElementById('cardBlankCount').value)        || 1,
-        blankOnly:      document.getElementById('cardBlankOnly').checked
+        version:       1,
+        cardSize:      parseInt(document.getElementById('cardSizeSelect').value)      || 80,
+        nameFont:      document.getElementById('cardNameFont').value,
+        nameFontSize:  parseInt(document.getElementById('cardNameFontSize').value)    || 16,
+        nameColor:     document.getElementById('cardNameFontColor').value,
+        nameBold:      document.getElementById('cardNameBold').classList.contains('active'),
+        nameItalic:    document.getElementById('cardNameItalic').classList.contains('active'),
+        tableFont:     document.getElementById('cardTableFont').value,
+        tableFontSize: parseInt(document.getElementById('cardTableFontSize').value)   || 12,
+        tableColor:    document.getElementById('cardTableFontColor').value,
+        tableBold:     document.getElementById('cardTableBold').classList.contains('active'),
+        tableItalic:   document.getElementById('cardTableItalic').classList.contains('active'),
+        customText:    document.getElementById('cardCustomText').value.trim(),
+        customFont:    document.getElementById('cardCustomFont').value,
+        customFontSize:parseInt(document.getElementById('cardCustomFontSize').value)  || 11,
+        customColor:   document.getElementById('cardCustomFontColor').value,
+        customBold:    document.getElementById('cardCustomBold').classList.contains('active'),
+        customItalic:  document.getElementById('cardCustomItalic').classList.contains('active'),
+        showLabel:     document.getElementById('cardShowLabel').checked,
+        blankEnabled:  document.getElementById('cardBlankEnabled').checked,
+        blankCount:    parseInt(document.getElementById('cardBlankCount').value)       || 1,
+        blankOnly:     document.getElementById('cardBlankOnly').checked
       };
     }
 
     function _applyForm(t) {
       if (!t) return;
       if (t.cardSize       != null) document.getElementById('cardSizeSelect').value      = String(t.cardSize);
+      if (t.nameFont       != null) document.getElementById('cardNameFont').value        = t.nameFont;
+      if (t.nameFontSize   != null) document.getElementById('cardNameFontSize').value    = String(t.nameFontSize);
+      if (t.nameColor      != null) document.getElementById('cardNameFontColor').value   = t.nameColor;
+      document.getElementById('cardNameBold').classList.toggle('active',     !!t.nameBold);
+      document.getElementById('cardNameItalic').classList.toggle('active',   !!t.nameItalic);
+      if (t.tableFont      != null) document.getElementById('cardTableFont').value       = t.tableFont;
+      if (t.tableFontSize  != null) document.getElementById('cardTableFontSize').value   = String(t.tableFontSize);
+      if (t.tableColor     != null) document.getElementById('cardTableFontColor').value  = t.tableColor;
+      document.getElementById('cardTableBold').classList.toggle('active',    !!t.tableBold);
+      document.getElementById('cardTableItalic').classList.toggle('active',  !!t.tableItalic);
       if (t.customText     != null) document.getElementById('cardCustomText').value      = t.customText;
       if (t.customFont     != null) document.getElementById('cardCustomFont').value      = t.customFont;
       if (t.customFontSize != null) document.getElementById('cardCustomFontSize').value  = String(t.customFontSize);
@@ -1268,6 +1288,18 @@ const Modals = (() => {
       const sizePx   = Math.round(sizeMm * 1.8);
       const sizeCm   = sizeMm / 10;
 
+      const nameFont     = document.getElementById('cardNameFont').value;
+      const nameFontSize = parseInt(document.getElementById('cardNameFontSize').value) || 16;
+      const nameColor    = document.getElementById('cardNameFontColor').value;
+      const nameBold     = document.getElementById('cardNameBold').classList.contains('active');
+      const nameItalic   = document.getElementById('cardNameItalic').classList.contains('active');
+
+      const tableFont     = document.getElementById('cardTableFont').value;
+      const tableFontSize = parseInt(document.getElementById('cardTableFontSize').value) || 12;
+      const tableColor    = document.getElementById('cardTableFontColor').value;
+      const tableBold     = document.getElementById('cardTableBold').classList.contains('active');
+      const tableItalic   = document.getElementById('cardTableItalic').classList.contains('active');
+
       // Resize preview
       const prevBox = document.getElementById('cardPreview');
       prevBox.style.width  = sizePx + 'px';
@@ -1281,21 +1313,35 @@ const Modals = (() => {
       // Blank-options panel
       document.getElementById('cardBlankOptions').style.display = blankEn ? '' : 'none';
 
-      // Preview card content: switch to blank-placeholder layout when blankOnly is active
+      // Preview card content
       const nameEl  = document.getElementById('cardPreviewName');
       const tableEl = document.getElementById('cardPreviewTable');
       if (blankEn && blankOnly) {
-        nameEl.textContent  = 'שם: _______________';
-        tableEl.textContent = 'שולחן: ____________';
+        nameEl.textContent       = 'שם: _______________';
+        tableEl.textContent      = 'שולחן: ____________';
+        nameEl.style.fontFamily  = '';
+        nameEl.style.fontSize    = '';
         nameEl.style.fontWeight  = '400';
+        nameEl.style.fontStyle   = '';
         nameEl.style.color       = '#777';
+        tableEl.style.fontFamily = '';
+        tableEl.style.fontSize   = '';
+        tableEl.style.fontWeight = '';
+        tableEl.style.fontStyle  = '';
         tableEl.style.color      = '#777';
       } else {
-        nameEl.textContent  = 'ישראל ישראלי';
-        tableEl.textContent = showLbl ? 'שולחן 5 — (לדוגמה)' : 'שולחן 5';
-        nameEl.style.fontWeight  = '';
-        nameEl.style.color       = '';
-        tableEl.style.color      = '';
+        nameEl.textContent       = 'ישראל ישראלי';
+        tableEl.textContent      = showLbl ? 'שולחן 5 — (לדוגמה)' : 'שולחן 5';
+        nameEl.style.fontFamily  = nameFont;
+        nameEl.style.fontSize    = nameFontSize + 'pt';
+        nameEl.style.fontWeight  = nameBold  ? '700'    : '400';
+        nameEl.style.fontStyle   = nameItalic  ? 'italic' : '';
+        nameEl.style.color       = nameColor;
+        tableEl.style.fontFamily = tableFont;
+        tableEl.style.fontSize   = tableFontSize + 'pt';
+        tableEl.style.fontWeight = tableBold  ? '700'    : '';
+        tableEl.style.fontStyle  = tableItalic ? 'italic' : '';
+        tableEl.style.color      = tableColor;
       }
 
       // Background image
@@ -1343,7 +1389,10 @@ const Modals = (() => {
 
     // Load saved template (or apply defaults)
     const _defaults = {
-      cardSize: 80, customText: '', customFont: 'inherit', customFontSize: 11,
+      cardSize:      80,
+      nameFont:      'inherit', nameFontSize:  16, nameColor:  '#111111', nameBold:  true,  nameItalic:  false,
+      tableFont:     'inherit', tableFontSize: 12, tableColor: '#333333', tableBold: false, tableItalic: false,
+      customText:    '', customFont: 'inherit', customFontSize: 11,
       customColor: '#333333', customBold: false, customItalic: false,
       showLabel: true, blankEnabled: false, blankCount: 5, blankOnly: false
     };
@@ -1360,7 +1409,9 @@ const Modals = (() => {
     _bgDataUrl = null;
 
     // Live-preview handlers (all inputs/selects/checkboxes)
-    ['cardCustomText','cardCustomFont','cardCustomFontSize','cardCustomFontColor',
+    ['cardNameFont','cardNameFontSize','cardNameFontColor',
+     'cardTableFont','cardTableFontSize','cardTableFontColor',
+     'cardCustomText','cardCustomFont','cardCustomFontSize','cardCustomFontColor',
      'cardSizeSelect','cardShowLabel','cardBlankEnabled','cardBlankCount','cardBlankOnly'
     ].forEach(id => {
       const el = document.getElementById(id);
@@ -1369,7 +1420,7 @@ const Modals = (() => {
     });
 
     // Bold / Italic toggle buttons
-    ['cardCustomBold','cardCustomItalic'].forEach(id => {
+    ['cardNameBold','cardNameItalic','cardTableBold','cardTableItalic','cardCustomBold','cardCustomItalic'].forEach(id => {
       document.getElementById(id).onclick = () => {
         document.getElementById(id).classList.toggle('active');
         _updatePreview();
@@ -1442,17 +1493,27 @@ const Modals = (() => {
       const f = _readForm();
       UI.closeModal('modalPrintCards');
       Print.printCards({
-        customText:     f.customText,
-        customFont:     f.customFont,
-        customFontSize: f.customFontSize,
-        customColor:    f.customColor,
-        customBold:     f.customBold,
-        customItalic:   f.customItalic,
-        bgImage:        _bgDataUrl,
-        cardSize:       f.cardSize,
-        showLabel:      f.showLabel,
-        blankCount:     f.blankEnabled ? f.blankCount : 0,
-        blankOnly:      f.blankOnly
+        nameFont:      f.nameFont,
+        nameFontSize:  f.nameFontSize,
+        nameColor:     f.nameColor,
+        nameBold:      f.nameBold,
+        nameItalic:    f.nameItalic,
+        tableFont:     f.tableFont,
+        tableFontSize: f.tableFontSize,
+        tableColor:    f.tableColor,
+        tableBold:     f.tableBold,
+        tableItalic:   f.tableItalic,
+        customText:    f.customText,
+        customFont:    f.customFont,
+        customFontSize:f.customFontSize,
+        customColor:   f.customColor,
+        customBold:    f.customBold,
+        customItalic:  f.customItalic,
+        bgImage:       _bgDataUrl,
+        cardSize:      f.cardSize,
+        showLabel:     f.showLabel,
+        blankCount:    f.blankEnabled ? f.blankCount : 0,
+        blankOnly:     f.blankOnly
       });
     };
 

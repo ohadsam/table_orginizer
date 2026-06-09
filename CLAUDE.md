@@ -569,10 +569,20 @@ The reorder handle (⠿ span) is separate from the pointer-based canvas-drag sys
 
 | Field | Type | Default | Notes |
 |-------|------|---------|-------|
+| `nameFont` | string | `'inherit'` | Font for guest name; must be whitelisted |
+| `nameFontSize` | number | `16` | Name font size in pt; clamped 6–40 |
+| `nameColor` | string | `'#111111'` | Name text color; must match `/^#[0-9a-fA-F]{6}$/` |
+| `nameBold` | boolean | `true` | Applies `font-weight:700` to name (default: bold) |
+| `nameItalic` | boolean | `false` | Applies `font-style:italic` to name |
+| `tableFont` | string | `'inherit'` | Font for table line; must be whitelisted |
+| `tableFontSize` | number | `12` | Table line font size in pt; clamped 6–40 |
+| `tableColor` | string | `'#333333'` | Table line text color; must match `/^#[0-9a-fA-F]{6}$/` |
+| `tableBold` | boolean | `false` | Applies `font-weight:700` to table line |
+| `tableItalic` | boolean | `false` | Applies `font-style:italic` to table line |
 | `customText` | string | `''` | Optional extra line on every card |
-| `customFont` | string | `'inherit'` | Must be one of the whitelisted font values |
-| `customFontSize` | number | `11` | In pt; clamped 6–28 |
-| `customColor` | string | `'#333333'` | Must match `/^#[0-9a-fA-F]{6}$/` |
+| `customFont` | string | `'inherit'` | Font for custom text; must be whitelisted |
+| `customFontSize` | number | `11` | Custom text font size in pt; clamped 6–28 |
+| `customColor` | string | `'#333333'` | Custom text color; must match `/^#[0-9a-fA-F]{6}$/` |
 | `customBold` | boolean | `false` | Applies `font-weight:700` to custom text |
 | `customItalic` | boolean | `false` | Applies `font-style:italic` to custom text |
 | `bgImage` | string\|null | `null` | Data URL (`data:image/...`); validated before use |
@@ -587,13 +597,15 @@ The reorder handle (⠿ span) is separate from the pointer-based canvas-drag sys
 
 **Background image security**: `bgImage` is validated against `/^data:image\//`. The data URL is injected into a single `<style>` element (not repeated inline per card) to avoid inflating the DOM for large images.
 
-**Font whitelist**: `customFont` is validated against a fixed Set of allowed values: `inherit`, Arial, Helvetica, Tahoma, Verdana, Trebuchet MS, Segoe UI, Calibri, Times New Roman, Georgia, Courier New, Impact, Comic Sans MS.
+**Font whitelist**: `nameFont`, `tableFont`, and `customFont` are all validated against the same fixed Set of allowed values: `inherit`, Arial, Helvetica, Tahoma, Verdana, Trebuchet MS, Segoe UI, Calibri, Times New Roman, Georgia, Courier New, Impact, Comic Sans MS.
+
+**Inline style override**: Name and table styles are applied as inline `style` attributes on `.sc-name` and `.sc-table` elements, overriding the CSS defaults. For `nameBold=false`, `font-weight:400` is explicitly set to override the CSS `font-weight:700` default.
 
 **CSS**: `body[data-print-mode="cards"]` activates `#printCardsArea { display: flex !important; }`. Cards use `@page { margin: 8mm }` injected via `_injectCardsPage()` (reuses `_printOrientStyle` element).
 
 **Background image note**: Browser must have "Print background graphics" enabled; a warning banner is shown in the modal when an image is loaded.
 
-**Modal** (`modalPrintCards`): Live preview card (size scales with selection at 1.8px per mm), card size selector (60/70/80/90/100 mm), background image upload, show-label toggle, optional custom text with font/size/bold/italic/color controls, blank cards section (count + blank-only option), template save/export/import. Uses `.modal.modal-md` (max-width 520px).
+**Modal** (`modalPrintCards`): Live preview card (size scales with selection at 1.8px per mm), card size selector (60/70/80/90/100 mm), background image upload, per-section font/size/bold/italic/color controls for name, table line (includes show-label toggle), and custom text; blank cards section (count + blank-only option), template save/export/import. Uses `.modal.modal-md` (max-width 520px).
 
 **Card template**: Settings are saved to localStorage key `seating_cards_template` (version 1 JSON). Background image is excluded (too large). Template buttons in modal footer: 💾 שמור (save default), 📤 ייצוא (export JSON), 📥 ייבוא (import JSON). On modal open, the saved template is automatically applied; if no template exists, factory defaults are used.
 

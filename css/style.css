@@ -1353,6 +1353,7 @@ textarea.input { resize: vertical; min-height: 60px; }
   font-size: 8pt;
   color: #666;
   font-weight: 600;
+  margin-bottom: 0;
 }
 .cards-summary {
   font-size: 9pt;

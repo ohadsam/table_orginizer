@@ -666,54 +666,128 @@
         </div>
       </div>
 
-      <!-- Show label -->
+      <!-- Name formatting -->
       <div class="form-group">
-        <label class="form-check">
+        <label class="form-label">עיצוב שם האורח</label>
+        <div class="cards-fmt-row">
+          <div class="cards-fmt-cell">
+            <label class="form-label-sm">גופן</label>
+            <select class="input-select" id="cardNameFont">
+              <option value="inherit">ברירת מחדל</option>
+              <option value="'Arial',sans-serif">Arial</option>
+              <option value="'Helvetica Neue',Helvetica,sans-serif">Helvetica</option>
+              <option value="Tahoma,sans-serif">Tahoma</option>
+              <option value="Verdana,sans-serif">Verdana</option>
+              <option value="'Trebuchet MS',sans-serif">Trebuchet MS</option>
+              <option value="'Segoe UI',sans-serif">Segoe UI</option>
+              <option value="Calibri,sans-serif">Calibri</option>
+              <option value="'Times New Roman',Times,serif">Times New Roman</option>
+              <option value="Georgia,serif">Georgia</option>
+              <option value="'Courier New',monospace">Courier New</option>
+              <option value="Impact,sans-serif">Impact</option>
+              <option value="'Comic Sans MS',cursive">Comic Sans MS</option>
+            </select>
+          </div>
+          <div class="cards-fmt-cell">
+            <label class="form-label-sm">גודל (pt)</label>
+            <input type="number" class="input-text" id="cardNameFontSize" value="16" min="6" max="40" style="width:64px">
+          </div>
+          <div class="cards-fmt-cell">
+            <label class="form-label-sm">עיצוב</label>
+            <div class="cards-style-btns">
+              <button type="button" id="cardNameBold"   class="btn-style-toggle active" title="מודגש"><b>B</b></button>
+              <button type="button" id="cardNameItalic" class="btn-style-toggle"        title="מוטה"><i>I</i></button>
+            </div>
+          </div>
+          <div class="cards-fmt-cell">
+            <label class="form-label-sm">צבע</label>
+            <input type="color" id="cardNameFontColor" value="#111111">
+          </div>
+        </div>
+      </div>
+
+      <!-- Table line formatting -->
+      <div class="form-group">
+        <label class="form-label">עיצוב שורת שולחן</label>
+        <label class="form-check" style="margin-bottom:6px">
           <input type="checkbox" id="cardShowLabel" checked>
           הצג תווית שולחן בכרטיס
         </label>
+        <div class="cards-fmt-row">
+          <div class="cards-fmt-cell">
+            <label class="form-label-sm">גופן</label>
+            <select class="input-select" id="cardTableFont">
+              <option value="inherit">ברירת מחדל</option>
+              <option value="'Arial',sans-serif">Arial</option>
+              <option value="'Helvetica Neue',Helvetica,sans-serif">Helvetica</option>
+              <option value="Tahoma,sans-serif">Tahoma</option>
+              <option value="Verdana,sans-serif">Verdana</option>
+              <option value="'Trebuchet MS',sans-serif">Trebuchet MS</option>
+              <option value="'Segoe UI',sans-serif">Segoe UI</option>
+              <option value="Calibri,sans-serif">Calibri</option>
+              <option value="'Times New Roman',Times,serif">Times New Roman</option>
+              <option value="Georgia,serif">Georgia</option>
+              <option value="'Courier New',monospace">Courier New</option>
+              <option value="Impact,sans-serif">Impact</option>
+              <option value="'Comic Sans MS',cursive">Comic Sans MS</option>
+            </select>
+          </div>
+          <div class="cards-fmt-cell">
+            <label class="form-label-sm">גודל (pt)</label>
+            <input type="number" class="input-text" id="cardTableFontSize" value="12" min="6" max="40" style="width:64px">
+          </div>
+          <div class="cards-fmt-cell">
+            <label class="form-label-sm">עיצוב</label>
+            <div class="cards-style-btns">
+              <button type="button" id="cardTableBold"   class="btn-style-toggle" title="מודגש"><b>B</b></button>
+              <button type="button" id="cardTableItalic" class="btn-style-toggle" title="מוטה"><i>I</i></button>
+            </div>
+          </div>
+          <div class="cards-fmt-cell">
+            <label class="form-label-sm">צבע</label>
+            <input type="color" id="cardTableFontColor" value="#333333">
+          </div>
+        </div>
       </div>
 
       <!-- Custom text -->
       <div class="form-group">
         <label class="form-label">שורת טקסט חופשית <span class="text-muted">(אופציונלי)</span></label>
         <input type="text" class="input-text" id="cardCustomText" placeholder='לדוגמה: &#x05D7;&#x05EA;&#x05D5;&#x05E0;&#x05EA; &#x05D9;&#x05D5;&#x05E1;&#x05D9; &amp; &#x05D3;&#x05E0;&#x05D4; | &#x05E1;&#x05D9;&#x05D5;&#x05DD; &#x05E7;&#x05D5;&#x05E8;&#x05E1;...'>
-      </div>
-
-      <!-- Custom text and formatting -->
-      <div id="cardCustomFmtRow" class="form-group cards-fmt-row">
-        <div class="cards-fmt-cell">
-          <label class="form-label-sm">גופן</label>
-          <select class="input-select" id="cardCustomFont">
-            <option value="inherit">ברירת מחדל</option>
-            <option value="'Arial',sans-serif">Arial</option>
-            <option value="'Helvetica Neue',Helvetica,sans-serif">Helvetica</option>
-            <option value="Tahoma,sans-serif">Tahoma</option>
-            <option value="Verdana,sans-serif">Verdana</option>
-            <option value="'Trebuchet MS',sans-serif">Trebuchet MS</option>
-            <option value="'Segoe UI',sans-serif">Segoe UI</option>
-            <option value="Calibri,sans-serif">Calibri</option>
-            <option value="'Times New Roman',Times,serif">Times New Roman</option>
-            <option value="Georgia,serif">Georgia</option>
-            <option value="'Courier New',monospace">Courier New</option>
-            <option value="Impact,sans-serif">Impact</option>
-            <option value="'Comic Sans MS',cursive">Comic Sans MS</option>
-          </select>
-        </div>
-        <div class="cards-fmt-cell">
-          <label class="form-label-sm">גודל (pt)</label>
-          <input type="number" class="input-text" id="cardCustomFontSize" value="11" min="6" max="28" style="width:64px">
-        </div>
-        <div class="cards-fmt-cell">
-          <label class="form-label-sm">עיצוב</label>
-          <div class="cards-style-btns">
-            <button type="button" id="cardCustomBold"   class="btn-style-toggle" title="מודגש"><b>B</b></button>
-            <button type="button" id="cardCustomItalic" class="btn-style-toggle" title="מוטה"><i>I</i></button>
+        <div id="cardCustomFmtRow" class="cards-fmt-row" style="margin-top:8px">
+          <div class="cards-fmt-cell">
+            <label class="form-label-sm">גופן</label>
+            <select class="input-select" id="cardCustomFont">
+              <option value="inherit">ברירת מחדל</option>
+              <option value="'Arial',sans-serif">Arial</option>
+              <option value="'Helvetica Neue',Helvetica,sans-serif">Helvetica</option>
+              <option value="Tahoma,sans-serif">Tahoma</option>
+              <option value="Verdana,sans-serif">Verdana</option>
+              <option value="'Trebuchet MS',sans-serif">Trebuchet MS</option>
+              <option value="'Segoe UI',sans-serif">Segoe UI</option>
+              <option value="Calibri,sans-serif">Calibri</option>
+              <option value="'Times New Roman',Times,serif">Times New Roman</option>
+              <option value="Georgia,serif">Georgia</option>
+              <option value="'Courier New',monospace">Courier New</option>
+              <option value="Impact,sans-serif">Impact</option>
+              <option value="'Comic Sans MS',cursive">Comic Sans MS</option>
+            </select>
           </div>
-        </div>
-        <div class="cards-fmt-cell">
-          <label class="form-label-sm">צבע</label>
-          <input type="color" id="cardCustomFontColor" value="#333333">
+          <div class="cards-fmt-cell">
+            <label class="form-label-sm">גודל (pt)</label>
+            <input type="number" class="input-text" id="cardCustomFontSize" value="11" min="6" max="28" style="width:64px">
+          </div>
+          <div class="cards-fmt-cell">
+            <label class="form-label-sm">עיצוב</label>
+            <div class="cards-style-btns">
+              <button type="button" id="cardCustomBold"   class="btn-style-toggle" title="מודגש"><b>B</b></button>
+              <button type="button" id="cardCustomItalic" class="btn-style-toggle" title="מוטה"><i>I</i></button>
+            </div>
+          </div>
+          <div class="cards-fmt-cell">
+            <label class="form-label-sm">צבע</label>
+            <input type="color" id="cardCustomFontColor" value="#333333">
+          </div>
         </div>
       </div>
 
