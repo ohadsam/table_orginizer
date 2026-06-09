@@ -1254,13 +1254,13 @@ const Modals = (() => {
       if (t.nameFont       != null) document.getElementById('cardNameFont').value        = t.nameFont;
       if (t.nameFontSize   != null) document.getElementById('cardNameFontSize').value    = String(t.nameFontSize);
       if (t.nameColor      != null) document.getElementById('cardNameFontColor').value   = t.nameColor;
-      document.getElementById('cardNameBold').classList.toggle('active',     !!t.nameBold);
-      document.getElementById('cardNameItalic').classList.toggle('active',   !!t.nameItalic);
+      if (t.nameBold   != null) document.getElementById('cardNameBold').classList.toggle('active',   !!t.nameBold);
+      if (t.nameItalic != null) document.getElementById('cardNameItalic').classList.toggle('active', !!t.nameItalic);
       if (t.tableFont      != null) document.getElementById('cardTableFont').value       = t.tableFont;
       if (t.tableFontSize  != null) document.getElementById('cardTableFontSize').value   = String(t.tableFontSize);
       if (t.tableColor     != null) document.getElementById('cardTableFontColor').value  = t.tableColor;
-      document.getElementById('cardTableBold').classList.toggle('active',    !!t.tableBold);
-      document.getElementById('cardTableItalic').classList.toggle('active',  !!t.tableItalic);
+      if (t.tableBold   != null) document.getElementById('cardTableBold').classList.toggle('active',   !!t.tableBold);
+      if (t.tableItalic != null) document.getElementById('cardTableItalic').classList.toggle('active', !!t.tableItalic);
       if (t.customText     != null) document.getElementById('cardCustomText').value      = t.customText;
       if (t.customFont     != null) document.getElementById('cardCustomFont').value      = t.customFont;
       if (t.customFontSize != null) document.getElementById('cardCustomFontSize').value  = String(t.customFontSize);
@@ -1339,7 +1339,7 @@ const Modals = (() => {
         nameEl.style.color       = nameColor;
         tableEl.style.fontFamily = tableFont;
         tableEl.style.fontSize   = tableFontSize + 'pt';
-        tableEl.style.fontWeight = tableBold  ? '700'    : '';
+        tableEl.style.fontWeight = tableBold  ? '700'    : '400';
         tableEl.style.fontStyle  = tableItalic ? 'italic' : '';
         tableEl.style.color      = tableColor;
       }

@@ -586,7 +586,7 @@ ${buildGuestTableHTML(sorted)}`;
     const nameStyle  = `font-family:${safeNameFont};font-size:${safeNameSize}pt;color:${safeNameColor};` +
                        `font-weight:${nameBold ? '700' : '400'};${nameItalic ? 'font-style:italic;' : ''}`;
     const tableStyle = `font-family:${safeTableFont};font-size:${safeTableSize}pt;color:${safeTableColor};` +
-                       `${tableBold ? 'font-weight:700;' : ''}${tableItalic ? 'font-style:italic;' : ''}`;
+                       `font-weight:${tableBold ? '700' : '400'};${tableItalic ? 'font-style:italic;' : ''}`;
 
     // Inject card dimensions (@media print scoped to avoid affecting screen)
     const sizeStyleEl = document.createElement('style');
