@@ -1310,20 +1310,18 @@ const Modals = (() => {
         document.getElementById('cardsBgNote').style.display = 'none';
       }
 
-      // Custom text
+      // Custom text preview
       const customEl = document.getElementById('cardPreviewCustom');
       if (text) {
-        customEl.textContent         = text;
-        customEl.style.display       = '';
-        customEl.style.fontFamily    = font;
-        customEl.style.fontSize      = size + 'pt';
-        customEl.style.color         = color;
-        customEl.style.fontWeight    = bold   ? '700'    : '';
-        customEl.style.fontStyle     = italic ? 'italic' : '';
-        document.getElementById('cardCustomFmtRow').style.display = '';
+        customEl.textContent      = text;
+        customEl.style.display    = '';
+        customEl.style.fontFamily = font;
+        customEl.style.fontSize   = size + 'pt';
+        customEl.style.color      = color;
+        customEl.style.fontWeight = bold   ? '700'    : '';
+        customEl.style.fontStyle  = italic ? 'italic' : '';
       } else {
         customEl.style.display = 'none';
-        document.getElementById('cardCustomFmtRow').style.display = 'none';
       }
 
       // Summary
@@ -1355,7 +1353,6 @@ const Modals = (() => {
     } catch(e) { _applyForm(_defaults); }
 
     // Reset volatile/session state
-    document.getElementById('cardCustomFmtRow').style.display  = 'none';
     document.getElementById('cardsBgNote').style.display        = 'none';
     document.getElementById('cardPreviewCustom').style.display  = 'none';
     document.getElementById('btnClearCardBg').style.display     = 'none';
