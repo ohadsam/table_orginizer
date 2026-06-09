@@ -573,20 +573,29 @@ The reorder handle (⠿ span) is separate from the pointer-based canvas-drag sys
 | `customFont` | string | `'inherit'` | Must be one of the whitelisted font values |
 | `customFontSize` | number | `11` | In pt; clamped 6–28 |
 | `customColor` | string | `'#333333'` | Must match `/^#[0-9a-fA-F]{6}$/` |
-| `bgImage` | string|null | `null` | Data URL (`data:image/...`); validated before use |
+| `customBold` | boolean | `false` | Applies `font-weight:700` to custom text |
+| `customItalic` | boolean | `false` | Applies `font-style:italic` to custom text |
+| `bgImage` | string\|null | `null` | Data URL (`data:image/...`); validated before use |
 | `cardSize` | number | `80` | Card width & height in mm; clamped 50–120. Available sizes in modal: 60/70/80/90/100 mm |
+| `showLabel` | boolean | `true` | If false, table label is omitted from the table line |
+| `blankCount` | number | `0` | Number of blank placeholder cards to append (clamped 0–100) |
+| `blankOnly` | boolean | `false` | If true, guest cards are skipped — only blank cards are printed |
 
 **Card size**: `cardSize` is validated/clamped to 50–120mm. A `<style>` element overrides `.seating-card { width:Xmm; height:Xmm; }` and `.sc-top { height:X/2mm; }` at print time and is removed in the post-print cleanup timeout. On A4 portrait with 8mm @page margins, usable width ≈ 186mm (210 − 16mm margins − 8mm padding). Cards up to 90mm fit 2 per row (2×90mm + 5mm gap = 185mm); 100mm cards wrap to **1 per row** (2×100mm = 200mm > 186mm). Note: 90mm has only ~1mm clearance — browser sub-pixel rounding could cause wrapping on some print engines. Default 8×8 cm: 2 columns × 3 rows = **6 cards per page**.
 
+**Blank cards**: When `blankCount > 0`, blank `.seating-card` elements are appended after guest cards (or in place of them when `blankOnly=true`). Their bottom half shows `שם: _______________` and `שולחן: ____________` placeholder lines (`.sc-placeholder`) plus the `customText` row if set.
+
 **Background image security**: `bgImage` is validated against `/^data:image\//`. The data URL is injected into a single `<style>` element (not repeated inline per card) to avoid inflating the DOM for large images.
 
-**Font whitelist**: `customFont` is validated against a fixed Set of allowed values: `inherit`, `'Arial',sans-serif`, `'Times New Roman',Times,serif`, `Georgia,serif`, `'Courier New',monospace`.
+**Font whitelist**: `customFont` is validated against a fixed Set of allowed values: `inherit`, Arial, Helvetica, Tahoma, Verdana, Trebuchet MS, Segoe UI, Calibri, Times New Roman, Georgia, Courier New, Impact, Comic Sans MS.
 
 **CSS**: `body[data-print-mode="cards"]` activates `#printCardsArea { display: flex !important; }`. Cards use `@page { margin: 8mm }` injected via `_injectCardsPage()` (reuses `_printOrientStyle` element).
 
 **Background image note**: Browser must have "Print background graphics" enabled; a warning banner is shown in the modal when an image is loaded.
 
-**Modal** (`modalPrintCards`): Live preview card (size scales with selection at 1.8px per mm), card size selector (60/70/80/90/100 mm), background image upload, optional custom text with font/size/color controls. Guest count summary shown at bottom.
+**Modal** (`modalPrintCards`): Live preview card (size scales with selection at 1.8px per mm), card size selector (60/70/80/90/100 mm), background image upload, show-label toggle, optional custom text with font/size/bold/italic/color controls, blank cards section (count + blank-only option), template save/export/import. Uses `.modal.modal-md` (max-width 520px).
+
+**Card template**: Settings are saved to localStorage key `seating_cards_template` (version 1 JSON). Background image is excluded (too large). Template buttons in modal footer: 💾 שמור (save default), 📤 ייצוא (export JSON), 📥 ייבוא (import JSON). On modal open, the saved template is automatically applied; if no template exists, factory defaults are used.
 
 ## Print Improvements
 

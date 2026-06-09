@@ -1218,27 +1218,74 @@ const Modals = (() => {
 
   /* ── Print Cards modal ── */
   function openPrintCards() {
+    const TEMPLATE_KEY = 'seating_cards_template';
     let _bgDataUrl = null;
 
+    function _readForm() {
+      return {
+        version:        1,
+        cardSize:       parseInt(document.getElementById('cardSizeSelect').value)       || 80,
+        customText:     document.getElementById('cardCustomText').value.trim(),
+        customFont:     document.getElementById('cardCustomFont').value,
+        customFontSize: parseInt(document.getElementById('cardCustomFontSize').value)   || 11,
+        customColor:    document.getElementById('cardCustomFontColor').value,
+        customBold:     document.getElementById('cardCustomBold').classList.contains('active'),
+        customItalic:   document.getElementById('cardCustomItalic').classList.contains('active'),
+        showLabel:      document.getElementById('cardShowLabel').checked,
+        blankEnabled:   document.getElementById('cardBlankEnabled').checked,
+        blankCount:     parseInt(document.getElementById('cardBlankCount').value)        || 5,
+        blankOnly:      document.getElementById('cardBlankOnly').checked
+      };
+    }
+
+    function _applyForm(t) {
+      if (!t) return;
+      if (t.cardSize       != null) document.getElementById('cardSizeSelect').value      = String(t.cardSize);
+      if (t.customText     != null) document.getElementById('cardCustomText').value      = t.customText;
+      if (t.customFont     != null) document.getElementById('cardCustomFont').value      = t.customFont;
+      if (t.customFontSize != null) document.getElementById('cardCustomFontSize').value  = String(t.customFontSize);
+      if (t.customColor    != null) document.getElementById('cardCustomFontColor').value = t.customColor;
+      document.getElementById('cardCustomBold').classList.toggle('active',   !!t.customBold);
+      document.getElementById('cardCustomItalic').classList.toggle('active', !!t.customItalic);
+      document.getElementById('cardShowLabel').checked    = t.showLabel !== false;
+      document.getElementById('cardBlankEnabled').checked = !!t.blankEnabled;
+      if (t.blankCount != null) document.getElementById('cardBlankCount').value = String(t.blankCount);
+      document.getElementById('cardBlankOnly').checked    = !!t.blankOnly;
+      document.getElementById('cardBlankOptions').style.display = t.blankEnabled ? '' : 'none';
+    }
+
     function _updatePreview() {
-      const text    = document.getElementById('cardCustomText').value.trim();
-      const font    = document.getElementById('cardCustomFont').value;
-      const size    = parseInt(document.getElementById('cardCustomFontSize').value) || 11;
-      const color   = document.getElementById('cardCustomFontColor').value;
-      const sizeMm  = parseInt(document.getElementById('cardSizeSelect').value) || 80;
-      const sizePx  = Math.round(sizeMm * 1.8);
-      const sizeCm  = sizeMm / 10;
+      const text     = document.getElementById('cardCustomText').value.trim();
+      const font     = document.getElementById('cardCustomFont').value;
+      const size     = parseInt(document.getElementById('cardCustomFontSize').value) || 11;
+      const color    = document.getElementById('cardCustomFontColor').value;
+      const bold     = document.getElementById('cardCustomBold').classList.contains('active');
+      const italic   = document.getElementById('cardCustomItalic').classList.contains('active');
+      const showLbl  = document.getElementById('cardShowLabel').checked;
+      const blankEn  = document.getElementById('cardBlankEnabled').checked;
+      const sizeMm   = parseInt(document.getElementById('cardSizeSelect').value) || 80;
+      const sizePx   = Math.round(sizeMm * 1.8);
+      const sizeCm   = sizeMm / 10;
+
+      // Resize preview
       const prevBox = document.getElementById('cardPreview');
       prevBox.style.width  = sizePx + 'px';
       prevBox.style.height = sizePx + 'px';
       document.getElementById('cardsPreviewLabel').textContent =
         `תצוגה מקדימה (${sizeCm}×${sizeCm} ס"מ)`;
 
-      // Background image in preview (validate data URL before use)
+      // Show-label toggle in preview
+      document.getElementById('cardPreviewTable').textContent =
+        showLbl ? 'שולחן 5 — אולם מרכזי' : 'שולחן 5';
+
+      // Blank-options panel
+      document.getElementById('cardBlankOptions').style.display = blankEn ? '' : 'none';
+
+      // Background image
       const topEl = document.getElementById('cardPreviewTop');
       if (_bgDataUrl && /^data:image\//.test(_bgDataUrl)) {
-        topEl.style.backgroundImage  = `url('${_bgDataUrl.replace(/'/g, '%27').replace(/\)/g, '%29')}')`;
-        topEl.style.backgroundSize   = 'cover';
+        topEl.style.backgroundImage    = `url('${_bgDataUrl.replace(/'/g, '%27').replace(/\)/g, '%29')}')`;
+        topEl.style.backgroundSize     = 'cover';
         topEl.style.backgroundPosition = 'center';
         document.getElementById('cardsBgNote').style.display = '';
       } else {
@@ -1246,27 +1293,50 @@ const Modals = (() => {
         document.getElementById('cardsBgNote').style.display = 'none';
       }
 
-      // Custom text in preview
+      // Custom text
       const customEl = document.getElementById('cardPreviewCustom');
       if (text) {
-        customEl.textContent   = text;
-        customEl.style.display = '';
-        customEl.style.fontFamily = font;
-        customEl.style.fontSize   = size + 'pt';
-        customEl.style.color      = color;
+        customEl.textContent         = text;
+        customEl.style.display       = '';
+        customEl.style.fontFamily    = font;
+        customEl.style.fontSize      = size + 'pt';
+        customEl.style.color         = color;
+        customEl.style.fontWeight    = bold   ? '700'    : '';
+        customEl.style.fontStyle     = italic ? 'italic' : '';
         document.getElementById('cardCustomFmtRow').style.display = '';
       } else {
         customEl.style.display = 'none';
         document.getElementById('cardCustomFmtRow').style.display = 'none';
       }
+
+      // Summary
+      const all        = State.get().guests;
+      const seated     = all.filter(g => g.tableId).length;
+      const blankOnly  = document.getElementById('cardBlankOnly').checked;
+      const blankCount = parseInt(document.getElementById('cardBlankCount').value) || 0;
+      let summary = '';
+      if (!blankOnly) summary = `${all.length} כרטיסי מוזמנים (${seated} עם שיבוץ, ${all.length - seated} ללא)`;
+      if (blankEn && blankCount > 0) {
+        if (summary) summary += ' + ';
+        summary += `${blankCount} כרטיסים ריקים`;
+      }
+      document.getElementById('cardPrintSummary').textContent = summary
+        ? `יודפסו: ${summary}`
+        : 'לא נבחרו כרטיסים להדפסה';
     }
 
-    // Reset form
-    document.getElementById('cardCustomText').value      = '';
-    document.getElementById('cardCustomFont').value      = 'inherit';
-    document.getElementById('cardCustomFontSize').value  = '11';
-    document.getElementById('cardCustomFontColor').value = '#333333';
-    document.getElementById('cardSizeSelect').value      = '80';
+    // Load saved template (or apply defaults)
+    const _defaults = {
+      cardSize: 80, customText: '', customFont: 'inherit', customFontSize: 11,
+      customColor: '#333333', customBold: false, customItalic: false,
+      showLabel: true, blankEnabled: false, blankCount: 5, blankOnly: false
+    };
+    try {
+      const saved = localStorage.getItem(TEMPLATE_KEY);
+      _applyForm(saved ? JSON.parse(saved) : _defaults);
+    } catch(e) { _applyForm(_defaults); }
+
+    // Reset volatile/session state
     document.getElementById('cardCustomFmtRow').style.display  = 'none';
     document.getElementById('cardsBgNote').style.display        = 'none';
     document.getElementById('cardPreviewCustom').style.display  = 'none';
@@ -1274,22 +1344,26 @@ const Modals = (() => {
     document.getElementById('cardBgName').textContent           = '';
     _bgDataUrl = null;
 
-    // Guest count summary
-    const all    = State.get().guests;
-    const seated = all.filter(g => g.tableId).length;
-    document.getElementById('cardPrintSummary').textContent =
-      `יודפסו ${all.length} כרטיסים (${seated} עם שיבוץ, ${all.length - seated} ללא שיבוץ)`;
-
-    // Live-preview handlers
-    ['cardCustomText','cardCustomFont','cardCustomFontSize','cardCustomFontColor','cardSizeSelect'].forEach(id => {
+    // Live-preview handlers (all inputs/selects/checkboxes)
+    ['cardCustomText','cardCustomFont','cardCustomFontSize','cardCustomFontColor',
+     'cardSizeSelect','cardShowLabel','cardBlankEnabled','cardBlankCount','cardBlankOnly'
+    ].forEach(id => {
       const el = document.getElementById(id);
       el.oninput  = _updatePreview;
       el.onchange = _updatePreview;
     });
 
+    // Bold / Italic toggle buttons
+    ['cardCustomBold','cardCustomItalic'].forEach(id => {
+      document.getElementById(id).onclick = () => {
+        document.getElementById(id).classList.toggle('active');
+        _updatePreview();
+      };
+    });
+
+    // Background image upload / clear
     document.getElementById('btnUploadCardBg').onclick = () =>
       document.getElementById('cardBgInput').click();
-
     document.getElementById('cardBgInput').onchange = e => {
       const file = e.target.files[0];
       if (!file) return;
@@ -1303,7 +1377,6 @@ const Modals = (() => {
       };
       reader.readAsDataURL(file);
     };
-
     document.getElementById('btnClearCardBg').onclick = () => {
       _bgDataUrl = null;
       document.getElementById('btnClearCardBg').style.display = 'none';
@@ -1311,17 +1384,58 @@ const Modals = (() => {
       _updatePreview();
     };
 
-    document.getElementById('btnDoPrintCards').onclick = () => {
-      const opts = {
-        customText:     document.getElementById('cardCustomText').value.trim(),
-        customFont:     document.getElementById('cardCustomFont').value,
-        customFontSize: parseInt(document.getElementById('cardCustomFontSize').value) || 11,
-        customColor:    document.getElementById('cardCustomFontColor').value,
-        bgImage:        _bgDataUrl,
-        cardSize:       parseInt(document.getElementById('cardSizeSelect').value) || 80
+    // Template: save as default
+    document.getElementById('btnSaveCardTemplate').onclick = () => {
+      try {
+        localStorage.setItem(TEMPLATE_KEY, JSON.stringify(_readForm()));
+        UI.toast('תבנית נשמרה ✓', 'success', 1800);
+      } catch(e) { UI.toast('שגיאה בשמירת התבנית', 'error', 2500); }
+    };
+
+    // Template: export to JSON file
+    document.getElementById('btnExportCardTemplate').onclick = () => {
+      const blob = new Blob([JSON.stringify(_readForm(), null, 2)], { type: 'application/json' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url; a.download = 'card-template.json'; a.click();
+      URL.revokeObjectURL(url);
+    };
+
+    // Template: import from JSON file
+    document.getElementById('btnImportCardTemplate').onclick = () =>
+      document.getElementById('cardTemplateInput').click();
+    document.getElementById('cardTemplateInput').onchange = e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        try {
+          _applyForm(JSON.parse(ev.target.result));
+          _updatePreview();
+          UI.toast('תבנית יובאה ✓', 'success', 1800);
+        } catch(err) { UI.toast('שגיאה בייבוא התבנית', 'error', 2500); }
       };
+      reader.readAsText(file);
+      e.target.value = '';
+    };
+
+    // Print button
+    document.getElementById('btnDoPrintCards').onclick = () => {
+      const f = _readForm();
       UI.closeModal('modalPrintCards');
-      Print.printCards(opts);
+      Print.printCards({
+        customText:     f.customText,
+        customFont:     f.customFont,
+        customFontSize: f.customFontSize,
+        customColor:    f.customColor,
+        customBold:     f.customBold,
+        customItalic:   f.customItalic,
+        bgImage:        _bgDataUrl,
+        cardSize:       f.cardSize,
+        showLabel:      f.showLabel,
+        blankCount:     f.blankEnabled ? f.blankCount : 0,
+        blankOnly:      f.blankOnly
+      });
     };
 
     _updatePreview();
