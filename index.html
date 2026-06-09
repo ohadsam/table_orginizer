@@ -619,7 +619,7 @@
 
 <!-- ═══════════════════ PRINT CARDS MODAL ═══════════════════ -->
 <div class="modal-overlay" id="modalPrintCards">
-  <div class="modal-dialog modal-md">
+  <div class="modal modal-md">
     <div class="modal-header">
       <span class="modal-title">🎟️ הדפסת כרטיסי הושבה</span>
       <button class="modal-close" data-close-modal="modalPrintCards">✕</button>
@@ -666,6 +666,14 @@
         </div>
       </div>
 
+      <!-- Show label -->
+      <div class="form-group">
+        <label class="form-check">
+          <input type="checkbox" id="cardShowLabel" checked>
+          הצג תווית שולחן בכרטיס
+        </label>
+      </div>
+
       <!-- Custom text -->
       <div class="form-group">
         <label class="form-label">שורת טקסט חופשית <span class="text-muted">(אופציונלי)</span></label>
@@ -679,9 +687,17 @@
           <select class="input-select" id="cardCustomFont">
             <option value="inherit">ברירת מחדל</option>
             <option value="'Arial',sans-serif">Arial</option>
+            <option value="'Helvetica Neue',Helvetica,sans-serif">Helvetica</option>
+            <option value="Tahoma,sans-serif">Tahoma</option>
+            <option value="Verdana,sans-serif">Verdana</option>
+            <option value="'Trebuchet MS',sans-serif">Trebuchet MS</option>
+            <option value="'Segoe UI',sans-serif">Segoe UI</option>
+            <option value="Calibri,sans-serif">Calibri</option>
             <option value="'Times New Roman',Times,serif">Times New Roman</option>
             <option value="Georgia,serif">Georgia</option>
             <option value="'Courier New',monospace">Courier New</option>
+            <option value="Impact,sans-serif">Impact</option>
+            <option value="'Comic Sans MS',cursive">Comic Sans MS</option>
           </select>
         </div>
         <div class="cards-fmt-cell">
@@ -689,16 +705,55 @@
           <input type="number" class="input-text" id="cardCustomFontSize" value="11" min="6" max="28" style="width:64px">
         </div>
         <div class="cards-fmt-cell">
+          <label class="form-label-sm">עיצוב</label>
+          <div class="cards-style-btns">
+            <button type="button" id="cardCustomBold"   class="btn-style-toggle" title="מודגש"><b>B</b></button>
+            <button type="button" id="cardCustomItalic" class="btn-style-toggle" title="מוטה"><i>I</i></button>
+          </div>
+        </div>
+        <div class="cards-fmt-cell">
           <label class="form-label-sm">צבע</label>
           <input type="color" id="cardCustomFontColor" value="#333333">
         </div>
       </div>
 
+      <hr class="modal-divider">
+
+      <!-- Blank cards -->
+      <div class="form-group">
+        <label class="form-check">
+          <input type="checkbox" id="cardBlankEnabled">
+          הוסף כרטיסים ריקים
+        </label>
+        <div id="cardBlankOptions" class="cards-blank-opts" style="display:none">
+          <div class="cards-fmt-row">
+            <div class="cards-fmt-cell">
+              <label class="form-label-sm">כמות</label>
+              <input type="number" class="input-text" id="cardBlankCount" value="5" min="1" max="100" style="width:64px">
+            </div>
+            <div class="cards-fmt-cell" style="justify-content:flex-end">
+              <label class="form-check">
+                <input type="checkbox" id="cardBlankOnly">
+                ריקים בלבד (ללא כרטיסי מוזמנים)
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div id="cardPrintSummary" class="cards-summary"></div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-primary" id="btnDoPrintCards">🖨 הדפס כרטיסים</button>
-      <button class="btn" data-close-modal="modalPrintCards">ביטול</button>
+    <div class="modal-footer cards-footer">
+      <div class="cards-template-row">
+        <button type="button" class="btn btn-ghost btn-sm" id="btnSaveCardTemplate"   title="שמור הגדרות כתבנית ברירת מחדל">💾 שמור</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="btnExportCardTemplate" title="ייצוא תבנית הכרטיס לקובץ JSON">📤 ייצוא</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="btnImportCardTemplate" title="ייבוא תבנית הכרטיס מקובץ JSON">📥 ייבוא</button>
+        <input type="file" id="cardTemplateInput" accept=".json" style="display:none">
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" id="btnDoPrintCards">🖨 הדפס כרטיסים</button>
+        <button class="btn" data-close-modal="modalPrintCards">ביטול</button>
+      </div>
     </div>
   </div>
 </div>

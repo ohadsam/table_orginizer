@@ -316,8 +316,17 @@
   }
 
   .sc-custom {
-    /* font-family / font-size / color set by inline style from printCards() */
+    /* font-family / font-size / color / font-weight / font-style set by inline style from printCards() */
     line-height: 1.3;
+  }
+
+  .sc-placeholder {
+    font-size: 11pt;
+    color: #555;
+    text-align: center;
+    direction: rtl;
+    line-height: 2;
+    width: 100%;
   }
 }
 

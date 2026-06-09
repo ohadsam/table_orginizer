@@ -510,50 +510,69 @@ ${buildGuestTableHTML(sorted)}`;
   /* ── Seating cards (variable-size tent cards, default 8×8 cm) ── */
   function printCards(opts) {
     const {
-      customText    = '',
-      customFont    = 'inherit',
+      customText     = '',
+      customFont     = 'inherit',
       customFontSize = 11,
-      customColor   = '#333333',
-      bgImage       = null,
-      cardSize      = 80
+      customColor    = '#333333',
+      customBold     = false,
+      customItalic   = false,
+      bgImage        = null,
+      cardSize       = 80,
+      showLabel      = true,
+      blankCount     = 0,
+      blankOnly      = false
     } = opts || {};
 
-    const safeCardSize = Math.max(50, Math.min(120, parseInt(cardSize) || 80));
+    const safeCardSize  = Math.max(50, Math.min(120, parseInt(cardSize)  || 80));
+    const safeBlankCount = Math.max(0, Math.min(100, parseInt(blankCount) || 0));
+    const guests        = State.get().guests;
+    const printGuests   = !blankOnly && guests.length > 0;
 
-    const guests = State.get().guests;
-    if (!guests.length) { UI.toast('אין מוזמנים להדפסה', 'info', 2000); return; }
+    if (!printGuests && safeBlankCount === 0) {
+      UI.toast('אין מוזמנים ו/או כרטיסים ריקים להדפסה', 'info', 2000);
+      return;
+    }
 
-    // Sort by table number (unassigned last), then by name
-    const sorted = [...guests].sort((a, b) => {
-      const ta = State.getItem(a.tableId);
-      const tb = State.getItem(b.tableId);
-      const na = ta ? (ta.number ?? 9999) : 9999;
-      const nb = tb ? (tb.number ?? 9999) : 9999;
-      if (na !== nb) return na - nb;
-      return (a.name || '').localeCompare(b.name || '', 'he');
-    });
+    // Sort guest cards by table number then name
+    const sorted = printGuests
+      ? [...guests].sort((a, b) => {
+          const ta = State.getItem(a.tableId), tb = State.getItem(b.tableId);
+          const na = ta ? (ta.number ?? 9999) : 9999;
+          const nb = tb ? (tb.number ?? 9999) : 9999;
+          if (na !== nb) return na - nb;
+          return (a.name || '').localeCompare(b.name || '', 'he');
+        })
+      : [];
 
     // Whitelist font to prevent CSS injection
     const SAFE_FONTS = new Set([
       'inherit',
       "'Arial',sans-serif",
+      "'Helvetica Neue',Helvetica,sans-serif",
       "'Times New Roman',Times,serif",
       'Georgia,serif',
-      "'Courier New',monospace"
+      "'Courier New',monospace",
+      'Tahoma,sans-serif',
+      'Verdana,sans-serif',
+      "'Trebuchet MS',sans-serif",
+      "'Segoe UI',sans-serif",
+      'Calibri,sans-serif',
+      'Impact,sans-serif',
+      "'Comic Sans MS',cursive"
     ]);
     const safeFont  = SAFE_FONTS.has(customFont) ? customFont : 'inherit';
     const safeSize  = Math.max(6, Math.min(28, parseInt(customFontSize) || 11));
     const safeColor = /^#[0-9a-fA-F]{6}$/.test(customColor) ? customColor : '#333333';
 
-    // Inject card dimensions override scoped to @media print (avoids affecting screen layout)
+    // Inject card dimensions (@media print scoped to avoid affecting screen)
     const sizeStyleEl = document.createElement('style');
     sizeStyleEl.textContent =
       `@media print{.seating-card{width:${safeCardSize}mm;height:${safeCardSize}mm;}` +
       `.sc-top{height:${safeCardSize / 2}mm;}}`;
     document.head.appendChild(sizeStyleEl);
 
-    // Inject background image ONCE via a <style> tag (avoids repeating the data URL per card).
-    // Escape ' and ) to prevent CSS injection should the data URL contain those characters.
+    // Inject background image ONCE via <style> to avoid repeating large data URLs per card.
+    // Escape ' and ) to prevent CSS injection.
     let bgStyleEl = null;
     if (bgImage && /^data:image\//.test(bgImage)) {
       const safeBg = bgImage.replace(/'/g, '%27').replace(/\)/g, '%29');
@@ -565,16 +584,21 @@ ${buildGuestTableHTML(sorted)}`;
       document.head.appendChild(bgStyleEl);
     }
 
-    const customStyle = `font-family:${safeFont};font-size:${safeSize}pt;color:${safeColor}`;
+    const boldPart   = customBold   ? 'font-weight:700;'    : '';
+    const italicPart = customItalic ? 'font-style:italic;'  : '';
+    const customStyle = `font-family:${safeFont};font-size:${safeSize}pt;color:${safeColor};${boldPart}${italicPart}`;
+    const customRow  = customText
+      ? `<div class="sc-custom" style="${customStyle}">${UI.escHtml(customText)}</div>`
+      : '';
 
-    const cards = sorted.map(g => {
-      const table     = State.getItem(g.tableId);
-      const tableText = table
-        ? `שולחן ${UI.escHtml(String(table.number ?? ''))}${table.label ? ' — ' + UI.escHtml(table.label) : ''}`
-        : 'ללא שיבוץ';
-      const customRow = customText
-        ? `<div class="sc-custom" style="${customStyle}">${UI.escHtml(customText)}</div>`
-        : '';
+    // Guest cards
+    const guestCards = sorted.map(g => {
+      const table = State.getItem(g.tableId);
+      let tableText = 'ללא שיבוץ';
+      if (table) {
+        tableText = `שולחן ${UI.escHtml(String(table.number ?? ''))}`;
+        if (showLabel && table.label) tableText += ` — ${UI.escHtml(table.label)}`;
+      }
       return `<div class="seating-card">
         <div class="sc-top"></div>
         <div class="sc-bottom">
@@ -585,8 +609,20 @@ ${buildGuestTableHTML(sorted)}`;
       </div>`;
     }).join('');
 
+    // Blank cards — placeholders instead of name/table
+    const blankCard =
+      `<div class="seating-card">
+        <div class="sc-top"></div>
+        <div class="sc-bottom">
+          <div class="sc-placeholder">שם: _______________</div>
+          <div class="sc-placeholder">שולחן: ____________</div>
+          ${customRow}
+        </div>
+      </div>`;
+    const blankCards = safeBlankCount > 0 ? blankCard.repeat(safeBlankCount) : '';
+
     const area = document.getElementById('printCardsArea');
-    area.innerHTML = cards;
+    area.innerHTML = guestCards + blankCards;
     _injectCardsPage();
     document.body.dataset.printMode = 'cards';
     try {
