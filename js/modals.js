@@ -1233,7 +1233,7 @@ const Modals = (() => {
         customItalic:   document.getElementById('cardCustomItalic').classList.contains('active'),
         showLabel:      document.getElementById('cardShowLabel').checked,
         blankEnabled:   document.getElementById('cardBlankEnabled').checked,
-        blankCount:     parseInt(document.getElementById('cardBlankCount').value)        || 5,
+        blankCount:     parseInt(document.getElementById('cardBlankCount').value)        || 1,
         blankOnly:      document.getElementById('cardBlankOnly').checked
       };
     }
@@ -1250,7 +1250,8 @@ const Modals = (() => {
       document.getElementById('cardShowLabel').checked    = t.showLabel !== false;
       document.getElementById('cardBlankEnabled').checked = !!t.blankEnabled;
       if (t.blankCount != null) document.getElementById('cardBlankCount').value = String(t.blankCount);
-      document.getElementById('cardBlankOnly').checked    = !!t.blankOnly;
+      // blankOnly only makes sense when blankEnabled — prevent cryptic "nothing to print" toast
+      document.getElementById('cardBlankOnly').checked    = !!t.blankOnly && !!t.blankEnabled;
       document.getElementById('cardBlankOptions').style.display = t.blankEnabled ? '' : 'none';
     }
 
@@ -1274,12 +1275,28 @@ const Modals = (() => {
       document.getElementById('cardsPreviewLabel').textContent =
         `תצוגה מקדימה (${sizeCm}×${sizeCm} ס"מ)`;
 
-      // Show-label toggle in preview
-      document.getElementById('cardPreviewTable').textContent =
-        showLbl ? 'שולחן 5 — אולם מרכזי' : 'שולחן 5';
+      const blankOnly  = document.getElementById('cardBlankOnly').checked;
+      const blankCount = parseInt(document.getElementById('cardBlankCount').value) || 1;
 
       // Blank-options panel
       document.getElementById('cardBlankOptions').style.display = blankEn ? '' : 'none';
+
+      // Preview card content: switch to blank-placeholder layout when blankOnly is active
+      const nameEl  = document.getElementById('cardPreviewName');
+      const tableEl = document.getElementById('cardPreviewTable');
+      if (blankEn && blankOnly) {
+        nameEl.textContent  = 'שם: _______________';
+        tableEl.textContent = 'שולחן: ____________';
+        nameEl.style.fontWeight  = '400';
+        nameEl.style.color       = '#777';
+        tableEl.style.color      = '#777';
+      } else {
+        nameEl.textContent  = 'ישראל ישראלי';
+        tableEl.textContent = showLbl ? 'שולחן 5 — (לדוגמה)' : 'שולחן 5';
+        nameEl.style.fontWeight  = '';
+        nameEl.style.color       = '';
+        tableEl.style.color      = '';
+      }
 
       // Background image
       const topEl = document.getElementById('cardPreviewTop');
@@ -1310,16 +1327,17 @@ const Modals = (() => {
       }
 
       // Summary
-      const all        = State.get().guests;
-      const seated     = all.filter(g => g.tableId).length;
-      const blankOnly  = document.getElementById('cardBlankOnly').checked;
-      const blankCount = parseInt(document.getElementById('cardBlankCount').value) || 0;
+      const all    = State.get().guests;
+      const seated = all.filter(g => g.tableId).length;
       let summary = '';
-      if (!blankOnly) summary = `${all.length} כרטיסי מוזמנים (${seated} עם שיבוץ, ${all.length - seated} ללא)`;
+      if (!blankOnly && all.length > 0)
+        summary = `${all.length} כרטיסי מוזמנים (${seated} עם שיבוץ, ${all.length - seated} ללא)`;
       if (blankEn && blankCount > 0) {
         if (summary) summary += ' + ';
         summary += `${blankCount} כרטיסים ריקים`;
       }
+      if (blankOnly && all.length > 0)
+        summary += ` (${all.length} כרטיסי מוזמנים יושמטו)`;
       document.getElementById('cardPrintSummary').textContent = summary
         ? `יודפסו: ${summary}`
         : 'לא נבחרו כרטיסים להדפסה';
@@ -1394,10 +1412,13 @@ const Modals = (() => {
 
     // Template: export to JSON file
     document.getElementById('btnExportCardTemplate').onclick = () => {
-      const blob = new Blob([JSON.stringify(_readForm(), null, 2)], { type: 'application/json' });
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href = url; a.download = 'card-template.json'; a.click();
+      const blob     = new Blob([JSON.stringify(_readForm(), null, 2)], { type: 'application/json' });
+      const url      = URL.createObjectURL(blob);
+      const evtName  = (State.get().settings?.eventName || '').trim();
+      const a        = document.createElement('a');
+      a.href = url;
+      a.download = evtName ? `card-template-${evtName}.json` : 'card-template.json';
+      a.click();
       URL.revokeObjectURL(url);
     };
 
