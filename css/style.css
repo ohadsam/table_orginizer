@@ -127,6 +127,7 @@ input, select, textarea { font-family: inherit; }
   border-bottom: 1px solid var(--border);
   direction: ltr;
   unicode-bidi: isolate;
+  flex-shrink: 0;
 }
 .guest-count-item { white-space: nowrap; }
 .guest-count-item span { font-weight: 700; color: var(--primary); }
