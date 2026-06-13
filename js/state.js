@@ -62,11 +62,15 @@ const State = (() => {
     return getTableGuests(tableId).reduce((s, g) => s + g.total, 0);
   }
   function getStats() {
-    const totalGuests = _state.guests.reduce((s, g) => s + g.total, 0);
-    const seatedGuests = _state.guests.filter(g => g.tableId).reduce((s, g) => s + g.total, 0);
-    const totalCap = getTables().reduce((s, t) => s + t.seats, 0);
+    // Split siblings carry their own adults/children (original is mutated down proportionally),
+    // so summing all rows gives correct totals as long as split fields stay in sync.
+    const totalGuests   = _state.guests.reduce((s, g) => s + g.total, 0);
+    const seatedGuests  = _state.guests.filter(g => g.tableId).reduce((s, g) => s + g.total, 0);
+    const totalAdults   = _state.guests.reduce((s, g) => s + (g.adults   || 0), 0);
+    const totalChildren = _state.guests.reduce((s, g) => s + (g.children || 0), 0);
+    const totalCap      = getTables().reduce((s, t) => s + t.seats, 0);
     return { totalGuests, seatedGuests, pendingGuests: totalGuests - seatedGuests,
-             totalTables: getTables().length, totalCap };
+             totalTables: getTables().length, totalCap, totalAdults, totalChildren };
   }
 
   /* ── items ── */

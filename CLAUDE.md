@@ -498,6 +498,8 @@ Both `buildTableSVG` and `openCtxMenu` were made public (added to the `items.js`
 
 ## Guest List Controls
 
+A `.guest-counts-bar` strip sits between `.panel-header` and `.guests-search`, showing live totals: `👨 N מבוגרים | 👧 N ילדים`. It is a full-width centered row (not inside `.panel-header`) with `direction: ltr` to prevent RTL bidi reordering of the emoji+number sequence. The counts are driven by `#statAdults` and `#statChildren` elements updated by `UI.updateStats()` (which calls `State.getStats()`). `State.getStats()` returns `totalAdults` and `totalChildren` in addition to the existing fields. Split siblings carry their own `adults`/`children` values (the original is mutated down proportionally), so summing all rows gives correct totals.
+
 The guest panel has three sections:
 1. **`.guests-search`** — search input + `#btnToggleFilters` collapse button (▲/▼)
 2. **`#filterActiveBar`** — hidden by default; shown below search when the filter area is collapsed **and** any filter is active. Displays a summary like `"🔍 פילטר פעיל: 2 תגיות"` and a quick-clear button (`#btnClearFiltersBar`).

@@ -31,10 +31,12 @@ const UI = (() => {
   /* ── Stats ── */
   function updateStats() {
     const s = State.getStats();
-    setText('statTotal',   s.totalGuests);
-    setText('statSeated',  s.seatedGuests);
-    setText('statPending', s.pendingGuests);
-    setText('statTables',  s.totalTables);
+    setText('statTotal',    s.totalGuests);
+    setText('statSeated',   s.seatedGuests);
+    setText('statPending',  s.pendingGuests);
+    setText('statTables',   s.totalTables);
+    setText('statAdults',   s.totalAdults);
+    setText('statChildren', s.totalChildren);
   }
 
   function setText(id, val) {
