@@ -668,5 +668,152 @@ ${buildGuestTableHTML(sorted)}`;
     s.textContent = '@page { size: A4 portrait; margin: 8mm; }';
   }
 
-  return { printPlan, printList, printAll, printFull, printCards };
+  /* ── Tables-only room diagram SVG with seat circles ── */
+  function buildRoomTablesOnlySVG() {
+    const tables = State.get().items.filter(i => i.type === 'table');
+    if (!tables.length) return { svg: '<p style="color:#999;text-align:center">אין שולחנות לתצוגה</p>' };
+
+    const R       = CONFIG.SEAT_RADIUS;
+    const seatPad = R * 2 + 10;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    tables.forEach(item => {
+      minX = Math.min(minX, item.x - item.width  / 2 - seatPad);
+      minY = Math.min(minY, item.y - item.height / 2 - seatPad);
+      maxX = Math.max(maxX, item.x + item.width  / 2 + seatPad);
+      maxY = Math.max(maxY, item.y + item.height / 2 + seatPad);
+    });
+    const vbW = maxX - minX, vbH = maxY - minY;
+
+    const stt = State.get().settings;
+    const numColor   = stt.fontNumberColor   || '#1a237e';
+    const labelColor = stt.fontLabelColor    || '#37474f';
+    const guestColor = stt.fontGuestColor    || '#546e7a';
+    const occuColor  = stt.fontOccupancyColor || '#888888';
+
+    let body = '';
+    tables.forEach(item => {
+      const lx = item.x - item.width  / 2 - minX;
+      const ly = item.y - item.height / 2 - minY;
+      const W  = item.width, H = item.height;
+      const occ      = State.getTableOccupancy(item.id);
+      const hasSpace = occ <= item.seats;
+      const bg       = item.color || Items.tableColor(occ, item.seats);
+      const guests   = State.getTableGuests(item.id);
+
+      const scale   = Math.min(W, H) / 130;
+      const numFont = item.fontSize || stt.fontNumberSize   || Math.max(10, Math.min(24, Math.round(15 * scale)));
+      const lblFont = stt.fontLabelSize    || Math.max(7,  Math.min(14, Math.round(10 * scale)));
+      const gstFont = stt.fontGuestSize    || Math.max(6,  Math.min(11, Math.round(8  * scale)));
+      const occFont = stt.fontOccupancySize || Math.max(6, Math.min(9,  Math.round(7  * scale)));
+      const lineH   = gstFont + 2.5;
+
+      body += `<g transform="translate(${lx.toFixed(1)},${ly.toFixed(1)})">`;
+      if (item.shape === 'circle') {
+        const sR = Math.min(W, H) / 2 - R - 2;
+        const r  = Math.max(10, sR - R - 4);
+        const cx = W / 2, cy = H / 2;
+        body += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${bg}" stroke="#888" stroke-width="1.5"/>`;
+        for (let i = 0; i < item.seats; i++) {
+          const ang  = (i / item.seats) * 2 * Math.PI - Math.PI / 2;
+          const sx   = cx + sR * Math.cos(ang);
+          const sy   = cy + sR * Math.sin(ang);
+          const fill = i < occ ? (hasSpace ? CONFIG.COLORS.seatOccupied : CONFIG.COLORS.seatOver) : CONFIG.COLORS.seatEmpty;
+          body += `<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="${R}" fill="${fill}" stroke="#fff" stroke-width="1.2"/>`;
+        }
+        body += `<text x="${cx}" y="${cy - r + occFont + 1}" text-anchor="middle" font-size="${occFont}" fill="${occuColor}">${occ}/${item.seats}</text>`;
+        const numY = cy - (item.label ? numFont * 0.45 : numFont * 0.2);
+        body += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="${numColor}">${item.number || ''}</text>`;
+        let textY;
+        if (item.label) {
+          textY = numY + numFont * 0.65 + lblFont * 0.35 + 3;
+          body += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${lblFont}" font-weight="700" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
+          textY += lblFont * 0.65 + 14;
+        } else {
+          textY = numY + numFont * 0.6 + 2;
+        }
+        const rawMaxG = Math.max(0, Math.floor((cy + r - 5 - textY) / lineH));
+        const maxG = (guests.length > rawMaxG) ? Math.max(0, rawMaxG - 1) : rawMaxG;
+        guests.slice(0, maxG).forEach(g => {
+          const nm = g.name.length > 10 ? g.name.slice(0, 9) + '…' : g.name;
+          body += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${gstFont}" fill="${guestColor}">${UI.escHtml(nm)}</text>`;
+          textY += lineH;
+        });
+        const extra = guests.length - maxG;
+        if (extra > 0) body += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${occFont}" fill="${occuColor}">+${extra}</text>`;
+      } else {
+        const pad = R + 4;
+        const rw = W - pad * 2, rh = H - pad * 2;
+        body += `<rect x="${pad}" y="${pad}" width="${rw}" height="${rh}" rx="5" fill="${bg}" stroke="#888" stroke-width="1.5"/>`;
+        const seatsArr = Items.distributeRectSeats(item.seats, rw, rh);
+        seatsArr.forEach(([sx, sy], i) => {
+          const fill = i < occ ? (hasSpace ? CONFIG.COLORS.seatOccupied : CONFIG.COLORS.seatOver) : CONFIG.COLORS.seatEmpty;
+          body += `<circle cx="${(pad + sx).toFixed(1)}" cy="${(pad + sy).toFixed(1)}" r="${R}" fill="${fill}" stroke="#fff" stroke-width="1.2"/>`;
+        });
+        const cx = W / 2, cy = H / 2;
+        body += `<text x="${cx}" y="${pad + occFont + 1}" text-anchor="middle" font-size="${occFont}" fill="${occuColor}">${occ}/${item.seats}</text>`;
+        const numY = cy - (item.label ? numFont * 0.45 : numFont * 0.2);
+        body += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="${numColor}">${item.number || ''}</text>`;
+        let textY;
+        if (item.label) {
+          textY = numY + numFont * 0.65 + lblFont * 0.35 + 3;
+          body += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${lblFont}" font-weight="700" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
+          textY += lblFont * 0.65 + 14;
+        } else {
+          textY = numY + numFont * 0.6 + 2;
+        }
+        const availH  = H - pad - 4 - textY;
+        const rawMaxG = Math.max(0, Math.floor(availH / lineH));
+        const maxG    = (guests.length > rawMaxG) ? Math.max(0, rawMaxG - 1) : rawMaxG;
+        guests.slice(0, maxG).forEach(g => {
+          const nm = g.name.length > 12 ? g.name.slice(0, 11) + '…' : g.name;
+          body += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${gstFont}" fill="${guestColor}">${UI.escHtml(nm)}</text>`;
+          textY += lineH;
+        });
+        const extra = guests.length - maxG;
+        if (extra > 0) body += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${occFont}" fill="${occuColor}">+${extra}</text>`;
+      }
+      if (item.locked) body += `<text x="${W - 3}" y="14" text-anchor="end" font-size="11">🔒</text>`;
+      body += '</g>';
+    });
+
+    return {
+      svg: `<svg viewBox="0 0 ${vbW.toFixed(0)} ${vbH.toFixed(0)}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">${body}</svg>`
+    };
+  }
+
+  /* ── Print tables-only diagram (landscape, one page, with seat circles) ── */
+  function printTablesDiagram() {
+    const tables = State.get().items.filter(i => i.type === 'table');
+    if (!tables.length) { UI.toast('אין שולחנות לתצוגה', 'info', 1800); return; }
+
+    const state      = State.get();
+    const eventTitle = state.event.name || 'תרשים שולחנות';
+    const eventDate  = state.event.date
+      ? (() => { const [y,m,d] = state.event.date.split('-'); return new Date(+y,+m-1,+d).toLocaleDateString('he-IL'); })()
+      : '';
+
+    const { svg } = buildRoomTablesOnlySVG();
+    const area = document.getElementById('printTablesDiagramArea');
+    area.innerHTML = `
+<div class="print-header" style="margin-bottom:6pt;padding-bottom:5pt">
+  <h1 style="font-size:16pt;margin-bottom:2pt">${UI.escHtml(eventTitle)} — תרשים שולחנות</h1>
+  ${eventDate ? `<p class="print-meta">📅 ${UI.escHtml(eventDate)}</p>` : ''}
+  ${buildStatsSummary()}
+</div>
+<div class="print-diagram-wrap">${svg}</div>`;
+
+    _injectLandscape();
+    document.body.dataset.printMode = 'diagram';
+    try {
+      window.print();
+    } finally {
+      setTimeout(() => {
+        document.body.dataset.printMode = '';
+        area.innerHTML = '';
+        _clearLandscape();
+      }, 2000);
+    }
+  }
+
+  return { printPlan, printList, printAll, printFull, printTablesDiagram, printCards };
 })();

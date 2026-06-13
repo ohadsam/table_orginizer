@@ -40,12 +40,14 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnPrintList')?.addEventListener('click', () => Print.printList());
   document.getElementById('btnPrintAll')?.addEventListener('click',  () => Print.printAll());
   document.getElementById('btnPrintFull')?.addEventListener('click',  () => Print.printFull());
+  document.getElementById('btnPrintDiagram')?.addEventListener('click', () => Print.printTablesDiagram());
   document.getElementById('btnPrintCards')?.addEventListener('click', () => Modals.openPrintCards());
   document.getElementById('btnUndo')?.addEventListener('click', () => History.undo());
   document.getElementById('btnRedo')?.addEventListener('click', () => History.redo());
   document.getElementById('eventNameDisplay')?.addEventListener('click', () => Modals.openSettings());
-  document.getElementById('btnDistribute')?.addEventListener('click', () => Canvas.distributeTablesEvenly());
-  document.getElementById('btnRenumber')?.addEventListener('click',   () => Items.renumberTables());
+  document.getElementById('btnDistribute')?.addEventListener('click',    () => Canvas.distributeTablesEvenly());
+  document.getElementById('btnRenumber')?.addEventListener('click',      () => Items.renumberTables());
+  document.getElementById('btnRenumberDesc')?.addEventListener('click',  () => Items.renumberTables({ reversed: true }));
 
   /* ── Guest export / import ── */
   document.getElementById('btnExportGuests')?.addEventListener('click', () => Storage.exportGuestsJSON());

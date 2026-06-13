@@ -104,25 +104,42 @@ const Items = (() => {
 
   /* ═══════════════════════════════ RENUMBER ═══════════════════════════════ */
 
-  function renumberTables() {
+  function renumberTables({ reversed = false } = {}) {
     const tables = State.getTables();
     if (!tables.length) { UI.toast('אין שולחנות למספור', 'info', 1800); return; }
 
     // Sort by visual position: top-to-bottom rows, then right-to-left within a row (RTL hall)
     const ROW_SNAP = 60;
-    const sorted = [...tables].sort((a, b) => {
+    const allSorted = [...tables].sort((a, b) => {
       const rowDiff = a.y - b.y;
       if (Math.abs(rowDiff) > ROW_SNAP) return rowDiff;
       return b.x - a.x; // RTL: rightmost (larger x) gets lower number in each row
     });
+    if (reversed) allSorted.reverse();
+
+    // Locked-number tables keep their current number; renumber around them
+    const lockedNums = new Set(
+      allSorted.filter(t => t.numberLocked && t.number != null).map(t => t.number)
+    );
+    const unlocked = allSorted.filter(t => !t.numberLocked);
+
+    // Assign sequential numbers 1, 2, 3... skipping any slots taken by locked tables
+    const assigned = [];
+    let n = 1;
+    while (assigned.length < unlocked.length) {
+      if (!lockedNums.has(n)) assigned.push(n);
+      n++;
+    }
 
     Guests.startBatch();
-    sorted.forEach((t, i) => {
-      if (t.number !== i + 1) State.updateItem(t.id, { number: i + 1 });
+    unlocked.forEach((t, i) => {
+      if (t.number !== assigned[i]) State.updateItem(t.id, { number: assigned[i] });
     });
     Guests.endBatch();
 
-    UI.toast(`שולחנות מוספרו מחדש 1–${sorted.length} ✓`, 'success', 2000);
+    const lockedCount = tables.length - unlocked.length;
+    const note = lockedCount ? ` (${lockedCount} נעולים לא השתנו)` : '';
+    UI.toast(`שולחנות מוספרו מחדש ✓${note}`, 'success', 2200);
   }
 
   /* ═══════════════════════════════ RENDER ═══════════════════════════════ */
@@ -382,6 +399,9 @@ const Items = (() => {
 
     if (item.locked) {
       svgInner += `<text x="${W - 4}" y="14" text-anchor="end" font-size="13">🔒</text>`;
+    }
+    if (item.numberLocked) {
+      svgInner += `<text x="4" y="14" text-anchor="start" font-size="11" font-weight="700" fill="#7e57c2">#</text>`;
     }
 
     return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" overflow="visible" xmlns="http://www.w3.org/2000/svg">${svgInner}</svg>`;

@@ -27,11 +27,12 @@
     <button class="btn btn-icon" id="btnExport"     title="ייצוא כל הפרויקט לקובץ JSON (כל האירועים, הגדרות, שולחנות ומוזמנים)">📤</button>
     <button class="btn btn-icon" id="btnImport"     title="ייבוא פרויקט מקובץ JSON — תומך בקבצי פרויקט מלא וגם בקבצי אירוע בודד">📥</button>
     <button class="btn btn-icon" id="btnExportCsv"  title="ייצוא רשימת מוזמנים לקובץ CSV (אקסל)">📊</button>
-    <button class="btn btn-icon" id="btnPrintPlan"  title="הדפס תוכנית הושבה (כרטיסי שולחן)">🖨️</button>
-    <button class="btn btn-icon" id="btnPrintList"  title="הדפס רשימת מוזמנים מלאה">📋</button>
-    <button class="btn btn-icon" id="btnPrintAll"   title="הדפס הכל — תרשים אולם ורשימת מוזמנים">📄</button>
-    <button class="btn btn-icon" id="btnPrintFull"  title="הדפס מלא — תרשים + עמוד מפורט לכל שולחן + רשימת מוזמנים">📑</button>
-    <button class="btn btn-icon" id="btnPrintCards" title="הדפס כרטיסי הושבה — כרטיס 8×8 ס&quot;מ לכל מוזמן">🎟️</button>
+    <button class="btn btn-icon" id="btnPrintPlan"    title="הדפס תוכנית הושבה (כרטיסי שולחן)">🖨️</button>
+    <button class="btn btn-icon" id="btnPrintList"    title="הדפס רשימת מוזמנים מלאה">📋</button>
+    <button class="btn btn-icon" id="btnPrintAll"     title="הדפס הכל — תרשים אולם ורשימת מוזמנים">📄</button>
+    <button class="btn btn-icon" id="btnPrintFull"    title="הדפס מלא — תרשים + עמוד מפורט לכל שולחן + רשימת מוזמנים">📑</button>
+    <button class="btn btn-icon" id="btnPrintDiagram" title="הדפס תרשים שולחנות — כל השולחנות עם כסאות מלאים/ריקים בעמוד אחד">🗺</button>
+    <button class="btn btn-icon" id="btnPrintCards"   title="הדפס כרטיסי הושבה — כרטיס 8×8 ס&quot;מ לכל מוזמן">🎟️</button>
     <a href="help.html" target="_blank" class="btn btn-icon" title="פתח מדריך למשתמש בחלון חדש">❓</a>
   </div>
 </header>
@@ -123,8 +124,9 @@
       <button class="btn btn-sm btn-secondary" id="btnZoomReset" title="איפוס תצוגה">↺</button>
       <span class="zoom-level" id="zoomLevel">60%</span>
       <button class="btn btn-sm btn-secondary" id="btnToggleGrid" title="הצג/הסתר רשת">⊟ רשת</button>
-      <button class="btn btn-sm btn-secondary" id="btnDistribute" title="פזר שולחנות — סדר בצורה שווה ואחיד גדלם">⊞ פזר</button>
-      <button class="btn btn-sm btn-secondary" id="btnRenumber"   title="מספר מחדש — סדר מספרי שולחנות לפי מיקומם"># מספר</button>
+      <button class="btn btn-sm btn-secondary" id="btnDistribute"    title="פזר שולחנות — סדר בצורה שווה ואחיד גדלם">⊞ פזר</button>
+      <button class="btn btn-sm btn-secondary" id="btnRenumber"     title="מספר מחדש — סדר מספרי שולחנות לפי מיקומם (מימין לשמאל, מלמעלה למטה)"># מספר</button>
+      <button class="btn btn-sm btn-secondary" id="btnRenumberDesc" title="מספר הפוך — מספור בסדר הפוך: השולחן הכי שמאלי/תחתי מקבל מספר 1"># הפוך</button>
       <span style="flex:1"></span>
       <small style="color:#90a4ae;font-size:11px">גרור לשינוי מיקום · גלגלת לזום · לחץ פריט לבחירה · Del למחיקה</small>
     </div>
@@ -210,6 +212,12 @@
         <label class="checkbox-label">
           <input type="checkbox" id="tableLock">
           <span>🔒 נעל שולחן (השיבוץ האוטומטי לא ישנה אותו)</span>
+        </label>
+      </div>
+      <div class="form-group" id="tableNumberLockRow" style="display:none">
+        <label class="checkbox-label">
+          <input type="checkbox" id="tableNumberLock">
+          <span>🔢 נעל מספר שולחן (מספור אוטומטי לא ישנה אותו)</span>
         </label>
       </div>
     </div>
@@ -611,11 +619,12 @@
 <input type="file" id="cardBgInput" accept="image/*" style="display:none">
 
 <!-- Hidden print areas -->
-<div id="printPlanArea"  class="print-only"></div>
-<div id="printListArea"  class="print-only"></div>
-<div id="printAllArea"   class="print-only"></div>
-<div id="printFullArea"  class="print-only"></div>
-<div id="printCardsArea" class="print-only"></div>
+<div id="printPlanArea"           class="print-only"></div>
+<div id="printListArea"           class="print-only"></div>
+<div id="printAllArea"            class="print-only"></div>
+<div id="printFullArea"           class="print-only"></div>
+<div id="printCardsArea"          class="print-only"></div>
+<div id="printTablesDiagramArea"  class="print-only"></div>
 
 <!-- ═══════════════════ PRINT CARDS MODAL ═══════════════════ -->
 <div class="modal-overlay" id="modalPrintCards">

@@ -37,8 +37,12 @@ const Modals = (() => {
     document.getElementById('tableFontSize').value = '';
     document.getElementById('tableQty').value      = 1;
     document.getElementById('tableLock').checked   = false;
-    document.getElementById('tableQtyRow').style.display  = '';
-    document.getElementById('tableLockRow').style.display = 'none';
+    document.getElementById('tableQtyRow').style.display       = '';
+    document.getElementById('tableLockRow').style.display      = 'none';
+    const _nlEl = document.getElementById('tableNumberLock');
+    if (_nlEl) _nlEl.checked = false;
+    const _nlRow = document.getElementById('tableNumberLockRow');
+    if (_nlRow) _nlRow.style.display = 'none';
     document.getElementById('btnDuplicateTable').style.display = 'none';
     document.getElementById('btnUnassignAllFromTable').style.display = 'none';
     const tcEnabled = document.getElementById('tableColorEnabled');
@@ -68,8 +72,12 @@ const Modals = (() => {
     document.getElementById('tableHeight').value   = item.height;
     document.getElementById('tableFontSize').value = item.fontSize || '';
     document.getElementById('tableLock').checked   = !!item.locked;
-    document.getElementById('tableQtyRow').style.display  = 'none';
-    document.getElementById('tableLockRow').style.display = '';
+    document.getElementById('tableQtyRow').style.display       = 'none';
+    document.getElementById('tableLockRow').style.display      = '';
+    const _nlEl2 = document.getElementById('tableNumberLock');
+    if (_nlEl2) _nlEl2.checked = !!item.numberLocked;
+    const _nlRow2 = document.getElementById('tableNumberLockRow');
+    if (_nlRow2) _nlRow2.style.display = '';
     document.getElementById('btnDuplicateTable').style.display = '';
     document.getElementById('btnUnassignAllFromTable').style.display = '';
     // Hide table type row in edit mode
@@ -128,13 +136,14 @@ const Modals = (() => {
     const wVal      = parseInt(document.getElementById('tableWidth').value);
     const hVal      = parseInt(document.getElementById('tableHeight').value);
     const fontSizeV = parseFloat(document.getElementById('tableFontSize')?.value) || null;
-    const locked    = document.getElementById('tableLock').checked;
+    const locked       = document.getElementById('tableLock').checked;
+    const numberLocked = document.getElementById('tableNumberLock')?.checked || false;
     const colorEnabled = document.getElementById('tableColorEnabled')?.checked;
     const color  = colorEnabled ? (document.getElementById('tableColor')?.value || null) : null;
 
     if (_editingTableId) {
       const item = State.getItem(_editingTableId);
-      const updates = { shape: _tableShapeEdit, seats, label, locked, color, fontSize: fontSizeV };
+      const updates = { shape: _tableShapeEdit, seats, label, locked, numberLocked, color, fontSize: fontSizeV };
       if (number) updates.number = number;
       if (wVal)   updates.width  = Math.max(60, wVal);
       if (hVal)   updates.height = Math.max(60, hVal);
