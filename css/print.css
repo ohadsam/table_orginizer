@@ -286,7 +286,7 @@
     flex: 1;
     border-collapse: collapse;
     width: 100%;
-    table-layout: fixed;
+    table-layout: auto;
   }
   .diag-mini-table th {
     font-weight: 700;
@@ -301,13 +301,14 @@
     border-bottom: 0.5pt solid #ddd;
     font-size: inherit;
     overflow: hidden;
-    text-overflow: ellipsis;
     white-space: nowrap;
   }
   .diag-mini-table td:last-child {
     text-align: center;
     font-weight: 700;
-    width: 18%;
+    white-space: nowrap;
+    width: 1%;
+    direction: ltr;
   }
 
   /* Page settings — landscape override injected by print.js at runtime for printAll/printFull;
