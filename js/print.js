@@ -791,8 +791,77 @@ ${buildGuestTableHTML(sorted)}`;
     };
   }
 
+  /* ── Contrast text color for a hex background ── */
+  function _contrastColor(hex) {
+    const c = (hex || '').replace('#', '');
+    if (!/^[0-9a-fA-F]{6}$/.test(c)) return '#111';
+    const r = parseInt(c.slice(0, 2), 16);
+    const g = parseInt(c.slice(2, 4), 16);
+    const b = parseInt(c.slice(4, 6), 16);
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.55 ? '#111' : '#fff';
+  }
+
+  /* ── Compact table shape SVG (no seat circles) for the diagram+guests grid ── */
+  function _buildTableMiniSVG(item, occ) {
+    const W = item.width, H = item.height;
+    const bg = item.color || Items.tableColor(occ, item.seats);
+    const stt = State.get().settings;
+    const numColor  = stt.fontNumberColor   || '#1a237e';
+    const occuColor = stt.fontOccupancyColor || '#888888';
+    const scale     = Math.min(W, H) / 130;
+    const numFont   = item.fontSize || stt.fontNumberSize || Math.max(10, Math.min(24, Math.round(15 * scale)));
+    const occFont   = stt.fontOccupancySize || Math.max(6, Math.min(9, Math.round(7 * scale)));
+    const num       = item.number != null ? String(item.number) : '?';
+    let body = '';
+    if (item.shape === 'circle') {
+      const cx = W / 2, cy = H / 2;
+      const r  = Math.min(W, H) / 2 - 4;
+      body += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${bg}" stroke="#888" stroke-width="1.5"/>`;
+      body += `<text x="${cx}" y="${cy - r + occFont + 1}" text-anchor="middle" font-size="${occFont}" fill="${occuColor}">${occ}/${item.seats}</text>`;
+      body += `<text x="${cx}" y="${cy + numFont * 0.3}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="${numColor}">${UI.escHtml(num)}</text>`;
+    } else {
+      const p = 3, cx = W / 2, cy = H / 2;
+      body += `<rect x="${p}" y="${p}" width="${W - p * 2}" height="${H - p * 2}" rx="5" fill="${bg}" stroke="#888" stroke-width="1.5"/>`;
+      body += `<text x="${cx}" y="${p + occFont + 1}" text-anchor="middle" font-size="${occFont}" fill="${occuColor}">${occ}/${item.seats}</text>`;
+      body += `<text x="${cx}" y="${cy + numFont * 0.3}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="${numColor}">${UI.escHtml(num)}</text>`;
+    }
+    if (item.locked) body += `<text x="${W - 3}" y="14" text-anchor="end" font-size="9">🔒</text>`;
+    return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" width="100%" xmlns="http://www.w3.org/2000/svg">${body}</svg>`;
+  }
+
+  /* ── Grid of (mini SVG + guest-list table) blocks for diagram+guests mode ── */
+  function _buildTablesWithGuestListsHTML(tables, guestFontSize, cols) {
+    const safeFontSize = Math.max(5, Math.min(12, parseInt(guestFontSize) || 8));
+    const safeCols     = Math.max(2, Math.min(6, parseInt(cols) || 4));
+
+    const blocks = tables.map(t => {
+      const occ     = State.getTableOccupancy(t.id);
+      const guests  = State.getTableGuests(t.id);
+      const bg      = t.color || Items.tableColor(occ, t.seats);
+      const hdrText = `שולחן ${t.number != null ? t.number : '?'}${t.label ? ' — ' + UI.escHtml(t.label) : ''}`;
+      const hdrClr  = _contrastColor(bg);
+
+      const rows = guests.length
+        ? guests.map(g =>
+            `<tr><td>${UI.escHtml(g.name)}${g.splitOf ? ' <em style="font-size:.75em;color:#e65100">(פ)</em>' : ''}</td><td>${g.total}</td></tr>`
+          ).join('')
+        : `<tr><td colspan="2" style="color:#aaa;text-align:center;font-style:italic">ריק</td></tr>`;
+
+      return `<div class="diag-block">
+  <div class="diag-table-svg-wrap">${_buildTableMiniSVG(t, occ)}</div>
+  <table class="diag-mini-table" style="font-size:${safeFontSize}pt">
+    <thead><tr><th colspan="2" style="background:${bg};color:${hdrClr};-webkit-print-color-adjust:exact;print-color-adjust:exact">${hdrText}</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+</div>`;
+    }).join('');
+
+    return `<div class="diag-blocks-wrap" style="grid-template-columns:repeat(${safeCols},1fr)">${blocks}</div>`;
+  }
+
   /* ── Print tables-only diagram (landscape, one page, with seat circles) ── */
-  function printTablesDiagram() {
+  function printTablesDiagram(opts) {
+    const { showGuestList = false, guestFontSize = 8, cols = 4 } = opts || {};
     const tables = State.get().items.filter(i => i.type === 'table');
     if (!tables.length) { UI.toast('אין שולחנות לתצוגה', 'info', 1800); return; }
 
@@ -802,15 +871,27 @@ ${buildGuestTableHTML(sorted)}`;
       ? (() => { const [y,m,d] = state.event.date.split('-'); return new Date(+y,+m-1,+d).toLocaleDateString('he-IL'); })()
       : '';
 
-    const { svg } = buildRoomTablesOnlySVG();
     const area = document.getElementById('printTablesDiagramArea');
-    area.innerHTML = `
+
+    if (showGuestList) {
+      const sorted = [...tables].sort((a, b) => (a.number || 0) - (b.number || 0));
+      area.innerHTML = `
+<div class="print-header" style="margin-bottom:6pt;padding-bottom:5pt">
+  <h1 style="font-size:16pt;margin-bottom:2pt">${UI.escHtml(eventTitle)} — תרשים שולחנות ומוזמנים</h1>
+  ${eventDate ? `<p class="print-meta">📅 ${UI.escHtml(eventDate)}</p>` : ''}
+  ${buildStatsSummary()}
+</div>
+${_buildTablesWithGuestListsHTML(sorted, guestFontSize, cols)}`;
+    } else {
+      const { svg } = buildRoomTablesOnlySVG();
+      area.innerHTML = `
 <div class="print-header" style="margin-bottom:6pt;padding-bottom:5pt">
   <h1 style="font-size:16pt;margin-bottom:2pt">${UI.escHtml(eventTitle)} — תרשים שולחנות</h1>
   ${eventDate ? `<p class="print-meta">📅 ${UI.escHtml(eventDate)}</p>` : ''}
   ${buildStatsSummary()}
 </div>
 <div class="print-diagram-wrap">${svg}</div>`;
+    }
 
     _injectLandscape();
     document.body.dataset.printMode = 'diagram';

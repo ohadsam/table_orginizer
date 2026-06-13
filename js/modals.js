@@ -1550,13 +1550,33 @@ const Modals = (() => {
     UI.openModal('modalPrintCards');
   }
 
+  /* ── Print Diagram modal ── */
+  function openPrintDiagram() {
+    const chk  = document.getElementById('chkDiagramShowGuests');
+    const opts = document.getElementById('diagramGuestOpts');
+    if (chk) {
+      chk.onchange = () => { if (opts) opts.style.display = chk.checked ? '' : 'none'; };
+    }
+    const btn = document.getElementById('btnDoPrintDiagram');
+    if (btn) {
+      btn.onclick = () => {
+        UI.closeModal('modalPrintDiagram');
+        const showGuests = chk?.checked || false;
+        const fontSize   = parseInt(document.getElementById('inputDiagramGuestFont')?.value) || 8;
+        const cols       = parseInt(document.getElementById('selectDiagramCols')?.value)      || 4;
+        Print.printTablesDiagram({ showGuestList: showGuests, guestFontSize: fontSize, cols });
+      };
+    }
+    UI.openModal('modalPrintDiagram');
+  }
+
   return {
     init,
     openAddTable, openEditTable,
     openEditItem, openAddGuest, openEditGuest,
     openAddShape, openSettings, openAutoAssign,
     openFindTable, openItemDetails,
-    openPrintCards,
+    openPrintCards, openPrintDiagram,
     handleGuestDrop, updateEventHeader,
     renderTagsManager, renderPresetManager, renderTablePresets,
     renderEventsManager, showAutoAssignResult

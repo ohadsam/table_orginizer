@@ -622,14 +622,33 @@ The reorder handle (⠿ span) is separate from the pointer-based canvas-drag sys
 
 ## Tables-Only Diagram Print (`printTablesDiagram`)
 
-`Print.printTablesDiagram()` — triggered by `btnPrintDiagram` (🗺) in the header. Prints a single landscape A4 page with:
-- Compact event header (title, date, occupancy stats — smaller than other print modes to maximize diagram area)
+`Print.printTablesDiagram(opts)` — triggered by `btnPrintDiagram` (🗺) in the header, which now opens `modalPrintDiagram` (`Modals.openPrintDiagram()`). The modal lets the user choose the print mode and then calls `Print.printTablesDiagram({ showGuestList, guestFontSize, cols })`.
+
+### Standard mode (`showGuestList: false`, default)
+- Compact event header (title, date, occupancy stats)
 - Full-detail SVG of **only table items** (`buildRoomTablesOnlySVG`): seat circles (filled/empty, using `CONFIG.COLORS.seatOccupied` / `seatOver` / `seatEmpty`), occupancy-based or custom colors, table numbers, labels, and guest names — same font scaling as `buildTableSVG` in items.js
 - Bounding box uses `seatPad = CONFIG.SEAT_RADIUS * 2 + 10` to include seat circles that extend outside item bounds
-- Circle tables: seat circles at radius `sR = Math.min(W,H)/2 - R - 2` from center; rect/square tables use `Items.distributeRectSeats`
 - `🔒` badge (top-right) for assignment-locked tables; `#` badge (purple, top-left) for number-locked tables
 - SVG `max-height: 162mm` leaves ~24mm for the compact header within 186mm landscape A4 usable height
-- Prints landscape via `_injectLandscape()` / `_clearLandscape()`; print mode `"diagram"` activates `#printTablesDiagramArea { display: flex }`
+
+### Guest-list mode (`showGuestList: true`)
+- Compact event header
+- CSS grid (`diag-blocks-wrap`) of one **block** per table, sorted by table number
+- Each block (`.diag-block`): flex row with a **mini table SVG** (`.diag-table-svg-wrap`, 20mm wide) beside a **compact HTML table** (`.diag-mini-table`, font size user-selectable 5–12pt)
+  - Mini SVG (`_buildTableMiniSVG`): shows table shape (circle/rect), occupancy-based color, table number (bold), occ/seats text — no seat circles for compactness
+  - Mini table: colored header row (`background = item.color || tableOccupancyColor`; text color auto-contrasted via `_contrastColor(hex)`); rows of guest name + total count; split guests tagged `(פ)`
+  - Header color uses `print-color-adjust: exact` so backgrounds print correctly
+- Grid columns: user-selected 2–5 (default 4); `guestFontSize` 5–12pt (default 8pt) controls guest-row text
+- `_contrastColor(hex)`: returns `#fff` or `#111` based on WCAG luminance threshold 0.55
+
+Both modes print landscape (`_injectLandscape()`); print mode `"diagram"` activates `#printTablesDiagramArea { display: flex }`.
+
+### `modalPrintDiagram`
+Simple modal (`modal-sm`) with:
+- Checkbox `chkDiagramShowGuests` — shows/hides `#diagramGuestOpts` section
+- `inputDiagramGuestFont` — number input for guest font size (5–12, default 8)
+- `selectDiagramCols` — select for column count (2/3/4/5, default 4)
+- `btnDoPrintDiagram` — closes modal and calls `Print.printTablesDiagram(opts)`
 
 ## Print Improvements
 
