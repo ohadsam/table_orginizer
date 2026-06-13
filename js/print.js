@@ -772,7 +772,8 @@ ${buildGuestTableHTML(sorted)}`;
         const extra = guests.length - maxG;
         if (extra > 0) body += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${occFont}" fill="${occuColor}">+${extra}</text>`;
       }
-      if (item.locked) body += `<text x="${W - 3}" y="14" text-anchor="end" font-size="11">🔒</text>`;
+      if (item.locked)       body += `<text x="${W - 3}" y="14" text-anchor="end" font-size="11">🔒</text>`;
+      if (item.numberLocked) body += `<text x="4" y="14" text-anchor="start" font-size="11" font-weight="700" fill="#7e57c2">#</text>`;
       body += '</g>';
     });
 

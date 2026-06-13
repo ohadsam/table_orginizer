@@ -64,7 +64,7 @@
   }
   .print-diagram-wrap svg {
     width: 100%;
-    max-height: 168mm; /* landscape A4 ~185mm usable minus ~17mm header */
+    max-height: 162mm; /* landscape A4 ~186mm usable minus ~24mm for header */
     height: auto;
   }
 

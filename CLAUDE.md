@@ -351,7 +351,15 @@ Guest names are rendered one per SVG `<text>` line below the label. Available li
 
 ### Table renumber (`Items.renumberTables`)
 
-Triggered by `btnRenumber` (header). Sorts all tables by visual position: top-to-bottom rows (snapped within `ROW_SNAP = 60px`), then right-to-left within each row (RTL convention). Assigns sequential numbers 1, 2, 3…. Wrapped in `Guests.startBatch()` / `Guests.endBatch()` so a single re-render follows all `State.updateItem` calls.
+`Items.renumberTables({ reversed = false } = {})` — two buttons in the header:
+- `btnRenumber` (# מחדש) — forward order (smallest position gets number 1)
+- `btnRenumberDesc` (# הפוך) — reverse order (largest position gets number 1)
+
+Sorts all tables by visual position: top-to-bottom rows (snapped within `ROW_SNAP = 60px`), then right-to-left within each row (RTL convention). When `reversed=true`, the sorted array is reversed before number assignment. Wrapped in `Guests.startBatch()` / `Guests.endBatch()` so a single re-render follows all `State.updateItem` calls.
+
+**Number-locked tables** (`item.numberLocked = true`): collected into a `lockedNums` Set. Unlocked tables are assigned sequential numbers 1, 2, 3… skipping any number already in `lockedNums`. This ensures locked tables keep their numbers while unlocked tables fill in the remaining slots. A toast indicates how many locked tables were skipped.
+
+The `#` badge (purple, top-left corner of the SVG) is displayed on canvas and in the tables-only print diagram for tables where `item.numberLocked` is true. The `numberLocked` field is editable in both the edit-table modal (`tableNumberLockRow` form-group, hidden in add mode) and the full-details modal (`detailsTableNumberLock` checkbox).
 
 ### Distribute tables evenly (`Canvas.distributeTablesEvenly`)
 
@@ -608,6 +616,17 @@ The reorder handle (⠿ span) is separate from the pointer-based canvas-drag sys
 **Modal** (`modalPrintCards`): Live preview card (size scales with selection at 1.8px per mm), card size selector (60/70/80/90/100 mm), background image upload, per-section font/size/bold/italic/color controls for name, table line (includes show-label toggle), and custom text; blank cards section (count + blank-only option), template save/export/import. Uses `.modal.modal-md` (max-width 520px).
 
 **Card template**: Settings are saved to localStorage key `seating_cards_template` (version 1 JSON). Background image is excluded (too large). Template buttons in modal footer: 💾 שמור (save default), 📤 ייצוא (export JSON), 📥 ייבוא (import JSON). On modal open, the saved template is automatically applied; if no template exists, factory defaults are used.
+
+## Tables-Only Diagram Print (`printTablesDiagram`)
+
+`Print.printTablesDiagram()` — triggered by `btnPrintDiagram` (🗺) in the header. Prints a single landscape A4 page with:
+- Compact event header (title, date, occupancy stats — smaller than other print modes to maximize diagram area)
+- Full-detail SVG of **only table items** (`buildRoomTablesOnlySVG`): seat circles (filled/empty, using `CONFIG.COLORS.seatOccupied` / `seatOver` / `seatEmpty`), occupancy-based or custom colors, table numbers, labels, and guest names — same font scaling as `buildTableSVG` in items.js
+- Bounding box uses `seatPad = CONFIG.SEAT_RADIUS * 2 + 10` to include seat circles that extend outside item bounds
+- Circle tables: seat circles at radius `sR = Math.min(W,H)/2 - R - 2` from center; rect/square tables use `Items.distributeRectSeats`
+- `🔒` badge (top-right) for assignment-locked tables; `#` badge (purple, top-left) for number-locked tables
+- SVG `max-height: 162mm` leaves ~24mm for the compact header within 186mm landscape A4 usable height
+- Prints landscape via `_injectLandscape()` / `_clearLandscape()`; print mode `"diagram"` activates `#printTablesDiagramArea { display: flex }`
 
 ## Print Improvements
 

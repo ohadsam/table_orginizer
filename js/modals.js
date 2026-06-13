@@ -332,6 +332,12 @@ const Modals = (() => {
                 <span>🔒 נעל שולחן (השיבוץ האוטומטי לא ישנה אותו)</span>
               </label>
             </div>
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="detailsTableNumberLock" ${item.numberLocked ? 'checked' : ''}>
+                <span>🔢 נעל מספר שולחן (המספור האוטומטי לא ישנה אותו)</span>
+              </label>
+            </div>
           </div>
           <div class="details-col">
             <h3 class="details-section-title">
@@ -433,11 +439,12 @@ const Modals = (() => {
       const wVal      = parseInt(document.getElementById('detailsTableW')?.value);
       const hVal      = parseInt(document.getElementById('detailsTableH')?.value);
       const fontSizeV = parseFloat(document.getElementById('detailsTableFontSize')?.value) || null;
-      const locked    = document.getElementById('detailsTableLock')?.checked || false;
-      const colorEn   = document.getElementById('detailsColorEnabled')?.checked;
-      const color     = colorEn ? (document.getElementById('detailsTableColor')?.value || null) : null;
+      const locked       = document.getElementById('detailsTableLock')?.checked || false;
+      const numberLocked = document.getElementById('detailsTableNumberLock')?.checked || false;
+      const colorEn      = document.getElementById('detailsColorEnabled')?.checked;
+      const color        = colorEn ? (document.getElementById('detailsTableColor')?.value || null) : null;
 
-      const updates = { seats, label, locked, color, fontSize: fontSizeV };
+      const updates = { seats, label, locked, numberLocked, color, fontSize: fontSizeV };
       if (_detailsShape) updates.shape = _detailsShape;
       if (number) updates.number = number;
       if (wVal)   updates.width  = Math.max(60, wVal);
