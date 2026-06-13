@@ -1258,6 +1258,7 @@ const Modals = (() => {
         customBold:    document.getElementById('cardCustomBold').classList.contains('active'),
         customItalic:  document.getElementById('cardCustomItalic').classList.contains('active'),
         showLabel:     document.getElementById('cardShowLabel').checked,
+        showCounts:    document.getElementById('cardShowCounts').checked,
         blankEnabled:  document.getElementById('cardBlankEnabled').checked,
         blankCount:    parseInt(document.getElementById('cardBlankCount').value)       || 1,
         blankOnly:     document.getElementById('cardBlankOnly').checked
@@ -1281,9 +1282,10 @@ const Modals = (() => {
       if (t.customFont     != null) document.getElementById('cardCustomFont').value      = t.customFont;
       if (t.customFontSize != null) document.getElementById('cardCustomFontSize').value  = String(t.customFontSize);
       if (t.customColor    != null) document.getElementById('cardCustomFontColor').value = t.customColor;
-      document.getElementById('cardCustomBold').classList.toggle('active',   !!t.customBold);
-      document.getElementById('cardCustomItalic').classList.toggle('active', !!t.customItalic);
-      document.getElementById('cardShowLabel').checked    = t.showLabel !== false;
+      if (t.customBold   != null) document.getElementById('cardCustomBold').classList.toggle('active',   !!t.customBold);
+      if (t.customItalic != null) document.getElementById('cardCustomItalic').classList.toggle('active', !!t.customItalic);
+      document.getElementById('cardShowLabel').checked    = t.showLabel  !== false;
+      if (t.showCounts != null) document.getElementById('cardShowCounts').checked = t.showCounts !== false;
       document.getElementById('cardBlankEnabled').checked = !!t.blankEnabled;
       if (t.blankCount != null) document.getElementById('cardBlankCount').value = String(t.blankCount);
       // blankOnly only makes sense when blankEnabled — prevent cryptic "nothing to print" toast
@@ -1298,8 +1300,9 @@ const Modals = (() => {
       const color    = document.getElementById('cardCustomFontColor').value;
       const bold     = document.getElementById('cardCustomBold').classList.contains('active');
       const italic   = document.getElementById('cardCustomItalic').classList.contains('active');
-      const showLbl  = document.getElementById('cardShowLabel').checked;
-      const blankEn  = document.getElementById('cardBlankEnabled').checked;
+      const showLbl    = document.getElementById('cardShowLabel').checked;
+      const showCounts = document.getElementById('cardShowCounts').checked;
+      const blankEn    = document.getElementById('cardBlankEnabled').checked;
       const sizeMm   = parseInt(document.getElementById('cardSizeSelect').value) || 80;
       const sizePx   = Math.round(sizeMm * 1.8);
       const sizeCm   = sizeMm / 10;
@@ -1342,7 +1345,7 @@ const Modals = (() => {
         nameEl.style.color       = '#777';
         tableEl.style.fontFamily = '';
         tableEl.style.fontSize   = '';
-        tableEl.style.fontWeight = '';
+        tableEl.style.fontWeight = '400';
         tableEl.style.fontStyle  = '';
         tableEl.style.color      = '#777';
       } else {
@@ -1358,6 +1361,15 @@ const Modals = (() => {
         tableEl.style.fontWeight = tableBold  ? '700'    : '400';
         tableEl.style.fontStyle  = tableItalic ? 'italic' : '';
         tableEl.style.color      = tableColor;
+      }
+
+      // Counts preview
+      const countsEl = document.getElementById('cardPreviewCounts');
+      if (countsEl) {
+        countsEl.style.display = showCounts ? '' : 'none';
+        countsEl.textContent   = (blankEn && blankOnly)
+          ? 'מבוגרים: ___ | ילדים: ___'
+          : 'מבוגרים: 2 | ילדים: 1';
       }
 
       // Background image
@@ -1396,7 +1408,7 @@ const Modals = (() => {
         if (summary) summary += ' + ';
         summary += `${blankCount} כרטיסים ריקים`;
       }
-      if (blankOnly && all.length > 0)
+      if (blankEn && blankOnly && all.length > 0)
         summary += ` (${all.length} כרטיסי מוזמנים יושמטו)`;
       document.getElementById('cardPrintSummary').textContent = summary
         ? `יודפסו: ${summary}`
@@ -1410,7 +1422,7 @@ const Modals = (() => {
       tableFont:     'inherit', tableFontSize: 12, tableColor: '#333333', tableBold: false, tableItalic: false,
       customText:    '', customFont: 'inherit', customFontSize: 11,
       customColor: '#333333', customBold: false, customItalic: false,
-      showLabel: true, blankEnabled: false, blankCount: 5, blankOnly: false
+      showLabel: true, showCounts: true, blankEnabled: false, blankCount: 5, blankOnly: false
     };
     try {
       const saved = localStorage.getItem(TEMPLATE_KEY);
@@ -1428,7 +1440,7 @@ const Modals = (() => {
     ['cardNameFont','cardNameFontSize','cardNameFontColor',
      'cardTableFont','cardTableFontSize','cardTableFontColor',
      'cardCustomText','cardCustomFont','cardCustomFontSize','cardCustomFontColor',
-     'cardSizeSelect','cardShowLabel','cardBlankEnabled','cardBlankCount','cardBlankOnly'
+     'cardSizeSelect','cardShowLabel','cardShowCounts','cardBlankEnabled','cardBlankCount','cardBlankOnly'
     ].forEach(id => {
       const el = document.getElementById(id);
       el.oninput  = _updatePreview;
@@ -1528,6 +1540,7 @@ const Modals = (() => {
         bgImage:       _bgDataUrl,
         cardSize:      f.cardSize,
         showLabel:     f.showLabel,
+        showCounts:    f.showCounts,
         blankCount:    f.blankEnabled ? f.blankCount : 0,
         blankOnly:     f.blankOnly
       });

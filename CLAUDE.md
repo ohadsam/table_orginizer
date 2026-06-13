@@ -596,6 +596,7 @@ The reorder handle (⠿ span) is separate from the pointer-based canvas-drag sys
 | `bgImage` | string\|null | `null` | Data URL (`data:image/...`); validated before use |
 | `cardSize` | number | `80` | Card width & height in mm; clamped 50–120. Available sizes in modal: 60/70/80/90/100 mm |
 | `showLabel` | boolean | `true` | If false, table label is omitted from the table line |
+| `showCounts` | boolean | `true` | If true, shows adults/children counts (`מבוגרים: X \| ילדים: Y`) below the table line; blank cards show placeholder lines when enabled |
 | `blankCount` | number | `0` | Number of blank placeholder cards to append (clamped 0–100) |
 | `blankOnly` | boolean | `false` | If true, guest cards are skipped — only blank cards are printed |
 

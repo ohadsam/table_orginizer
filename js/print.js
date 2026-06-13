@@ -529,6 +529,7 @@ ${buildGuestTableHTML(sorted)}`;
       bgImage        = null,
       cardSize       = 80,
       showLabel      = true,
+      showCounts     = true,
       blankCount     = 0,
       blankOnly      = false
     } = opts || {};
@@ -623,23 +624,31 @@ ${buildGuestTableHTML(sorted)}`;
         tableText = `שולחן ${UI.escHtml(String(table.number ?? ''))}`;
         if (showLabel && table.label) tableText += ` — ${UI.escHtml(table.label)}`;
       }
+      const countsRow = showCounts
+        ? `<div class="sc-counts">מבוגרים: ${g.adults || 0} | ילדים: ${g.children || 0}</div>`
+        : '';
       return `<div class="seating-card">
         <div class="sc-top"></div>
         <div class="sc-bottom">
           <div class="sc-name" style="${nameStyle}">${UI.escHtml(g.name || '')}</div>
           <div class="sc-table" style="${tableStyle}">${tableText}</div>
+          ${countsRow}
           ${customRow}
         </div>
       </div>`;
     }).join('');
 
     // Blank cards — placeholders instead of name/table
+    const blankCountsRow = showCounts
+      ? `<div class="sc-counts">מבוגרים: ___ | ילדים: ___</div>`
+      : '';
     const blankCard =
       `<div class="seating-card">
         <div class="sc-top"></div>
         <div class="sc-bottom">
           <div class="sc-placeholder">שם: _______________</div>
           <div class="sc-placeholder">שולחן: ____________</div>
+          ${blankCountsRow}
           ${customRow}
         </div>
       </div>`;
