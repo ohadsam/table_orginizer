@@ -305,10 +305,10 @@ const Items = (() => {
     // Scaled font sizes (base calibrated at 130px table)
     const stt       = State.get().settings;
     const scale     = minDim / 130;
-    const numFont   = item.fontSize || stt.fontNumberSize   || Math.max(10, Math.min(24, Math.round(15 * scale)));
-    const labelFont = stt.fontLabelSize    || Math.max(7,  Math.min(14, Math.round(10 * scale)));
-    const guestFont = stt.fontGuestSize    || Math.max(6,  Math.min(11, Math.round(8  * scale)));
-    const occuFont  = stt.fontOccupancySize || Math.max(6, Math.min(9,  Math.round(7  * scale)));
+    const numFont   = item.fontSize      || stt.fontNumberSize    || Math.max(10, Math.min(24, Math.round(15 * scale)));
+    const labelFont = item.fontLabelSize  || stt.fontLabelSize    || Math.max(7,  Math.min(14, Math.round(10 * scale)));
+    const guestFont = item.fontGuestSize  || stt.fontGuestSize    || Math.max(6,  Math.min(11, Math.round(8  * scale)));
+    const occuFont  = item.fontOccupancySize || stt.fontOccupancySize || Math.max(6, Math.min(9,  Math.round(7  * scale)));
     const numColor   = stt.fontNumberColor   || '#1a237e';
     const labelColor = stt.fontLabelColor    || '#37474f';
     const guestColor = stt.fontGuestColor    || '#546e7a';

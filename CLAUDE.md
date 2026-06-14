@@ -323,16 +323,16 @@ Every table element fires `mouseenter`/`mousemove`/`mouseleave` events that show
 
 `buildTableSVG()` computes `scale = minDim / 130` where `minDim = Math.min(width, height)`. Font sizes follow this priority:
 
-1. `item.fontSize` — per-table manual override (number modal `#tableFontSize`); replaces `numFont` only
+1. **Per-table override** — `item.fontSize` / `item.fontLabelSize` / `item.fontGuestSize` / `item.fontOccupancySize`
 2. `settings.fontNumberSize / fontLabelSize / fontGuestSize / fontOccupancySize` — global event settings
 3. Auto-scaled fallback (clamped):
 
-| Variable | Formula (fallback) | Min–Max |
-|----------|--------------------|---------|
-| `numFont` | `item.fontSize \|\| stt.fontNumberSize \|\| round(15 * scale)` | 10–24 |
-| `labelFont` | `stt.fontLabelSize \|\| round(10 * scale)` | 7–14 |
-| `guestFont` | `stt.fontGuestSize \|\| round(8 * scale)` | 6–11 |
-| `occuFont` | `stt.fontOccupancySize \|\| round(7 * scale)` | 6–9 |
+| Variable | Per-table field | Formula (fallback) | Min–Max |
+|----------|-----------------|--------------------|---------|
+| `numFont` | `item.fontSize` | `stt.fontNumberSize \|\| round(15 * scale)` | 10–24 |
+| `labelFont` | `item.fontLabelSize` | `stt.fontLabelSize \|\| round(10 * scale)` | 7–14 |
+| `guestFont` | `item.fontGuestSize` | `stt.fontGuestSize \|\| round(8 * scale)` | 6–11 |
+| `occuFont` | `item.fontOccupancySize` | `stt.fontOccupancySize \|\| round(7 * scale)` | 6–9 |
 
 Font **colors** follow the same source (no per-table override, global settings only):
 
@@ -343,9 +343,9 @@ Font **colors** follow the same source (no per-table override, global settings o
 | `guestColor` | `fontGuestColor` | `#546e7a` |
 | `occuColor` | `fontOccupancyColor` | `#888888` |
 
-These settings are also applied in `print.js` (`buildRoomDiagramSVG` — colors only; `_buildTableVisualSVG` — both colors and number/label sizes). All settings persist in JSON export/import automatically via `State.serialize()`.
+These settings are also applied in `print.js` (`buildRoomDiagramSVG` — colors only; `_buildTableVisualSVG` — both colors and all per-table font sizes). All settings persist in JSON export/import automatically via `State.serialize()`.
 
-`item.fontSize` is a per-table manual override (stored in state, editable in the table modal via `#tableFontSize`). When set, it replaces `numFont` only.
+Per-table font overrides: `item.fontSize` (number), `item.fontLabelSize` (label), `item.fontGuestSize` (guest names), `item.fontOccupancySize` (occupancy). Settable via the bulk edit modal (`modalBulkEdit`). When set, they take priority over global settings for that specific table.
 
 Guest names are rendered one per SVG `<text>` line below the label. Available lines = `floor(remainingHeight / lineH)` where `lineH = guestFont + 2.5`. When `guests.length > rawMaxG`, `maxG` is reduced by 1 to reserve a slot for the `+N` overflow indicator, ensuring it stays within the table body boundary.
 
@@ -622,7 +622,7 @@ The reorder handle (⠿ span) is separate from the pointer-based canvas-drag sys
 
 ## Tables-Only Diagram Print (`printTablesDiagram`)
 
-`Print.printTablesDiagram(opts)` — triggered by `btnPrintDiagram` (🗺) in the header, which now opens `modalPrintDiagram` (`Modals.openPrintDiagram()`). The modal lets the user choose the print mode and then calls `Print.printTablesDiagram({ showGuestList, guestFontSize, cols, showLabel, showOccupancy })`.
+`Print.printTablesDiagram(opts)` — triggered by `btnPrintDiagram` (🗺) in the header, which now opens `modalPrintDiagram` (`Modals.openPrintDiagram()`). The modal lets the user choose the print mode and then calls `Print.printTablesDiagram({ showGuestList, guestFontSize, cols, showLabel, showOccupancy, svgNumFont, svgLblFont, svgOccFont })`.
 
 ### Standard mode (`showGuestList: false`, default)
 - Compact event header (title, date, occupancy stats)
@@ -635,7 +635,7 @@ The reorder handle (⠿ span) is separate from the pointer-based canvas-drag sys
 - Compact event header
 - CSS grid (`diag-blocks-wrap`) of one **block** per table, sorted by table number
 - Each block (`.diag-block`): flex row with a **mini table SVG** (`.diag-table-svg-wrap`, 20mm wide) beside a **compact HTML table** (`.diag-mini-table`, font size user-selectable 5–12pt)
-  - Mini SVG (`_buildTableMiniSVG(item, occ, showLabel, showOccupancy)`): shows table shape (circle/rect), occupancy-based color, table number (bold). When `showOccupancy=true`, occ/seats text at top. When `showLabel=true` and `item.label` is set, label text below number (number shifts up). No seat circles for compactness.
+  - Mini SVG (`_buildTableMiniSVG(item, occ, showLabel, showOccupancy, numFontOverride=0, lblFontOverride=0, occFontOverride=0)`): shows table shape (circle/rect), occupancy-based color, table number (bold). When `showOccupancy=true`, occ/seats text at top. When `showLabel=true` and `item.label` is set, label text below number (number shifts up). No seat circles for compactness. Font overrides: 0 = auto-scaled (uses `item.fontXxx` → global settings → scale fallback).
   - Mini table: colored header row (`background = item.color || tableOccupancyColor`; text color auto-contrasted via `_contrastColor(hex)`); rows of guest name + total count; split guests tagged `(פ)`
   - Header color uses `print-color-adjust: exact` so backgrounds print correctly
 - Grid columns: user-selected 2–5 (default 4); `guestFontSize` 5–12pt (default 8pt) controls guest-row text
@@ -650,6 +650,10 @@ Simple modal (`modal-sm`) with:
 - `selectDiagramCols` — select for column count (2/3/4/5, default 4)
 - `chkDiagramShowLabel` (checked by default) — whether to print the table label inside the mini SVG in guest-list mode
 - `chkDiagramShowOccupancy` (checked by default) — whether to print the occ/seats ratio inside the mini SVG in guest-list mode
+- SVG font size overrides (shown inside `#diagramGuestOpts`, 3-column grid; 0 = auto):
+  - `inputDiagramSvgNumFont` — table number font size in the mini SVG
+  - `inputDiagramSvgLblFont` — label font size in the mini SVG
+  - `inputDiagramSvgOccFont` — occupancy font size in the mini SVG
 - `btnDoPrintDiagram` — closes modal and calls `Print.printTablesDiagram(opts)`
 
 ## Multi-Table Bulk Edit
@@ -684,7 +688,10 @@ When ≥2 tables are selected and the context menu opens, `ctxBulkEditSep` and `
 | Element | Field | Notes |
 |---------|-------|-------|
 | `chkBulkSeats` + `bulkEditSeats` | `seats` | Clamped 1–50 |
-| `chkBulkFont` + `bulkEditFontSize` | `fontSize` | null if empty (auto) |
+| `chkBulkFont` + `bulkEditFontSize` | `fontSize` | null if empty (auto); table number font |
+| `chkBulkLabelFont` + `bulkEditLabelFontSize` | `fontLabelSize` | null if empty (auto); table label font |
+| `chkBulkGuestFont` + `bulkEditGuestFontSize` | `fontGuestSize` | null if empty (auto); guest names font |
+| `chkBulkOccuFont` + `bulkEditOccuFontSize` | `fontOccupancySize` | null if empty (auto); occupancy ratio font |
 | `chkBulkColor` + `bulkEditColor` | `color` | Mutual exclusive with chkBulkResetColor |
 | `chkBulkResetColor` | `color: null` | Reverts to dynamic occupancy color |
 

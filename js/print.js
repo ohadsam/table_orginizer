@@ -38,10 +38,10 @@ const Print = (() => {
 
         // Per-table font sizes — same scale formula as buildTableSVG in items.js
         const scale   = Math.min(W, H) / 130;
-        const numFont = item.fontSize || stt.fontNumberSize   || Math.max(10, Math.min(24, Math.round(15 * scale)));
-        const lblFont = stt.fontLabelSize    || Math.max(7,  Math.min(14, Math.round(10 * scale)));
-        const gstFont = stt.fontGuestSize    || Math.max(6,  Math.min(11, Math.round(8  * scale)));
-        const occFont = stt.fontOccupancySize || Math.max(6, Math.min(9,  Math.round(7  * scale)));
+        const numFont = item.fontSize         || stt.fontNumberSize     || Math.max(10, Math.min(24, Math.round(15 * scale)));
+        const lblFont = item.fontLabelSize    || stt.fontLabelSize      || Math.max(7,  Math.min(14, Math.round(10 * scale)));
+        const gstFont = item.fontGuestSize    || stt.fontGuestSize      || Math.max(6,  Math.min(11, Math.round(8  * scale)));
+        const occFont = item.fontOccupancySize || stt.fontOccupancySize || Math.max(6,  Math.min(9,  Math.round(7  * scale)));
         const lineH   = gstFont + 2.5;
 
         if (item.shape === 'circle') {
@@ -127,10 +127,10 @@ const Print = (() => {
     const labelColor = stt.fontLabelColor    || '#37474f';
     const guestColor = stt.fontGuestColor    || '#546e7a';
     const occuColor  = stt.fontOccupancyColor || '#888888';
-    const numSize   = stt.fontNumberSize  || 22;
-    const labelSize = stt.fontLabelSize   || 13;
-    const guestSize = stt.fontGuestSize   || 10;
-    const occuSize  = stt.fontOccupancySize || 9;
+    const numSize   = item.fontSize       || stt.fontNumberSize    || 22;
+    const labelSize = item.fontLabelSize  || stt.fontLabelSize    || 13;
+    const guestSize = item.fontGuestSize  || stt.fontGuestSize    || 10;
+    const occuSize  = item.fontOccupancySize || stt.fontOccupancySize || 9;
     const lineH = guestSize + 2.5;
     const guests = State.getTableGuests(item.id);
     let body = '';
@@ -710,10 +710,10 @@ ${buildGuestTableHTML(sorted)}`;
       const guests   = State.getTableGuests(item.id);
 
       const scale   = Math.min(W, H) / 130;
-      const numFont = item.fontSize || stt.fontNumberSize   || Math.max(10, Math.min(24, Math.round(15 * scale)));
-      const lblFont = stt.fontLabelSize    || Math.max(7,  Math.min(14, Math.round(10 * scale)));
-      const gstFont = stt.fontGuestSize    || Math.max(6,  Math.min(11, Math.round(8  * scale)));
-      const occFont = stt.fontOccupancySize || Math.max(6, Math.min(9,  Math.round(7  * scale)));
+      const numFont = item.fontSize         || stt.fontNumberSize     || Math.max(10, Math.min(24, Math.round(15 * scale)));
+      const lblFont = item.fontLabelSize    || stt.fontLabelSize      || Math.max(7,  Math.min(14, Math.round(10 * scale)));
+      const gstFont = item.fontGuestSize    || stt.fontGuestSize      || Math.max(6,  Math.min(11, Math.round(8  * scale)));
+      const occFont = item.fontOccupancySize || stt.fontOccupancySize || Math.max(6,  Math.min(9,  Math.round(7  * scale)));
       const lineH   = gstFont + 2.5;
 
       body += `<g transform="translate(${lx.toFixed(1)},${ly.toFixed(1)})">`;
@@ -802,7 +802,7 @@ ${buildGuestTableHTML(sorted)}`;
   }
 
   /* ── Compact table shape SVG (no seat circles) for the diagram+guests grid ── */
-  function _buildTableMiniSVG(item, occ, showLabel = true, showOccupancy = true) {
+  function _buildTableMiniSVG(item, occ, showLabel = true, showOccupancy = true, numFontOverride = 0, lblFontOverride = 0, occFontOverride = 0) {
     const W = item.width, H = item.height;
     const bg = item.color || Items.tableColor(occ, item.seats);
     const stt = State.get().settings;
@@ -810,9 +810,9 @@ ${buildGuestTableHTML(sorted)}`;
     const occuColor  = stt.fontOccupancyColor || '#888888';
     const labelColor = stt.fontLabelColor    || '#37474f';
     const scale      = Math.min(W, H) / 130;
-    const numFont    = item.fontSize || stt.fontNumberSize || Math.max(10, Math.min(24, Math.round(15 * scale)));
-    const occFont    = stt.fontOccupancySize || Math.max(6, Math.min(9, Math.round(7 * scale)));
-    const lblFont    = stt.fontLabelSize     || Math.max(5, Math.min(10, Math.round(7 * scale)));
+    const numFont    = numFontOverride || item.fontSize || stt.fontNumberSize || Math.max(10, Math.min(24, Math.round(15 * scale)));
+    const occFont    = occFontOverride || stt.fontOccupancySize || Math.max(6, Math.min(9, Math.round(7 * scale)));
+    const lblFont    = lblFontOverride || stt.fontLabelSize     || Math.max(5, Math.min(10, Math.round(7 * scale)));
     const num        = item.number != null ? String(item.number) : '?';
     const hasLabel   = showLabel && item.label;
     let body = '';
@@ -841,7 +841,7 @@ ${buildGuestTableHTML(sorted)}`;
   }
 
   /* ── Grid of (mini SVG + guest-list table) blocks for diagram+guests mode ── */
-  function _buildTablesWithGuestListsHTML(tables, guestFontSize, cols, showLabel, showOccupancy) {
+  function _buildTablesWithGuestListsHTML(tables, guestFontSize, cols, showLabel, showOccupancy, svgNumFont, svgLblFont, svgOccFont) {
     const safeFontSize = Math.max(5, Math.min(12, parseInt(guestFontSize) || 8));
     const safeCols     = Math.max(2, Math.min(6, parseInt(cols) || 4));
 
@@ -859,7 +859,7 @@ ${buildGuestTableHTML(sorted)}`;
         : `<tr><td colspan="2" style="color:#aaa;text-align:center;font-style:italic">ריק</td></tr>`;
 
       return `<div class="diag-block">
-  <div class="diag-table-svg-wrap">${_buildTableMiniSVG(t, occ, showLabel, showOccupancy)}</div>
+  <div class="diag-table-svg-wrap">${_buildTableMiniSVG(t, occ, showLabel, showOccupancy, svgNumFont, svgLblFont, svgOccFont)}</div>
   <table class="diag-mini-table" style="font-size:${safeFontSize}pt">
     <thead><tr><th colspan="2" style="background:${bg};color:${hdrClr};-webkit-print-color-adjust:exact;print-color-adjust:exact">${hdrText}</th></tr></thead>
     <tbody>${rows}</tbody>
@@ -872,7 +872,8 @@ ${buildGuestTableHTML(sorted)}`;
 
   /* ── Print tables-only diagram (landscape, one page, with seat circles) ── */
   function printTablesDiagram(opts) {
-    const { showGuestList = false, guestFontSize = 8, cols = 4, showLabel = true, showOccupancy = true } = opts || {};
+    const { showGuestList = false, guestFontSize = 8, cols = 4, showLabel = true, showOccupancy = true,
+            svgNumFont = 0, svgLblFont = 0, svgOccFont = 0 } = opts || {};
     const tables = State.get().items.filter(i => i.type === 'table');
     if (!tables.length) { UI.toast('אין שולחנות לתצוגה', 'info', 1800); return; }
 
@@ -892,7 +893,7 @@ ${buildGuestTableHTML(sorted)}`;
   ${eventDate ? `<p class="print-meta">📅 ${UI.escHtml(eventDate)}</p>` : ''}
   ${buildStatsSummary()}
 </div>
-${_buildTablesWithGuestListsHTML(sorted, guestFontSize, cols, showLabel, showOccupancy)}`;
+${_buildTablesWithGuestListsHTML(sorted, guestFontSize, cols, showLabel, showOccupancy, svgNumFont, svgLblFont, svgOccFont)}`;
     } else {
       const { svg } = buildRoomTablesOnlySVG();
       area.innerHTML = `

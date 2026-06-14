@@ -1562,11 +1562,14 @@ const Modals = (() => {
       btn.onclick = () => {
         UI.closeModal('modalPrintDiagram');
         const showGuests    = chk?.checked || false;
-        const fontSize      = parseInt(document.getElementById('inputDiagramGuestFont')?.value)  || 8;
-        const cols          = parseInt(document.getElementById('selectDiagramCols')?.value)       || 4;
+        const fontSize      = parseInt(document.getElementById('inputDiagramGuestFont')?.value)    || 8;
+        const cols          = parseInt(document.getElementById('selectDiagramCols')?.value)         || 4;
         const showLabel     = document.getElementById('chkDiagramShowLabel')?.checked     !== false;
         const showOccupancy = document.getElementById('chkDiagramShowOccupancy')?.checked !== false;
-        Print.printTablesDiagram({ showGuestList: showGuests, guestFontSize: fontSize, cols, showLabel, showOccupancy });
+        const svgNumFont    = Math.max(0, parseInt(document.getElementById('inputDiagramSvgNumFont')?.value) || 0);
+        const svgLblFont    = Math.max(0, parseInt(document.getElementById('inputDiagramSvgLblFont')?.value) || 0);
+        const svgOccFont    = Math.max(0, parseInt(document.getElementById('inputDiagramSvgOccFont')?.value) || 0);
+        Print.printTablesDiagram({ showGuestList: showGuests, guestFontSize: fontSize, cols, showLabel, showOccupancy, svgNumFont, svgLblFont, svgOccFont });
       };
     }
     UI.openModal('modalPrintDiagram');
@@ -1581,15 +1584,21 @@ const Modals = (() => {
 
     // Pre-fill from first table
     const first = State.getItem(ids[0]);
-    const seatsEl = document.getElementById('bulkEditSeats');
-    const fontEl  = document.getElementById('bulkEditFontSize');
-    const colorEl = document.getElementById('bulkEditColor');
-    if (seatsEl) seatsEl.value = first.seats ?? 10;
-    if (fontEl)  fontEl.value  = first.fontSize || '';
-    if (colorEl) colorEl.value = first.color || '#e3f2fd';
+    const seatsEl     = document.getElementById('bulkEditSeats');
+    const fontEl      = document.getElementById('bulkEditFontSize');
+    const lblFontEl   = document.getElementById('bulkEditLabelFontSize');
+    const gstFontEl   = document.getElementById('bulkEditGuestFontSize');
+    const occFontEl   = document.getElementById('bulkEditOccuFontSize');
+    const colorEl     = document.getElementById('bulkEditColor');
+    if (seatsEl)   seatsEl.value   = first.seats ?? 10;
+    if (fontEl)    fontEl.value    = first.fontSize      || '';
+    if (lblFontEl) lblFontEl.value = first.fontLabelSize || '';
+    if (gstFontEl) gstFontEl.value = first.fontGuestSize || '';
+    if (occFontEl) occFontEl.value = first.fontOccupancySize || '';
+    if (colorEl)   colorEl.value   = first.color || '#e3f2fd';
 
     // Reset all checkboxes to unchecked
-    ['chkBulkSeats','chkBulkFont','chkBulkColor','chkBulkResetColor'].forEach(id => {
+    ['chkBulkSeats','chkBulkFont','chkBulkLabelFont','chkBulkGuestFont','chkBulkOccuFont','chkBulkColor','chkBulkResetColor'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.checked = false;
     });
@@ -1605,26 +1614,38 @@ const Modals = (() => {
     const saveBtn = document.getElementById('btnSaveBulkEdit');
     if (saveBtn) {
       saveBtn.onclick = () => {
-        const applySeats = document.getElementById('chkBulkSeats')?.checked;
-        const applyFont  = document.getElementById('chkBulkFont')?.checked;
-        const applyColor = document.getElementById('chkBulkColor')?.checked;
-        const resetColor = document.getElementById('chkBulkResetColor')?.checked;
+        const applySeats      = document.getElementById('chkBulkSeats')?.checked;
+        const applyFont       = document.getElementById('chkBulkFont')?.checked;
+        const applyLabelFont  = document.getElementById('chkBulkLabelFont')?.checked;
+        const applyGuestFont  = document.getElementById('chkBulkGuestFont')?.checked;
+        const applyOccuFont   = document.getElementById('chkBulkOccuFont')?.checked;
+        const applyColor      = document.getElementById('chkBulkColor')?.checked;
+        const resetColor      = document.getElementById('chkBulkResetColor')?.checked;
 
-        if (!applySeats && !applyFont && !applyColor && !resetColor) {
+        if (!applySeats && !applyFont && !applyLabelFont && !applyGuestFont && !applyOccuFont && !applyColor && !resetColor) {
           UI.toast('לא נבחר שום שדה לעדכון', 'info', 1800);
           return;
         }
 
-        const seats = applySeats ? Math.max(1, Math.min(50, parseInt(seatsEl?.value) || 10)) : null;
-        const font  = applyFont  ? (parseInt(fontEl?.value) || null)  : undefined;
+        const seats     = applySeats     ? Math.max(1, Math.min(50, parseInt(seatsEl?.value) || 10)) : null;
+        const font      = applyFont      ? (parseInt(fontEl?.value) || null) : undefined;
+        const lblFontEl = document.getElementById('bulkEditLabelFontSize');
+        const gstFontEl = document.getElementById('bulkEditGuestFontSize');
+        const occFontEl = document.getElementById('bulkEditOccuFontSize');
+        const lblFont   = applyLabelFont ? (parseInt(lblFontEl?.value) || null) : undefined;
+        const gstFont   = applyGuestFont ? (parseInt(gstFontEl?.value) || null) : undefined;
+        const occFont   = applyOccuFont  ? (parseInt(occFontEl?.value) || null) : undefined;
 
         Guests.startBatch();
         ids.forEach(id => {
           const patch = {};
-          if (applySeats)               patch.seats    = seats;
-          if (applyFont)                patch.fontSize = (font === null || font < 1) ? null : font;
-          if (applyColor)               patch.color    = colorEl?.value || null;
-          else if (resetColor)          patch.color    = null;
+          if (applySeats)      patch.seats            = seats;
+          if (applyFont)       patch.fontSize         = (font === null || font < 1) ? null : font;
+          if (applyLabelFont)  patch.fontLabelSize    = (lblFont === null || lblFont < 1) ? null : lblFont;
+          if (applyGuestFont)  patch.fontGuestSize    = (gstFont === null || gstFont < 1) ? null : gstFont;
+          if (applyOccuFont)   patch.fontOccupancySize = (occFont === null || occFont < 1) ? null : occFont;
+          if (applyColor)      patch.color            = colorEl?.value || null;
+          else if (resetColor) patch.color            = null;
           if (Object.keys(patch).length) State.updateItem(id, patch);
         });
         Guests.endBatch();
