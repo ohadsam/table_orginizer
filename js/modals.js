@@ -1566,9 +1566,9 @@ const Modals = (() => {
         const cols          = parseInt(document.getElementById('selectDiagramCols')?.value)         || 4;
         const showLabel     = document.getElementById('chkDiagramShowLabel')?.checked     !== false;
         const showOccupancy = document.getElementById('chkDiagramShowOccupancy')?.checked !== false;
-        const svgNumFont    = Math.max(0, parseInt(document.getElementById('inputDiagramSvgNumFont')?.value) || 0);
-        const svgLblFont    = Math.max(0, parseInt(document.getElementById('inputDiagramSvgLblFont')?.value) || 0);
-        const svgOccFont    = Math.max(0, parseInt(document.getElementById('inputDiagramSvgOccFont')?.value) || 0);
+        const svgNumFont    = Math.max(0, Math.min(24, parseInt(document.getElementById('inputDiagramSvgNumFont')?.value) || 0));
+        const svgLblFont    = Math.max(0, Math.min(14, parseInt(document.getElementById('inputDiagramSvgLblFont')?.value) || 0));
+        const svgOccFont    = Math.max(0, Math.min(9,  parseInt(document.getElementById('inputDiagramSvgOccFont')?.value) || 0));
         Print.printTablesDiagram({ showGuestList: showGuests, guestFontSize: fontSize, cols, showLabel, showOccupancy, svgNumFont, svgLblFont, svgOccFont });
       };
     }

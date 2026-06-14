@@ -809,35 +809,39 @@ ${buildGuestTableHTML(sorted)}`;
     const numColor   = stt.fontNumberColor   || '#1a237e';
     const occuColor  = stt.fontOccupancyColor || '#888888';
     const labelColor = stt.fontLabelColor    || '#37474f';
-    const scale      = Math.min(W, H) / 130;
-    const numFont    = numFontOverride || item.fontSize          || stt.fontNumberSize     || Math.max(10, Math.min(24, Math.round(15 * scale)));
-    const occFont    = occFontOverride || item.fontOccupancySize || stt.fontOccupancySize  || Math.max(6,  Math.min(9,  Math.round(7  * scale)));
-    const lblFont    = lblFontOverride || item.fontLabelSize     || stt.fontLabelSize      || Math.max(5,  Math.min(10, Math.round(7  * scale)));
-    const num        = item.number != null ? String(item.number) : '?';
-    const hasLabel   = showLabel && item.label;
+    // Normalize viewBox to NW=56.7 user units wide (20mm ÷ 0.353mm/pt ≈ 56.7pt)
+    // so 1 SVG user unit ≈ 1pt in print — font sizes entered by the user map directly to pt
+    const NW = 56.7;
+    const NH = Math.max(1, +(NW * (H || 1) / (W || 1)).toFixed(1));
+    const scale  = Math.min(NW, NH) / 130;
+    const numFont = numFontOverride || item.fontSize          || stt.fontNumberSize     || Math.max(10, Math.min(24, Math.round(15 * scale)));
+    const occFont = occFontOverride || item.fontOccupancySize || stt.fontOccupancySize  || Math.max(6,  Math.min(9,  Math.round(7  * scale)));
+    const lblFont = lblFontOverride || item.fontLabelSize     || stt.fontLabelSize      || Math.max(7,  Math.min(14, Math.round(10 * scale)));
+    const num     = item.number != null ? String(item.number) : '?';
+    const hasLabel = showLabel && item.label;
     let body = '';
     if (item.shape === 'circle') {
-      const cx = W / 2, cy = H / 2;
-      const r  = Math.min(W, H) / 2 - 4;
-      body += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${bg}" stroke="#888" stroke-width="1.5"/>`;
+      const cx = NW / 2, cy = NH / 2;
+      const r  = Math.min(NW, NH) / 2 - 4;
+      body += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r.toFixed(1)}" fill="${bg}" stroke="#888" stroke-width="1"/>`;
       if (showOccupancy)
-        body += `<text x="${cx}" y="${cy - r + occFont + 1}" text-anchor="middle" font-size="${occFont}" fill="${occuColor}">${occ}/${item.seats}</text>`;
+        body += `<text x="${cx.toFixed(1)}" y="${(cy - r + occFont + 1).toFixed(1)}" text-anchor="middle" font-size="${occFont}" fill="${occuColor}">${occ}/${item.seats}</text>`;
       const numY = hasLabel ? cy - lblFont / 2 : cy;
-      body += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="${numColor}">${UI.escHtml(num)}</text>`;
+      body += `<text x="${cx.toFixed(1)}" y="${numY.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="${numColor}">${UI.escHtml(num)}</text>`;
       if (hasLabel)
-        body += `<text x="${cx}" y="${numY + numFont * 0.6 + lblFont}" text-anchor="middle" font-size="${lblFont}" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
+        body += `<text x="${cx.toFixed(1)}" y="${(numY + numFont * 0.6 + lblFont).toFixed(1)}" text-anchor="middle" font-size="${lblFont}" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
     } else {
-      const p = 3, cx = W / 2, cy = H / 2;
-      body += `<rect x="${p}" y="${p}" width="${W - p * 2}" height="${H - p * 2}" rx="5" fill="${bg}" stroke="#888" stroke-width="1.5"/>`;
+      const p = 3, cx = NW / 2, cy = NH / 2;
+      body += `<rect x="${p}" y="${p}" width="${(NW - p * 2).toFixed(1)}" height="${(NH - p * 2).toFixed(1)}" rx="4" fill="${bg}" stroke="#888" stroke-width="1"/>`;
       if (showOccupancy)
-        body += `<text x="${cx}" y="${p + occFont + 1}" text-anchor="middle" font-size="${occFont}" fill="${occuColor}">${occ}/${item.seats}</text>`;
+        body += `<text x="${cx.toFixed(1)}" y="${(p + occFont + 1).toFixed(1)}" text-anchor="middle" font-size="${occFont}" fill="${occuColor}">${occ}/${item.seats}</text>`;
       const numY = hasLabel ? cy - lblFont / 2 : cy;
-      body += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="${numColor}">${UI.escHtml(num)}</text>`;
+      body += `<text x="${cx.toFixed(1)}" y="${numY.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="${numColor}">${UI.escHtml(num)}</text>`;
       if (hasLabel)
-        body += `<text x="${cx}" y="${numY + numFont * 0.6 + lblFont}" text-anchor="middle" font-size="${lblFont}" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
+        body += `<text x="${cx.toFixed(1)}" y="${(numY + numFont * 0.6 + lblFont).toFixed(1)}" text-anchor="middle" font-size="${lblFont}" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
     }
-    if (item.locked) body += `<text x="${W - 3}" y="14" text-anchor="end" font-size="9">🔒</text>`;
-    return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" width="100%" xmlns="http://www.w3.org/2000/svg">${body}</svg>`;
+    if (item.locked) body += `<text x="${(NW - 3).toFixed(1)}" y="${Math.min(14, NH - 2).toFixed(1)}" text-anchor="end" font-size="9">🔒</text>`;
+    return `<svg viewBox="0 0 ${NW} ${NH}" preserveAspectRatio="xMidYMid meet" width="100%" xmlns="http://www.w3.org/2000/svg">${body}</svg>`;
   }
 
   /* ── Grid of (mini SVG + guest-list table) blocks for diagram+guests mode ── */
