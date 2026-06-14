@@ -46,9 +46,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnRedo')?.addEventListener('click', () => History.redo());
   document.getElementById('eventNameDisplay')?.addEventListener('click', () => Modals.openSettings());
   document.getElementById('btnDistribute')?.addEventListener('click',    () => Canvas.distributeTablesEvenly());
-  document.getElementById('btnRenumber')?.addEventListener('click',      () => Items.renumberTables());
-  document.getElementById('btnRenumberDesc')?.addEventListener('click',  () => Items.renumberTables({ reversed: true }));
-  document.getElementById('btnBulkEdit')?.addEventListener('click',      () => Modals.openBulkEdit());
+  document.getElementById('btnRenumber')?.addEventListener('click',        () => Items.renumberTables());
+  document.getElementById('btnRenumberDesc')?.addEventListener('click',    () => Items.renumberTables({ reversed: true }));
+  document.getElementById('btnNormalizeSizes')?.addEventListener('click',  () => Modals.openNormalizeSizes());
+  document.getElementById('btnBulkEdit')?.addEventListener('click',        () => Modals.openBulkEdit());
 
   /* ── Header dropdowns ── */
   (function initHeaderDropdowns() {

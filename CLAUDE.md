@@ -405,6 +405,25 @@ Triggered by `btnDistribute` (header). Two steps:
 
 Both loops are wrapped in `Guests.startBatch()` / `Guests.endBatch()` to produce a single sidebar re-render.
 
+### Normalize table sizes (`Modals.openNormalizeSizes`)
+
+Triggered by `btnNormalizeSizes` (↔ גודל) in the canvas controls bar. Opens `modalNormalizeSizes`.
+
+**Modal controls:**
+- **`#normalizeSizeRef`** — `<select>` listing all tables sorted by number (shows shape + current dimensions in each option).
+- **`#normalizeSameShape`** — checkbox (checked by default): when checked, only tables of the SAME SHAPE as the reference are resized.
+- **`#normalizeSizePreview`** — live preview text: "N שולחנות יושוו ל-W×H פיקסלים" — updates on every change to the select or checkbox.
+- **`btnConfirmNormalizeSizes`** — applies the resize: calls `State.updateItem(id, { width, height })` for each target, wrapped in `Guests.startBatch()` / `Guests.endBatch()`.
+
+**Key functions in `modals.js`:**
+- `openNormalizeSizes()` — builds the option list, resets `normalizeSameShape` checkbox to `checked` on every open, wires `onchange` listeners (idempotent), calls `_normalizeSizePreview()`, opens modal.
+- `_normalizeSizePreview()` — reads current select value + checkbox, filters tables, updates preview text.
+- `_confirmNormalizeSizes()` — applies size updates, shows toast, closes modal. If the reference table was deleted after the modal was opened, shows a warning toast and closes the modal instead of failing silently.
+
+**Shape labels**: `_shapeLabel` / `_shapeLabelPlur` use `'עגול'` / `'עגולים'` (consistent with the rest of the codebase — not `'עיגול'`).
+
+**Important**: only `width` and `height` are updated — shape, seats, label, color, and position are untouched.
+
 ## Auto-Assign Improvements
 
 `AutoAssign.run({ allowSplit, keepExisting, respectProximity, createTables })`:
