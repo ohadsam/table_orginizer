@@ -47,6 +47,61 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnDistribute')?.addEventListener('click', () => Canvas.distributeTablesEvenly());
   document.getElementById('btnRenumber')?.addEventListener('click',   () => Items.renumberTables());
 
+  /* ── Header dropdowns ── */
+  (function initHeaderDropdowns() {
+    const pairs = [
+      { toggleId: 'btnDropdownExport', menuId: 'menuDropdownExport' },
+      { toggleId: 'btnDropdownPrint',  menuId: 'menuDropdownPrint'  },
+    ];
+
+    function closeAll() {
+      pairs.forEach(({ toggleId, menuId }) => {
+        document.getElementById(toggleId)?.classList.remove('dd-open');
+        document.getElementById(menuId)?.classList.remove('dd-open');
+      });
+    }
+
+    pairs.forEach(({ toggleId, menuId }) => {
+      const toggle = document.getElementById(toggleId);
+      const menu   = document.getElementById(menuId);
+      if (!toggle || !menu) return;
+
+      toggle.addEventListener('click', e => {
+        e.stopPropagation();
+        const wasOpen = menu.classList.contains('dd-open');
+        closeAll();
+        if (!wasOpen) {
+          // Position menu using fixed coords (avoids overflow:hidden clipping on mobile)
+          const headerRect = document.querySelector('.app-header').getBoundingClientRect();
+          const btnRect    = toggle.getBoundingClientRect();
+          const menuW      = 260;
+          let left = btnRect.left;
+          if (left + menuW > window.innerWidth - 8) left = window.innerWidth - menuW - 8;
+          if (left < 8) left = 8;
+          menu.style.top  = headerRect.bottom + 'px';
+          menu.style.left = left + 'px';
+          toggle.classList.add('dd-open');
+          menu.classList.add('dd-open');
+        }
+      });
+
+      // Clicking a menu item closes the dropdown (event bubbles up to this listener)
+      menu.addEventListener('click', () => closeAll());
+    });
+
+    // Close on any outside click
+    document.addEventListener('click', () => closeAll());
+
+    // Close on Escape
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeAll();
+    });
+
+    // Close when window resizes or header-actions scrolls (menu position becomes stale)
+    window.addEventListener('resize', () => closeAll(), { passive: true });
+    document.querySelector('.header-actions')?.addEventListener('scroll', () => closeAll(), { passive: true });
+  })();
+
   /* ── Layout Options ── */
   document.getElementById('btnSaveLayout')?.addEventListener('click', () => Modals.openSaveLayout());
   // btnDeleteLayout is wired in modals.js init() (needs access to _activeLayoutId)

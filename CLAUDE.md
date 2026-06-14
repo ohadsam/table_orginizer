@@ -164,11 +164,46 @@ Every canvas item (table, dancefloor, dj, door, shape) can have a custom color s
 - **Guest sidebar cards**: tables with a custom color show a colored `border-inline-end` on every guest card assigned to that table, and the table-number badge background also uses the custom color (via inline `style="background:COLOR"` on the `.guest-table-badge` span).
 - **Print output**: table card borders and header backgrounds use the custom color. Guest list rows use `border-inline-end` on the table color column.
 
+## Header Dropdowns
+
+The header-actions area has two grouped dropdown menus implemented as `.header-dropdown` divs:
+
+### 📦 Export/Import dropdown (`dropdownExport`)
+Toggle: `btnDropdownExport` | Menu: `menuDropdownExport`
+
+| Button ID | Action |
+|-----------|--------|
+| `btnExport` | `Storage.exportProjectJSON()` |
+| `btnImport` | triggers `importFileInput.click()` |
+| `btnExportCsv` | `Storage.exportCSV()` |
+| `btnExportLayouts` | `Storage.exportLayoutOptions()` |
+| `btnImportLayouts` | triggers `importLayoutsInput.click()` |
+
+### 🖨️ Print dropdown (`dropdownPrint`)
+Toggle: `btnDropdownPrint` | Menu: `menuDropdownPrint`
+
+| Button ID | Action |
+|-----------|--------|
+| `btnPrintPlan` | `Print.printPlan()` |
+| `btnPrintList` | `Print.printList()` |
+| `btnPrintAll` | `Print.printAll()` |
+| `btnPrintFull` | `Print.printFull()` |
+| `btnPrintCards` | `Modals.openPrintCards()` |
+
+### Dropdown behavior (app.js `initHeaderDropdowns`)
+- `position: fixed` menu positioned via JS on each open (`getBoundingClientRect` of header and toggle button)
+- `dd-open` class on both toggle and menu when open
+- Closes on: outside click, menu item click (event bubbles), Escape key
+- Toggle has CSS `::after { content: ' ▾' }` for dropdown indicator
+
+### Layout Options row (header-center)
+`#layoutOptionsRow` contains only: select dropdown + 💾 `btnSaveLayout` + 🗑 `btnDeleteLayout`. The export/import layout buttons were moved to the main export dropdown.
+
 ## Button Tooltips
 
 All buttons have `title` attributes with a descriptive label and action. Key examples:
 
-- Header: `btnExport` → "ייצוא נתוני האירוע לקובץ JSON", `btnAutoAssign` → "פתח חלון שיבוץ אוטומטי — שיבוץ מוזמנים לשולחנות לפי תגיות"
+- Header dropdowns: `btnDropdownExport` → "תפריט ייצוא וייבוא נתונים", `btnDropdownPrint` → "תפריט הדפסה — בחר סוג הדפסה"
 - Guest cards: "מצא שולחן פנוי עבור מוזמן זה" (🔍), "עריכת פרטי המוזמן" (✏️), "מחיקת המוזמן מהרשימה" (🗑)
 - Canvas resize handle: "גרור לשינוי גודל הפריט"
 
@@ -405,8 +440,8 @@ Header center (`#layoutOptionsRow`):
 - `#selectLayoutOption` — `<select>` showing "── פריסה נוכחית ──" + all named options. Value `""` = no active option (working state); non-empty = ID of loaded option.
 - `#btnSaveLayout` (💾) — opens `modalSaveLayout`. If a name matching an existing option is entered → updates that option; otherwise creates new.
 - `#btnDeleteLayout` (🗑) — visible only when `_activeLayoutId` is set; confirms then calls `State.deleteLayoutOption`.
-- `#btnExportLayouts` (📤) — calls `Storage.exportLayoutOptions()`.
-- `#btnImportLayouts` (📥) — opens file picker → `modalImportLayouts` → merge or replace.
+- `#btnExportLayouts` (📐) — moved to the 📦 Export/Import header dropdown; calls `Storage.exportLayoutOptions()`.
+- `#btnImportLayouts` (📐) — moved to the 📦 Export/Import header dropdown; opens file picker → `modalImportLayouts` → merge or replace.
 
 ### `_activeLayoutId` (modals.js private)
 
