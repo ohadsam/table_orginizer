@@ -688,6 +688,7 @@ When ≥2 tables are selected and the context menu opens, `ctxBulkEditSep` and `
 | Element | Field | Notes |
 |---------|-------|-------|
 | `chkBulkSeats` + `bulkEditSeats` | `seats` | Clamped 1–50 |
+| `chkBulkShape` + `#bulkShapeSelector .shape-btn` | `shape` | `circle` / `rectangle` / `square`; local `_bulkShape` var tracks active selection; shape buttons pre-filled from first selected table |
 | `chkBulkFont` + `bulkEditFontSize` | `fontSize` | null if empty (auto); table number font |
 | `chkBulkLabelFont` + `bulkEditLabelFontSize` | `fontLabelSize` | null if empty (auto); table label font |
 | `chkBulkGuestFont` + `bulkEditGuestFontSize` | `fontGuestSize` | null if empty (auto); guest names font |

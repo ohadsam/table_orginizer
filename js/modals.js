@@ -1584,12 +1584,12 @@ const Modals = (() => {
 
     // Pre-fill from first table
     const first = State.getItem(ids[0]);
-    const seatsEl     = document.getElementById('bulkEditSeats');
-    const fontEl      = document.getElementById('bulkEditFontSize');
-    const lblFontEl   = document.getElementById('bulkEditLabelFontSize');
-    const gstFontEl   = document.getElementById('bulkEditGuestFontSize');
-    const occFontEl   = document.getElementById('bulkEditOccuFontSize');
-    const colorEl     = document.getElementById('bulkEditColor');
+    const seatsEl   = document.getElementById('bulkEditSeats');
+    const fontEl    = document.getElementById('bulkEditFontSize');
+    const lblFontEl = document.getElementById('bulkEditLabelFontSize');
+    const gstFontEl = document.getElementById('bulkEditGuestFontSize');
+    const occFontEl = document.getElementById('bulkEditOccuFontSize');
+    const colorEl   = document.getElementById('bulkEditColor');
     if (seatsEl)   seatsEl.value   = first.seats ?? 10;
     if (fontEl)    fontEl.value    = first.fontSize      || '';
     if (lblFontEl) lblFontEl.value = first.fontLabelSize || '';
@@ -1597,8 +1597,24 @@ const Modals = (() => {
     if (occFontEl) occFontEl.value = first.fontOccupancySize || '';
     if (colorEl)   colorEl.value   = first.color || '#e3f2fd';
 
+    // Shape selector
+    let _bulkShape = first.shape || 'circle';
+    const shapeBtns = document.querySelectorAll('#bulkShapeSelector .shape-btn');
+    function syncBulkShapeBtns(s) {
+      shapeBtns.forEach(b => b.classList.toggle('active', b.dataset.shape === s));
+    }
+    syncBulkShapeBtns(_bulkShape);
+    shapeBtns.forEach(b => {
+      b.onclick = () => {
+        _bulkShape = b.dataset.shape;
+        syncBulkShapeBtns(_bulkShape);
+        const chkShape = document.getElementById('chkBulkShape');
+        if (chkShape) chkShape.checked = true;
+      };
+    });
+
     // Reset all checkboxes to unchecked
-    ['chkBulkSeats','chkBulkFont','chkBulkLabelFont','chkBulkGuestFont','chkBulkOccuFont','chkBulkColor','chkBulkResetColor'].forEach(id => {
+    ['chkBulkSeats','chkBulkShape','chkBulkFont','chkBulkLabelFont','chkBulkGuestFont','chkBulkOccuFont','chkBulkColor','chkBulkResetColor'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.checked = false;
     });
@@ -1615,6 +1631,7 @@ const Modals = (() => {
     if (saveBtn) {
       saveBtn.onclick = () => {
         const applySeats      = document.getElementById('chkBulkSeats')?.checked;
+        const applyShape      = document.getElementById('chkBulkShape')?.checked;
         const applyFont       = document.getElementById('chkBulkFont')?.checked;
         const applyLabelFont  = document.getElementById('chkBulkLabelFont')?.checked;
         const applyGuestFont  = document.getElementById('chkBulkGuestFont')?.checked;
@@ -1622,30 +1639,28 @@ const Modals = (() => {
         const applyColor      = document.getElementById('chkBulkColor')?.checked;
         const resetColor      = document.getElementById('chkBulkResetColor')?.checked;
 
-        if (!applySeats && !applyFont && !applyLabelFont && !applyGuestFont && !applyOccuFont && !applyColor && !resetColor) {
+        if (!applySeats && !applyShape && !applyFont && !applyLabelFont && !applyGuestFont && !applyOccuFont && !applyColor && !resetColor) {
           UI.toast('לא נבחר שום שדה לעדכון', 'info', 1800);
           return;
         }
 
-        const seats     = applySeats     ? Math.max(1, Math.min(50, parseInt(seatsEl?.value) || 10)) : null;
-        const font      = applyFont      ? (parseInt(fontEl?.value) || null) : undefined;
-        const lblFontEl = document.getElementById('bulkEditLabelFontSize');
-        const gstFontEl = document.getElementById('bulkEditGuestFontSize');
-        const occFontEl = document.getElementById('bulkEditOccuFontSize');
-        const lblFont   = applyLabelFont ? (parseInt(lblFontEl?.value) || null) : undefined;
-        const gstFont   = applyGuestFont ? (parseInt(gstFontEl?.value) || null) : undefined;
-        const occFont   = applyOccuFont  ? (parseInt(occFontEl?.value) || null) : undefined;
+        const seats   = applySeats ? Math.max(1, Math.min(50, parseInt(seatsEl?.value) || 10)) : null;
+        const font    = applyFont      ? (parseInt(fontEl?.value)    || null) : undefined;
+        const lblFont = applyLabelFont ? (parseInt(lblFontEl?.value) || null) : undefined;
+        const gstFont = applyGuestFont ? (parseInt(gstFontEl?.value) || null) : undefined;
+        const occFont = applyOccuFont  ? (parseInt(occFontEl?.value) || null) : undefined;
 
         Guests.startBatch();
         ids.forEach(id => {
           const patch = {};
-          if (applySeats)      patch.seats            = seats;
-          if (applyFont)       patch.fontSize         = (font === null || font < 1) ? null : font;
-          if (applyLabelFont)  patch.fontLabelSize    = (lblFont === null || lblFont < 1) ? null : lblFont;
-          if (applyGuestFont)  patch.fontGuestSize    = (gstFont === null || gstFont < 1) ? null : gstFont;
+          if (applySeats)      patch.seats             = seats;
+          if (applyShape)      patch.shape             = _bulkShape;
+          if (applyFont)       patch.fontSize          = (font === null || font < 1) ? null : font;
+          if (applyLabelFont)  patch.fontLabelSize     = (lblFont === null || lblFont < 1) ? null : lblFont;
+          if (applyGuestFont)  patch.fontGuestSize     = (gstFont === null || gstFont < 1) ? null : gstFont;
           if (applyOccuFont)   patch.fontOccupancySize = (occFont === null || occFont < 1) ? null : occFont;
-          if (applyColor)      patch.color            = colorEl?.value || null;
-          else if (resetColor) patch.color            = null;
+          if (applyColor)      patch.color             = colorEl?.value || null;
+          else if (resetColor) patch.color             = null;
           if (Object.keys(patch).length) State.updateItem(id, patch);
         });
         Guests.endBatch();
