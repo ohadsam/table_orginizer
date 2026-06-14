@@ -18,7 +18,8 @@ const Drag = (() => {
       startPos = { x: item.x, y: item.y };
       el.setPointerCapture(e.pointerId);
       el.classList.add('dragging');
-      if (!e.ctrlKey && !e.metaKey) Items.selectItem(itemId);
+      if (e.ctrlKey || e.metaKey) Items.toggleSelectItem(itemId);
+      else Items.selectItem(itemId);
     });
 
     el.addEventListener('pointermove', e => {
