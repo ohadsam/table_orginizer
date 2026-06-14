@@ -1210,10 +1210,58 @@ const Modals = (() => {
       UI.closeModal('modalAutoAssignResult');
     });
 
-    State.on('eventChanged',   updateEventHeader);
-    State.on('dataLoaded',     updateEventHeader);
-    State.on('presetsChanged', renderTablePresets);
+    State.on('eventChanged',        updateEventHeader);
+    State.on('dataLoaded',          updateEventHeader);
+    State.on('presetsChanged',      renderTablePresets);
+    State.on('layoutOptionsChanged', () => {
+      // Auto-clear active ID if its option was deleted
+      if (_activeLayoutId && !State.getLayoutOptions().find(o => o.id === _activeLayoutId))
+        _activeLayoutId = null;
+      renderLayoutDropdown();
+    });
+    State.on('dataLoaded',          renderLayoutDropdown);
+    State.on('eventSwitched',       () => { _activeLayoutId = null; renderLayoutDropdown(); });
     updateEventHeader();
+    renderLayoutDropdown();
+
+    // Delete layout (handler here so _activeLayoutId is in scope)
+    document.getElementById('btnDeleteLayout')?.addEventListener('click', () => {
+      if (!_activeLayoutId) return;
+      const name = State.getLayoutOptions().find(o => o.id === _activeLayoutId)?.name || _activeLayoutId;
+      if (!UI.confirmDialog(`למחוק את פריסת ההושבה "${name}"?`)) return;
+      State.deleteLayoutOption(_activeLayoutId);  // emits layoutOptionsChanged → auto-clears _activeLayoutId + re-renders
+      UI.toast(`הפריסה "${name}" נמחקה`, 'info');
+    });
+
+    // Save layout modal
+    document.getElementById('btnConfirmSaveLayout')?.addEventListener('click', confirmSaveLayout);
+    document.getElementById('layoutOptionName')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') confirmSaveLayout();
+    });
+
+    // Layout dropdown change: load selected option
+    document.getElementById('selectLayoutOption')?.addEventListener('change', e => {
+      const id   = e.target.value;
+      const prev = _activeLayoutId;
+      if (!id) {
+        _activeLayoutId = null;
+        renderLayoutDropdown();
+        return;
+      }
+      const optName = State.getLayoutOptions().find(o => o.id === id)?.name || id;
+      if (!UI.confirmDialog(`לטעון את פריסת ההושבה "${optName}"?\nהמצב הנוכחי יוחלף.`)) {
+        e.target.value = prev || '';
+        return;
+      }
+      _activeLayoutId = id;          // set before load so dataLoaded → renderLayoutDropdown sees the right value
+      if (!State.loadLayoutOption(id)) {
+        _activeLayoutId = prev;      // revert on failure
+        e.target.value  = prev || '';
+        renderLayoutDropdown();      // re-sync dropdown after revert
+      } else {
+        requestAnimationFrame(() => Canvas.fitAll());
+      }
+    });
   }
 
   /* ── Print Cards modal ── */
@@ -1460,15 +1508,173 @@ const Modals = (() => {
     UI.openModal('modalPrintCards');
   }
 
+  /* ── Print Diagram modal ── */
+  function openPrintDiagram() {
+    const chk  = document.getElementById('chkDiagramShowGuests');
+    const opts = document.getElementById('diagramGuestOpts');
+    if (chk) {
+      chk.onchange = () => { if (opts) opts.style.display = chk.checked ? '' : 'none'; };
+    }
+    const btn = document.getElementById('btnDoPrintDiagram');
+    if (btn) {
+      btn.onclick = () => {
+        UI.closeModal('modalPrintDiagram');
+        const showGuests    = chk?.checked || false;
+        const fontSize      = parseInt(document.getElementById('inputDiagramGuestFont')?.value)    || 8;
+        const cols          = parseInt(document.getElementById('selectDiagramCols')?.value)         || 4;
+        const showLabel     = document.getElementById('chkDiagramShowLabel')?.checked     !== false;
+        const showOccupancy = document.getElementById('chkDiagramShowOccupancy')?.checked !== false;
+        const svgNumFont    = Math.max(0, Math.min(24, parseInt(document.getElementById('inputDiagramSvgNumFont')?.value) || 0));
+        const svgLblFont    = Math.max(0, Math.min(14, parseInt(document.getElementById('inputDiagramSvgLblFont')?.value) || 0));
+        const svgOccFont    = Math.max(0, Math.min(9,  parseInt(document.getElementById('inputDiagramSvgOccFont')?.value) || 0));
+        Print.printTablesDiagram({ showGuestList: showGuests, guestFontSize: fontSize, cols, showLabel, showOccupancy, svgNumFont, svgLblFont, svgOccFont });
+      };
+    }
+    UI.openModal('modalPrintDiagram');
+  }
+
+  /* ── Bulk Edit Tables modal ── */
+  function openBulkEdit() {
+    const ids = Items.getSelectedIds().filter(id => State.getItem(id)?.type === 'table');
+    if (!ids.length) { UI.toast('לא נבחרו שולחנות לעריכה', 'info', 1800); return; }
+
+    document.getElementById('bulkEditCount').textContent = ids.length;
+
+    // Pre-fill from first table
+    const first = State.getItem(ids[0]);
+    const seatsEl   = document.getElementById('bulkEditSeats');
+    const fontEl    = document.getElementById('bulkEditFontSize');
+    const lblFontEl = document.getElementById('bulkEditLabelFontSize');
+    const gstFontEl = document.getElementById('bulkEditGuestFontSize');
+    const occFontEl = document.getElementById('bulkEditOccuFontSize');
+    const colorEl   = document.getElementById('bulkEditColor');
+    if (seatsEl)   seatsEl.value   = first.seats ?? 10;
+    if (fontEl)    fontEl.value    = first.fontSize      || '';
+    if (lblFontEl) lblFontEl.value = first.fontLabelSize || '';
+    if (gstFontEl) gstFontEl.value = first.fontGuestSize || '';
+    if (occFontEl) occFontEl.value = first.fontOccupancySize || '';
+    if (colorEl)   colorEl.value   = first.color || '#e3f2fd';
+
+    // Shape selector
+    let _bulkShape = first.shape || 'circle';
+    const shapeBtns = document.querySelectorAll('#bulkShapeSelector .shape-btn');
+    function syncBulkShapeBtns(s) {
+      shapeBtns.forEach(b => b.classList.toggle('active', b.dataset.shape === s));
+    }
+    syncBulkShapeBtns(_bulkShape);
+    shapeBtns.forEach(b => {
+      b.onclick = () => {
+        _bulkShape = b.dataset.shape;
+        syncBulkShapeBtns(_bulkShape);
+        const chkShape = document.getElementById('chkBulkShape');
+        if (chkShape) chkShape.checked = true;
+      };
+    });
+
+    // Reset all checkboxes to unchecked
+    ['chkBulkSeats','chkBulkShape','chkBulkFont','chkBulkLabelFont','chkBulkGuestFont','chkBulkOccuFont','chkBulkColor','chkBulkResetColor'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.checked = false;
+    });
+
+    // Mutual exclusion: color set vs. reset
+    const chkColor      = document.getElementById('chkBulkColor');
+    const chkResetColor = document.getElementById('chkBulkResetColor');
+    if (chkColor && chkResetColor) {
+      chkColor.onchange      = () => { if (chkColor.checked)      chkResetColor.checked = false; };
+      chkResetColor.onchange = () => { if (chkResetColor.checked) chkColor.checked      = false; };
+    }
+
+    const saveBtn = document.getElementById('btnSaveBulkEdit');
+    if (saveBtn) {
+      saveBtn.onclick = () => {
+        const applySeats      = document.getElementById('chkBulkSeats')?.checked;
+        const applyShape      = document.getElementById('chkBulkShape')?.checked;
+        const applyFont       = document.getElementById('chkBulkFont')?.checked;
+        const applyLabelFont  = document.getElementById('chkBulkLabelFont')?.checked;
+        const applyGuestFont  = document.getElementById('chkBulkGuestFont')?.checked;
+        const applyOccuFont   = document.getElementById('chkBulkOccuFont')?.checked;
+        const applyColor      = document.getElementById('chkBulkColor')?.checked;
+        const resetColor      = document.getElementById('chkBulkResetColor')?.checked;
+
+        if (!applySeats && !applyShape && !applyFont && !applyLabelFont && !applyGuestFont && !applyOccuFont && !applyColor && !resetColor) {
+          UI.toast('לא נבחר שום שדה לעדכון', 'info', 1800);
+          return;
+        }
+
+        const seats   = applySeats ? Math.max(1, Math.min(50, parseInt(seatsEl?.value) || 10)) : null;
+        const font    = applyFont      ? (parseInt(fontEl?.value)    || null) : undefined;
+        const lblFont = applyLabelFont ? (parseInt(lblFontEl?.value) || null) : undefined;
+        const gstFont = applyGuestFont ? (parseInt(gstFontEl?.value) || null) : undefined;
+        const occFont = applyOccuFont  ? (parseInt(occFontEl?.value) || null) : undefined;
+
+        Guests.startBatch();
+        ids.forEach(id => {
+          const patch = {};
+          if (applySeats)      patch.seats             = seats;
+          if (applyShape)      patch.shape             = _bulkShape;
+          if (applyFont)       patch.fontSize          = (font === null || font < 1) ? null : font;
+          if (applyLabelFont)  patch.fontLabelSize     = (lblFont === null || lblFont < 1) ? null : lblFont;
+          if (applyGuestFont)  patch.fontGuestSize     = (gstFont === null || gstFont < 1) ? null : gstFont;
+          if (applyOccuFont)   patch.fontOccupancySize = (occFont === null || occFont < 1) ? null : occFont;
+          if (applyColor)      patch.color             = colorEl?.value || null;
+          else if (resetColor) patch.color             = null;
+          if (Object.keys(patch).length) State.updateItem(id, patch);
+        });
+        Guests.endBatch();
+
+        UI.toast(`עודכנו ${ids.length} שולחנות ✓`, 'success', 1800);
+        UI.closeModal('modalBulkEdit');
+      };
+    }
+
+    UI.openModal('modalBulkEdit');
+  }
+
+  /* ── Layout Options ── */
+  let _activeLayoutId = null;
+
+  function renderLayoutDropdown() {
+    const sel = document.getElementById('selectLayoutOption');
+    if (!sel) return;
+    const opts = State.getLayoutOptions();
+    sel.innerHTML = `<option value="">── פריסה נוכחית ──</option>` +
+      opts.map(o => `<option value="${UI.escHtml(o.id)}">${UI.escHtml(o.name)}</option>`).join('');
+    sel.value = _activeLayoutId || '';
+    const delBtn = document.getElementById('btnDeleteLayout');
+    if (delBtn) delBtn.style.display = _activeLayoutId ? '' : 'none';
+  }
+
+  function openSaveLayout() {
+    const opts   = State.getLayoutOptions();
+    const active = opts.find(o => o.id === _activeLayoutId);
+    document.getElementById('layoutOptionName').value = active?.name || '';
+    UI.openModal('modalSaveLayout');
+    setTimeout(() => document.getElementById('layoutOptionName')?.focus(), 120);
+  }
+
+  function confirmSaveLayout() {
+    const name = document.getElementById('layoutOptionName').value.trim();
+    if (!name) { UI.toast('נא להזין שם לפריסה', 'warning'); return; }
+    const opts     = State.getLayoutOptions();
+    const existing = opts.find(o => o.name === name);
+    const savedId  = State.saveLayoutOption(name, existing?.id || _activeLayoutId || null);
+    _activeLayoutId = savedId;
+    renderLayoutDropdown();
+    UI.closeModal('modalSaveLayout');
+    UI.toast(existing ? `הפריסה "${name}" עודכנה ✓` : `הפריסה "${name}" נשמרה ✓`, 'success', 1800);
+  }
+
   return {
     init,
     openAddTable, openEditTable,
     openEditItem, openAddGuest, openEditGuest,
     openAddShape, openSettings, openAutoAssign,
     openFindTable, openItemDetails,
-    openPrintCards,
+    openPrintCards, openPrintDiagram, openBulkEdit,
     handleGuestDrop, updateEventHeader,
     renderTagsManager, renderPresetManager, renderTablePresets,
-    renderEventsManager, showAutoAssignResult
+    renderEventsManager, showAutoAssignResult,
+    renderLayoutDropdown, openSaveLayout
   };
 })();

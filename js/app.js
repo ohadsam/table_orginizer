@@ -47,6 +47,29 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnDistribute')?.addEventListener('click', () => Canvas.distributeTablesEvenly());
   document.getElementById('btnRenumber')?.addEventListener('click',   () => Items.renumberTables());
 
+  /* ── Layout Options ── */
+  document.getElementById('btnSaveLayout')?.addEventListener('click', () => Modals.openSaveLayout());
+  // btnDeleteLayout is wired in modals.js init() (needs access to _activeLayoutId)
+  document.getElementById('btnExportLayouts')?.addEventListener('click', () => Storage.exportLayoutOptions());
+  document.getElementById('btnImportLayouts')?.addEventListener('click', () => {
+    document.getElementById('importLayoutsInput')?.click();
+  });
+  let _pendingLayoutsFile = null;
+  document.getElementById('importLayoutsInput')?.addEventListener('change', e => {
+    const file = e.target.files[0]; if (!file) return;
+    _pendingLayoutsFile = file;
+    UI.openModal('modalImportLayouts');
+    e.target.value = '';
+  });
+  document.getElementById('btnImportLayoutsMerge')?.addEventListener('click', async () => {
+    try { if (_pendingLayoutsFile) await Storage.importLayoutOptions(_pendingLayoutsFile, true); }
+    finally { _pendingLayoutsFile = null; UI.closeModal('modalImportLayouts'); }
+  });
+  document.getElementById('btnImportLayoutsReplace')?.addEventListener('click', async () => {
+    try { if (_pendingLayoutsFile) await Storage.importLayoutOptions(_pendingLayoutsFile, false); }
+    finally { _pendingLayoutsFile = null; UI.closeModal('modalImportLayouts'); }
+  });
+
   /* ── Guest export / import ── */
   document.getElementById('btnExportGuests')?.addEventListener('click', () => Storage.exportGuestsJSON());
   document.getElementById('btnImportGuests')?.addEventListener('click', () => document.getElementById('importGuestsInput')?.click());

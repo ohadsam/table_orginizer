@@ -58,9 +58,10 @@ State.emit('eventName', data)     // publish (also fires 'change')
 | `guestUpdated` | guest | state.js | guests.js (render), items.js (refresh table) |
 | `guestRemoved` | `{id, tableId}` | state.js | guests.js (render), items.js (refresh table), nav.js (refreshDot) |
 | `guestAssigned` | `{guestId, tableId, prevTableId}` | state.js | guests.js (render), items.js (refresh both tables), nav.js (refreshDot both) |
-| `dataLoaded` | — | state.js | items.js (renderAll), guests.js (renderTagFilter+render), modals.js (updateEventHeader), nav.js (renderAll) |
+| `dataLoaded` | — | state.js | items.js (renderAll), guests.js (renderTagFilter+render), modals.js (updateEventHeader+renderLayoutDropdown), nav.js (renderAll) |
 | `change` | `{evt, data}` | state.js (auto) | storage.js (save), app.js (updateStats), history.js (scheduleCapture) |
-| `eventSwitched` | — | storage.js | history.js (reset — clears undo/redo stacks) |
+| `eventSwitched` | — | storage.js | history.js (reset — clears undo/redo stacks), modals.js (reset _activeLayoutId) |
+| `layoutOptionsChanged` | `{id}` | state.js | modals.js (renderLayoutDropdown, auto-clear stale _activeLayoutId) |
 
 **CRITICAL**: `change` is fired automatically after every other event. Never emit `change` directly.
 
@@ -368,6 +369,60 @@ Both loops are wrapped in `Guests.startBatch()` / `Guests.endBatch()` to produce
 - `createTables: true` — calls `autoCreateTables(pending)` to create enough new tables to cover the capacity deficit before assigning. Uses the first table preset if available, otherwise `defaultFriendsSeats`/`defaultShape` from settings.
 - Returns `{ assigned, failed, splitsCreated, tablesCreated }`. A result modal (`modalAutoAssignResult`) shows these stats after each run. The modal is skipped if all four values are zero (run bailed early with a toast).
 - `baseY` for new tables uses `items.reduce((acc, i) => Math.max(acc, ...), 220)` rather than `Math.max(...items.map(...))` to avoid `-Infinity` on an empty items array.
+
+## Layout Options (Multiple Seating Arrangements)
+
+Each event can have multiple named seating arrangements (layout options). The live state (items, guest assignments, canvas view) is always the working copy. Layout options are named snapshots the user can save and restore.
+
+### Data structure
+
+`_state.layoutOptions` — array stored alongside items/guests/canvas in every serialized state. Each option:
+```javascript
+{
+  id:          'opt_1750000000000',   // 'opt_' + Date.now()
+  name:        'סידור א׳',
+  items:       [...],                 // deep copy of state.items at save time
+  assignments: { 'guest_1': 'item_2', 'guest_3': null, ... }, // all guest → tableId mappings
+  canvas:      { zoom, panX, panY }
+}
+```
+
+Layout options are included automatically in all event JSON exports/imports (via `State.serialize()` / `State.deserialize()`).
+
+### State API
+
+| Method | Description |
+|--------|-------------|
+| `State.saveLayoutOption(name, id?)` | Snapshot current items + assignments + canvas. If `id` is provided, updates that option; otherwise creates new with `'opt_'+Date.now()`. Emits `layoutOptionsChanged`. Returns the saved option's ID. |
+| `State.loadLayoutOption(id)` | Replaces state items + guest assignments + canvas from snapshot. Emits `dataLoaded`. Returns `true`/`false`. |
+| `State.deleteLayoutOption(id)` | Removes option from array. Emits `layoutOptionsChanged`. |
+| `State.getLayoutOptions()` | Returns `[{id, name}]` (no full snapshot data). |
+| `State.setLayoutOptions(arr)` | Replaces entire `layoutOptions` array; used by import. Emits `layoutOptionsChanged`. |
+
+### UI
+
+Header center (`#layoutOptionsRow`):
+- `#selectLayoutOption` — `<select>` showing "── פריסה נוכחית ──" + all named options. Value `""` = no active option (working state); non-empty = ID of loaded option.
+- `#btnSaveLayout` (💾) — opens `modalSaveLayout`. If a name matching an existing option is entered → updates that option; otherwise creates new.
+- `#btnDeleteLayout` (🗑) — visible only when `_activeLayoutId` is set; confirms then calls `State.deleteLayoutOption`.
+- `#btnExportLayouts` (📤) — calls `Storage.exportLayoutOptions()`.
+- `#btnImportLayouts` (📥) — opens file picker → `modalImportLayouts` → merge or replace.
+
+### `_activeLayoutId` (modals.js private)
+
+Tracks which option was last loaded. Set to the option's ID after loading; reset to `null` when user selects "פריסה נוכחית" or when the active option is deleted (auto-corrected in the `layoutOptionsChanged` listener). Used by:
+- `renderLayoutDropdown()` — sets `select.value` and shows/hides `btnDeleteLayout`
+- `openSaveLayout()` — pre-fills the name input with the active option's name
+
+### Dedicated export/import (Storage)
+
+`Storage.exportLayoutOptions()` — downloads `{ version:1, exportedAt, layoutOptions: [...] }` as JSON. Warns if no options exist.
+
+`Storage.importLayoutOptions(file, merge)` — parses file; if `merge=true`, adds new options (skips duplicate IDs); if `merge=false`, replaces all options via `State.setLayoutOptions()`. Calls `saveNow()` after import.
+
+### Key invariant
+
+`_activeLayoutId` must be set BEFORE calling `State.loadLayoutOption()` so that the synchronous `dataLoaded` → `renderLayoutDropdown()` call sees the new value. The change handler in modals.js follows this order.
 
 ## Serialization
 
