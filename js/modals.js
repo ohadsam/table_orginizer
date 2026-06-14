@@ -1748,7 +1748,8 @@ const Modals = (() => {
     if (!name) { UI.toast('נא להזין שם לפריסה', 'warning'); return; }
     const opts     = State.getLayoutOptions();
     const existing = opts.find(o => o.name === name);
-    const savedId  = State.saveLayoutOption(name, existing?.id || _activeLayoutId || null);
+    const targetId = existing ? existing.id : (_activeLayoutId || null);
+    const savedId  = State.saveLayoutOption(name, targetId);
     _activeLayoutId = savedId;
     renderLayoutDropdown();
     UI.closeModal('modalSaveLayout');

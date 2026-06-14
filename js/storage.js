@@ -407,7 +407,11 @@ const Storage = (() => {
             State.setLayoutOptions([...State.get().layoutOptions, ...toAdd]);
           }
           saveNow();
-          UI.toast(`יובאו ${addedCount} פריסות הושבה ✓`, 'success');
+          if (merge && addedCount === 0) {
+            UI.toast('כל הפריסות כבר קיימות — לא נוספו פריסות חדשות', 'info');
+          } else {
+            UI.toast(`יובאו ${addedCount} פריסות הושבה ✓`, 'success');
+          }
           resolve(data);
         } catch(err) { UI.toast('שגיאה בקריאת קובץ הפריסות', 'error'); reject(err); }
       };
