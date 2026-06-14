@@ -840,7 +840,8 @@ ${buildGuestTableHTML(sorted)}`;
       if (hasLabel)
         body += `<text x="${cx.toFixed(1)}" y="${(numY + numFont * 0.6 + lblFont).toFixed(1)}" text-anchor="middle" font-size="${lblFont}" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
     }
-    if (item.locked) body += `<text x="${(NW - 3).toFixed(1)}" y="${Math.min(14, NH - 2).toFixed(1)}" text-anchor="end" font-size="9">🔒</text>`;
+    if (item.locked)        body += `<text x="${(NW - 3).toFixed(1)}" y="${Math.min(14, NH - 2).toFixed(1)}" text-anchor="end" font-size="9">🔒</text>`;
+    if (item.numberLocked)  body += `<text x="3" y="${Math.min(13, NH - 3).toFixed(1)}" text-anchor="start" font-size="8" font-weight="700" fill="#7e57c2">#</text>`;
     return `<svg viewBox="0 0 ${NW} ${NH}" preserveAspectRatio="xMidYMid meet" width="100%" xmlns="http://www.w3.org/2000/svg">${body}</svg>`;
   }
 

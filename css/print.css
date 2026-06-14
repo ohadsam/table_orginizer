@@ -13,6 +13,9 @@
   #btnMobileSidebar,
   .modal-overlay,
   .dropdown-menu,
+  .item-ctx-menu,
+  .table-hover-tooltip,
+  .nav-item-tooltip,
   .app-layout { display: none !important; }
 
   /* Show correct print area based on mode */

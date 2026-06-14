@@ -1744,11 +1744,15 @@ const Modals = (() => {
   }
 
   function confirmSaveLayout() {
-    const name = document.getElementById('layoutOptionName').value.trim();
+    const name = document.getElementById('layoutOptionName')?.value.trim();
     if (!name) { UI.toast('נא להזין שם לפריסה', 'warning'); return; }
     const opts     = State.getLayoutOptions();
     const existing = opts.find(o => o.name === name);
-    const targetId = existing ? existing.id : (_activeLayoutId || null);
+    // Only reuse an existing option's ID when the user typed that option's exact name.
+    // When the name doesn't match any option, always create a new one (pass null).
+    // Passing _activeLayoutId here would silently rename the active layout instead of
+    // creating a second layout, which is never the intended behavior.
+    const targetId = existing ? existing.id : null;
     const savedId  = State.saveLayoutOption(name, targetId);
     _activeLayoutId = savedId;
     renderLayoutDropdown();

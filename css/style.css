@@ -21,6 +21,7 @@
   --radius:     10px;
   --shadow:     0 2px 8px rgba(0,0,0,.12);
   --shadow-md:  0 4px 16px rgba(0,0,0,.18);
+  --bg-hover:   #eef0f8;
 }
 
 /* ── Reset ── */
@@ -941,7 +942,7 @@ textarea.input { resize: vertical; min-height: 60px; }
   /* Header compact: no horizontal scroll on actions (avoids iOS Safari position:fixed bug) */
   .header-center { overflow: hidden; }
   #eventNameDisplay { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .header-actions { gap: 2px; }
+  .header-actions { gap: 2px; min-width: 0; flex-shrink: 1; }
   .btn-icon { padding: 5px 6px; font-size: 14px; }
 }
 
