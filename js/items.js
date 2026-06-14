@@ -165,7 +165,11 @@ const Items = (() => {
 
       Drag.bindItemDrag(el, item.id);
       Drag.bindResizeDrag(rh, item.id);
-      el.addEventListener('click', e => { e.stopPropagation(); selectItem(item.id); });
+      el.addEventListener('click', e => {
+        e.stopPropagation();
+        if (e.ctrlKey || e.metaKey) toggleSelectItem(item.id);
+        else selectItem(item.id);
+      });
       el.addEventListener('dblclick', e => {
         e.stopPropagation();
         const cur = State.getItem(item.id);
@@ -229,9 +233,11 @@ const Items = (() => {
   }
 
   function renderAll() {
+    _selectedIds.clear();
     _selectedId = null;
     room().innerHTML = '';
     State.get().items.forEach(renderItem);
+    _updateBulkEditBtn();
   }
 
   /* ── Hover tooltip ── */
@@ -492,6 +498,8 @@ const Items = (() => {
          <button id="ctxClearIconSize" class="ctx-apply-btn ctx-clear-btn" title="אפס">✕</button>
        </div>
        <button class="ctx-menu-btn ctx-save-all-btn" id="ctxSaveAll">✓&nbsp; שמור וסגור</button>
+       <hr class="ctx-menu-sep" id="ctxBulkEditSep" style="display:none">
+       <button class="ctx-menu-btn" id="ctxBulkEditBtn" style="display:none">✏️&nbsp; <span id="ctxBulkEditLabel">ערוך נבחרים</span></button>
        <hr class="ctx-menu-sep">
        <button class="ctx-menu-btn ctx-danger" id="ctxDelete">🗑&nbsp; מחק</button>`;
     document.body.appendChild(m);
@@ -567,12 +575,21 @@ const Items = (() => {
     };
     m.querySelector('#ctxSaveAll').onclick = () => { _closeCtxMenu(); };
 
+    m.querySelector('#ctxBulkEditBtn').onclick = () => {
+      _closeCtxMenu();
+      Modals.openBulkEdit();
+    };
+
     m.querySelector('#ctxDelete').onclick = () => {
       const id = _ctxItemId;
       if (!id) return;
       if (UI.confirmDialog('למחוק פריט זה?')) {
         State.removeItem(id);
-        if (_selectedId === id) deselectAll();
+        if (_selectedIds.has(id)) {
+          _selectedIds.delete(id);
+          _selectedId = _selectedIds.size > 0 ? [..._selectedIds].at(-1) : null;
+          _updateBulkEditBtn();
+        }
       }
       _closeCtxMenu();
     };
@@ -601,7 +618,7 @@ const Items = (() => {
     const item = State.getItem(id);
     if (!item) return;
     _ctxItemId = id;
-    selectItem(id);
+    if (!_selectedIds.has(id)) selectItem(id);
     if (!_ctxMenu) _ctxMenu = _buildCtxMenu();
     document.getElementById('ctxTextInput').value = item.label || '';
     document.getElementById('ctxColorInput').value =
@@ -620,6 +637,12 @@ const Items = (() => {
       const safeClr = (item.fontColor && /^#[0-9a-fA-F]{3,8}$/.test(item.fontColor)) ? item.fontColor : '#222222';
       document.getElementById('ctxFontColorInput').value = safeClr;
     }
+    const selTables = [..._selectedIds].filter(sid => State.getItem(sid)?.type === 'table');
+    const showBulk  = selTables.length >= 2;
+    document.getElementById('ctxBulkEditSep').style.display = showBulk ? '' : 'none';
+    document.getElementById('ctxBulkEditBtn').style.display = showBulk ? '' : 'none';
+    const lbl = document.getElementById('ctxBulkEditLabel');
+    if (lbl) lbl.textContent = `ערוך ${selTables.length} שולחנות נבחרים`;
     _ctxMenu.style.display = 'block';
     const mw = _ctxMenu.offsetWidth  || 190;
     const mh = _ctxMenu.offsetHeight || 180;
@@ -634,23 +657,62 @@ const Items = (() => {
     _ctxItemId = null;
   }
 
-  /* ── Selection ── */
+  /* ── Selection (single + multi via Ctrl+click) ── */
   let _selectedId = null;
-  function selectItem(id) {
-    if (_selectedId) document.getElementById(_selectedId)?.classList.remove('selected');
-    _selectedId = id;
-    if (id) document.getElementById(id)?.classList.add('selected');
+  const _selectedIds = new Set();
+
+  function _updateBulkEditBtn() {
+    const btn = document.getElementById('btnBulkEdit');
+    if (!btn) return;
+    const n = [..._selectedIds].filter(id => State.getItem(id)?.type === 'table').length;
+    btn.style.display = n >= 1 ? '' : 'none';
+    btn.title = `ערוך ${n} שולחן${n !== 1 ? 'ות' : ''} מסומן${n !== 1 ? 'ות' : ''} — Ctrl+לחיצה לסימון מרובה`;
   }
-  function getSelected() { return _selectedId; }
-  function deselectAll() { selectItem(null); }
+
+  function selectItem(id) {
+    _selectedIds.forEach(sid => document.getElementById(sid)?.classList.remove('selected'));
+    _selectedIds.clear();
+    _selectedId = id;
+    if (id) {
+      _selectedIds.add(id);
+      document.getElementById(id)?.classList.add('selected');
+    }
+    _updateBulkEditBtn();
+  }
+
+  function toggleSelectItem(id) {
+    if (_selectedIds.has(id)) {
+      _selectedIds.delete(id);
+      document.getElementById(id)?.classList.remove('selected');
+      _selectedId = _selectedIds.size > 0 ? [..._selectedIds].at(-1) : null;
+    } else {
+      _selectedIds.add(id);
+      document.getElementById(id)?.classList.add('selected');
+      _selectedId = id;
+    }
+    _updateBulkEditBtn();
+  }
+
+  function getSelected()    { return _selectedId; }
+  function getSelectedIds() { return [..._selectedIds]; }
+  function deselectAll() {
+    _selectedIds.forEach(sid => document.getElementById(sid)?.classList.remove('selected'));
+    _selectedIds.clear();
+    _selectedId = null;
+    _updateBulkEditBtn();
+  }
 
   document.addEventListener('keydown', e => {
-    if ((e.key === 'Delete' || e.key === 'Backspace') && _selectedId) {
+    if ((e.key === 'Delete' || e.key === 'Backspace') && _selectedIds.size > 0) {
       const tag = document.activeElement?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-      if (UI.confirmDialog('למחוק פריט זה?')) {
-        State.removeItem(_selectedId);
-        _selectedId = null;
+      const n   = _selectedIds.size;
+      const msg = n > 1 ? `למחוק ${n} פריטים נבחרים?` : 'למחוק פריט זה?';
+      if (UI.confirmDialog(msg)) {
+        const toDelete = [..._selectedIds];
+        _selectedIds.clear(); _selectedId = null;
+        _updateBulkEditBtn();
+        toDelete.forEach(id => State.removeItem(id));
       }
     }
     if (e.key === 'Escape') { _closeCtxMenu(); deselectAll(); }
@@ -689,7 +751,7 @@ const Items = (() => {
   return {
     addTable, addSpecialItem,
     renderItem, refreshItem, renderAll, removeItemEl,
-    selectItem, getSelected, deselectAll,
+    selectItem, toggleSelectItem, getSelected, getSelectedIds, deselectAll,
     highlightTable, flashItem, tableColor,
     distributeRectSeats, renumberTables,
     buildTableSVG, openCtxMenu

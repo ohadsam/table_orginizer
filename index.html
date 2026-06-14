@@ -23,6 +23,7 @@
   <div class="header-actions">
     <button class="btn btn-icon" id="btnUndo"       title="בטל (Ctrl+Z)" disabled>↩️</button>
     <button class="btn btn-icon" id="btnRedo"       title="שחזר (Ctrl+Y)" disabled>↪️</button>
+    <button class="btn btn-icon" id="btnBulkEdit"   title="ערוך שולחנות מסומנים — בחר שולחנות עם Ctrl+לחיצה" style="display:none">✏️</button>
     <button class="btn btn-icon" id="btnSettings"   title="הגדרות אירוע">⚙️</button>
     <button class="btn btn-icon" id="btnExport"     title="ייצוא כל הפרויקט לקובץ JSON (כל האירועים, הגדרות, שולחנות ומוזמנים)">📤</button>
     <button class="btn btn-icon" id="btnImport"     title="ייבוא פרויקט מקובץ JSON — תומך בקבצי פרויקט מלא וגם בקבצי אירוע בודד">📥</button>
@@ -633,6 +634,50 @@
 <div id="printCardsArea"          class="print-only"></div>
 <div id="printTablesDiagramArea"  class="print-only"></div>
 
+<!-- Bulk Edit Tables Modal -->
+<div class="modal-overlay" id="modalBulkEdit">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>✏️ עריכת <span id="bulkEditCount">0</span> שולחנות</h2>
+      <button class="modal-close" data-close-modal="modalBulkEdit">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:#607d8b;margin-bottom:14px">סמן את השדות שברצונך לעדכן — שדות לא מסומנים לא ישתנו.</p>
+      <div class="form-group" style="display:flex;align-items:center;gap:10px">
+        <label class="checkbox-label" style="min-width:130px">
+          <input type="checkbox" id="chkBulkSeats">
+          <span>מספר מושבים</span>
+        </label>
+        <input type="number" id="bulkEditSeats" min="1" max="50" class="input" style="width:70px" placeholder="—">
+      </div>
+      <div class="form-group" style="display:flex;align-items:center;gap:10px">
+        <label class="checkbox-label" style="min-width:130px">
+          <input type="checkbox" id="chkBulkFont">
+          <span>גודל גופן מספר</span>
+        </label>
+        <input type="number" id="bulkEditFontSize" min="6" max="40" class="input" style="width:70px" placeholder="אוטו">
+      </div>
+      <div class="form-group" style="display:flex;align-items:center;gap:10px">
+        <label class="checkbox-label" style="min-width:130px">
+          <input type="checkbox" id="chkBulkColor">
+          <span>צבע מותאם</span>
+        </label>
+        <input type="color" id="bulkEditColor" style="width:46px;height:32px;padding:2px;border:1px solid #ccc;border-radius:4px;cursor:pointer">
+      </div>
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="chkBulkResetColor">
+          <span>אפס צבע (חזור לצבע לפי תפוסה)</span>
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="btnSaveBulkEdit">✓ החל על כל הנבחרים</button>
+      <button class="btn btn-ghost" data-close-modal="modalBulkEdit">ביטול</button>
+    </div>
+  </div>
+</div>
+
 <!-- Print Diagram Modal -->
 <div class="modal-overlay" id="modalPrintDiagram">
   <div class="modal modal-sm">
@@ -660,6 +705,18 @@
             <option value="4" selected>4</option>
             <option value="5">5</option>
           </select>
+        </div>
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="chkDiagramShowLabel" checked>
+            <span>הצג תווית שולחן על ציור השולחן</span>
+          </label>
+        </div>
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="chkDiagramShowOccupancy" checked>
+            <span>הצג תפוסה (X/Y) על ציור השולחן</span>
+          </label>
         </div>
       </div>
     </div>

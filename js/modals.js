@@ -1561,13 +1561,80 @@ const Modals = (() => {
     if (btn) {
       btn.onclick = () => {
         UI.closeModal('modalPrintDiagram');
-        const showGuests = chk?.checked || false;
-        const fontSize   = parseInt(document.getElementById('inputDiagramGuestFont')?.value) || 8;
-        const cols       = parseInt(document.getElementById('selectDiagramCols')?.value)      || 4;
-        Print.printTablesDiagram({ showGuestList: showGuests, guestFontSize: fontSize, cols });
+        const showGuests    = chk?.checked || false;
+        const fontSize      = parseInt(document.getElementById('inputDiagramGuestFont')?.value)  || 8;
+        const cols          = parseInt(document.getElementById('selectDiagramCols')?.value)       || 4;
+        const showLabel     = document.getElementById('chkDiagramShowLabel')?.checked     !== false;
+        const showOccupancy = document.getElementById('chkDiagramShowOccupancy')?.checked !== false;
+        Print.printTablesDiagram({ showGuestList: showGuests, guestFontSize: fontSize, cols, showLabel, showOccupancy });
       };
     }
     UI.openModal('modalPrintDiagram');
+  }
+
+  /* ── Bulk Edit Tables modal ── */
+  function openBulkEdit() {
+    const ids = Items.getSelectedIds().filter(id => State.getItem(id)?.type === 'table');
+    if (!ids.length) { UI.toast('לא נבחרו שולחנות לעריכה', 'info', 1800); return; }
+
+    document.getElementById('bulkEditCount').textContent = ids.length;
+
+    // Pre-fill from first table
+    const first = State.getItem(ids[0]);
+    const seatsEl = document.getElementById('bulkEditSeats');
+    const fontEl  = document.getElementById('bulkEditFontSize');
+    const colorEl = document.getElementById('bulkEditColor');
+    if (seatsEl) seatsEl.value = first.seats ?? 10;
+    if (fontEl)  fontEl.value  = first.fontSize || '';
+    if (colorEl) colorEl.value = first.color || '#e3f2fd';
+
+    // Reset all checkboxes to unchecked
+    ['chkBulkSeats','chkBulkFont','chkBulkColor','chkBulkResetColor'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.checked = false;
+    });
+
+    // Mutual exclusion: color set vs. reset
+    const chkColor      = document.getElementById('chkBulkColor');
+    const chkResetColor = document.getElementById('chkBulkResetColor');
+    if (chkColor && chkResetColor) {
+      chkColor.onchange      = () => { if (chkColor.checked)      chkResetColor.checked = false; };
+      chkResetColor.onchange = () => { if (chkResetColor.checked) chkColor.checked      = false; };
+    }
+
+    const saveBtn = document.getElementById('btnSaveBulkEdit');
+    if (saveBtn) {
+      saveBtn.onclick = () => {
+        const applySeats = document.getElementById('chkBulkSeats')?.checked;
+        const applyFont  = document.getElementById('chkBulkFont')?.checked;
+        const applyColor = document.getElementById('chkBulkColor')?.checked;
+        const resetColor = document.getElementById('chkBulkResetColor')?.checked;
+
+        if (!applySeats && !applyFont && !applyColor && !resetColor) {
+          UI.toast('לא נבחר שום שדה לעדכון', 'info', 1800);
+          return;
+        }
+
+        const seats = applySeats ? Math.max(1, Math.min(50, parseInt(seatsEl?.value) || 10)) : null;
+        const font  = applyFont  ? (parseInt(fontEl?.value) || null)  : undefined;
+
+        Guests.startBatch();
+        ids.forEach(id => {
+          const patch = {};
+          if (applySeats)               patch.seats    = seats;
+          if (applyFont)                patch.fontSize = (font === null || font < 1) ? null : font;
+          if (applyColor)               patch.color    = colorEl?.value || null;
+          else if (resetColor)          patch.color    = null;
+          if (Object.keys(patch).length) State.updateItem(id, patch);
+        });
+        Guests.endBatch();
+
+        UI.toast(`עודכנו ${ids.length} שולחנות ✓`, 'success', 1800);
+        UI.closeModal('modalBulkEdit');
+      };
+    }
+
+    UI.openModal('modalBulkEdit');
   }
 
   return {
@@ -1576,7 +1643,7 @@ const Modals = (() => {
     openEditItem, openAddGuest, openEditGuest,
     openAddShape, openSettings, openAutoAssign,
     openFindTable, openItemDetails,
-    openPrintCards, openPrintDiagram,
+    openPrintCards, openPrintDiagram, openBulkEdit,
     handleGuestDrop, updateEventHeader,
     renderTagsManager, renderPresetManager, renderTablePresets,
     renderEventsManager, showAutoAssignResult

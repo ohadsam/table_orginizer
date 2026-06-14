@@ -48,6 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnDistribute')?.addEventListener('click',    () => Canvas.distributeTablesEvenly());
   document.getElementById('btnRenumber')?.addEventListener('click',      () => Items.renumberTables());
   document.getElementById('btnRenumberDesc')?.addEventListener('click',  () => Items.renumberTables({ reversed: true }));
+  document.getElementById('btnBulkEdit')?.addEventListener('click',      () => Modals.openBulkEdit());
 
   /* ── Guest export / import ── */
   document.getElementById('btnExportGuests')?.addEventListener('click', () => Storage.exportGuestsJSON());

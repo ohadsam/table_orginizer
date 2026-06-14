@@ -275,6 +275,7 @@
     <a href="#canvas">תצוגת האולם (Canvas)</a>
     <a href="#ctx-menu">תפריט פריט (⋮ / לחיצה ימנית)</a>
     <a href="#tables">שולחנות</a>
+    <a href="#bulk-edit">עריכה מרובה של שולחנות</a>
     <a href="#special">פריטי אולם נוספים</a>
     <a href="#guests">מוזמנים</a>
     <a href="#assign">שיבוץ ידני (גרירה)</a>
@@ -501,6 +502,48 @@
     <div class="tip">
       <span class="tip-icon">💡</span>
       <span>כאשר מגדירים צבע מותאם לשולחן, הצבע מועבר אוטומטית לכרטיסי המוזמנים בסרגל הצד וגם לכל פלטי ההדפסה.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ BULK EDIT ═══════════════ -->
+<section class="section" id="bulk-edit">
+  <div class="section-header">
+    <span class="section-icon">✏️</span>
+    <span class="section-title">עריכה מרובה של שולחנות (Ctrl+לחיצה)</span>
+  </div>
+  <div class="section-body">
+    <p>ניתן לסמן מספר שולחנות בו-זמנית ולשנות את המאפיינים שלהם בבת אחת:</p>
+
+    <h3>איך לסמן שולחנות</h3>
+    <ul class="bullets">
+      <li><strong>Ctrl + לחיצה</strong> (Windows/Linux) או <strong>⌘ + לחיצה</strong> (Mac) על כל שולחן — מוסיף/מסיר מהבחירה הנוכחית</li>
+      <li>לחיצה רגילה על שולחן — מבטלת את הבחירה המרובה ובוחרת רק את השולחן שנלחץ</li>
+      <li>לחצו <kbd>Esc</kbd> לביטול כל הבחירות</li>
+    </ul>
+
+    <h3>פתיחת עריכה מרובה</h3>
+    <div class="highlight">
+      כאשר שולחן אחד או יותר מסומנים, מופיע כפתור <strong>✏️</strong> בסרגל הכלים העליון. לחצו עליו לפתיחת חלון העריכה המרובה.<br>
+      לחלופין: לחצו לחיצה ימנית כאשר 2 שולחנות ובחרו <strong>"✏️ ערוך שולחנות נבחרים"</strong>.
+    </div>
+
+    <h3>שדות הניתנים לעדכון</h3>
+    <ul class="bullets">
+      <li><strong>מספר מושבים</strong> — עדכן את הקיבולת לכל השולחנות הנבחרים</li>
+      <li><strong>גודל גופן מספר</strong> — עקוף את גודל הגופן הגלובלי לשולחנות הנבחרים (השאר ריק לאיפוס לאוטומטי)</li>
+      <li><strong>צבע מותאם</strong> — הגדר צבע אחיד לכל השולחנות הנבחרים</li>
+      <li><strong>אפס צבע</strong> — מחזיר את כל השולחנות הנבחרים לצבע דינמי לפי תפוסה</li>
+    </ul>
+
+    <div class="tip">
+      <span class="tip-icon">💡</span>
+      <span>סמנו <em>רק</em> את השדות שברצונכם לשנות — שדות לא מסומנים לא ישתנו. כך ניתן למשל לשנות רק את מספר המושבים מבלי לאפס את הצבעים.</span>
+    </div>
+
+    <div class="note">
+      <span class="note-icon">ℹ️</span>
+      <span>"הצבע המותאם" ו"אפס צבע" אינם יכולים להיות מסומנים בו-זמנית — בחירת אחד מבטלת את השני.</span>
     </div>
   </div>
 </section>
@@ -835,7 +878,7 @@
     <span class="section-title">הדפסה</span>
   </div>
   <div class="section-body">
-    <p>שלושה מצבי הדפסה, כולם מותאמים לדף A4:</p>
+    <p>מצבי הדפסה מרובים, כולם מותאמים לדף A4:</p>
 
     <div class="feature-grid" style="grid-template-columns: repeat(3,1fr)">
       <div class="feature-card">
@@ -853,18 +896,47 @@
         <div class="fc-name">הכל</div>
         <div class="fc-desc">תרשים האולם + רשימת מוזמנים מלאה בדף נפרד</div>
       </div>
+      <div class="feature-card">
+        <span class="fc-icon">📑</span>
+        <div class="fc-name">פירוט מלא</div>
+        <div class="fc-desc">דף נפרד לכל שולחן עם ציור, מוזמנים ופרטים מלאים</div>
+      </div>
+      <div class="feature-card">
+        <span class="fc-icon">🪑</span>
+        <div class="fc-name">כרטיסי הושבה</div>
+        <div class="fc-desc">כרטיסים מתקפלים 8×8 ס"מ — אחד לכל מוזמן</div>
+      </div>
+      <div class="feature-card">
+        <span class="fc-icon">🗺️</span>
+        <div class="fc-name">תרשים שולחנות</div>
+        <div class="fc-desc">תרשים SVG בלבד, או גרסה עם רשימת מוזמנים לצד כל שולחן</div>
+      </div>
     </div>
 
-    <h3>תרשים האולם בהדפסה</h3>
-    <p>בהדפסת "הכל" (📄), נוצר תרשים SVG אוטומטי מפריטי האולם. הכיוון (לאורך/לרוחב) נקבע אוטומטית:</p>
+    <h3>תרשים שולחנות (🗺️)</h3>
+    <p>לחיצה על 🗺️ בסרגל הכלים פותחת חלון אפשרויות להדפסת תרשים השולחנות:</p>
     <ul class="bullets">
-      <li>אם האולם רחב יותר מגבוה (יחס > 1.3) — הדפסה לרוחב (Landscape)</li>
-      <li>אחרת — הדפסה לאורך (Portrait)</li>
+      <li><strong>תרשים בלבד</strong> — SVG מלא של כל השולחנות עם מעגלי מקומות, שמות מוזמנים ותפוסה צבעונית, כל הדף</li>
+      <li>
+        <strong>תרשים + רשימת מוזמנים</strong> — רשת של בלוקים, כל בלוק מכיל:
+        <ul class="bullets" style="margin-top:4px">
+          <li>ציור מיניאטורי של השולחן עם צבע תפוסה ומספר</li>
+          <li>טבלת מוזמנים קומפקטית עם שם וסה"כ מקומות</li>
+        </ul>
+      </li>
+    </ul>
+
+    <h3>אפשרויות תרשים + מוזמנים</h3>
+    <ul class="bullets">
+      <li><strong>גודל גופן</strong> — 5–12 נקודות לשורות המוזמנים (ברירת מחדל: 8)</li>
+      <li><strong>עמודות</strong> — 2 עד 5 עמודות של בלוקים בדף (ברירת מחדל: 4)</li>
+      <li><strong>הצג תווית שולחן על ציור השולחן</strong> — כאשר מסומן, התווית (שם) של השולחן מוצגת גם בתוך ציור המיניאטורה</li>
+      <li><strong>הצג תפוסה (X/Y) על ציור השולחן</strong> — כאשר מסומן, מספר המוזמנים מתוך כלל המושבים מוצג בראש ציור המיניאטורה</li>
     </ul>
 
     <div class="tip">
       <span class="tip-icon">💡</span>
-      <span>צבעים מותאמים אישית של שולחנות מוצגים גם בהדפסה — על כרטיסי השולחן ועל כרטיסי המוזמנים.</span>
+      <span>צבעים מותאמים אישית של שולחנות מוצגים גם בהדפסה — על כרטיסי השולחן, ראשי הטבלאות בתרשים, ועל כרטיסי המוזמנים.</span>
     </div>
   </div>
 </section>

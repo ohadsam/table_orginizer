@@ -622,7 +622,7 @@ The reorder handle (⠿ span) is separate from the pointer-based canvas-drag sys
 
 ## Tables-Only Diagram Print (`printTablesDiagram`)
 
-`Print.printTablesDiagram(opts)` — triggered by `btnPrintDiagram` (🗺) in the header, which now opens `modalPrintDiagram` (`Modals.openPrintDiagram()`). The modal lets the user choose the print mode and then calls `Print.printTablesDiagram({ showGuestList, guestFontSize, cols })`.
+`Print.printTablesDiagram(opts)` — triggered by `btnPrintDiagram` (🗺) in the header, which now opens `modalPrintDiagram` (`Modals.openPrintDiagram()`). The modal lets the user choose the print mode and then calls `Print.printTablesDiagram({ showGuestList, guestFontSize, cols, showLabel, showOccupancy })`.
 
 ### Standard mode (`showGuestList: false`, default)
 - Compact event header (title, date, occupancy stats)
@@ -635,7 +635,7 @@ The reorder handle (⠿ span) is separate from the pointer-based canvas-drag sys
 - Compact event header
 - CSS grid (`diag-blocks-wrap`) of one **block** per table, sorted by table number
 - Each block (`.diag-block`): flex row with a **mini table SVG** (`.diag-table-svg-wrap`, 20mm wide) beside a **compact HTML table** (`.diag-mini-table`, font size user-selectable 5–12pt)
-  - Mini SVG (`_buildTableMiniSVG`): shows table shape (circle/rect), occupancy-based color, table number (bold), occ/seats text — no seat circles for compactness
+  - Mini SVG (`_buildTableMiniSVG(item, occ, showLabel, showOccupancy)`): shows table shape (circle/rect), occupancy-based color, table number (bold). When `showOccupancy=true`, occ/seats text at top. When `showLabel=true` and `item.label` is set, label text below number (number shifts up). No seat circles for compactness.
   - Mini table: colored header row (`background = item.color || tableOccupancyColor`; text color auto-contrasted via `_contrastColor(hex)`); rows of guest name + total count; split guests tagged `(פ)`
   - Header color uses `print-color-adjust: exact` so backgrounds print correctly
 - Grid columns: user-selected 2–5 (default 4); `guestFontSize` 5–12pt (default 8pt) controls guest-row text
@@ -648,7 +648,50 @@ Simple modal (`modal-sm`) with:
 - Checkbox `chkDiagramShowGuests` — shows/hides `#diagramGuestOpts` section
 - `inputDiagramGuestFont` — number input for guest font size (5–12, default 8)
 - `selectDiagramCols` — select for column count (2/3/4/5, default 4)
+- `chkDiagramShowLabel` (checked by default) — whether to print the table label inside the mini SVG in guest-list mode
+- `chkDiagramShowOccupancy` (checked by default) — whether to print the occ/seats ratio inside the mini SVG in guest-list mode
 - `btnDoPrintDiagram` — closes modal and calls `Print.printTablesDiagram(opts)`
+
+## Multi-Table Bulk Edit
+
+Allows editing shared properties across multiple selected tables at once.
+
+### Selection
+- `_selectedIds: Set<string>` — all currently selected item IDs (in `items.js`)
+- `_selectedId: string|null` — the last selected item (backward-compatible single-selection)
+- **Ctrl+click / ⌘+click** calls `toggleSelectItem(id)` — adds or removes from `_selectedIds`
+- Regular click calls `selectItem(id)` — clears `_selectedIds` and selects only one
+- Right-click on an already-selected item does NOT clear the multi-selection (`if (!_selectedIds.has(id)) selectItem(id)`)
+- `deselectAll()` clears both `_selectedIds` and `_selectedId`
+- `Escape` key closes context menu and calls `deselectAll()`
+- Delete/Backspace key on multi-selection triggers a confirmation and deletes all selected items
+
+### Bulk edit button
+`_updateBulkEditBtn()` — called after every selection change. Shows `btnBulkEdit` (✏️ in header) when ≥1 table is selected; updates its tooltip text with the count. Hidden when no tables are selected.
+
+### Context menu bulk edit
+When ≥2 tables are selected and the context menu opens, `ctxBulkEditSep` and `ctxBulkEditBtn` are shown. Button label is `"ערוך N שולחנות נבחרים"`. Clicking calls `Modals.openBulkEdit()`.
+
+### `openBulkEdit()` (modals.js)
+1. Gets selected table IDs via `Items.getSelectedIds()`, filters to `type === 'table'`
+2. Displays count in `#bulkEditCount`
+3. Pre-fills fields from first table's values
+4. Resets all checkboxes to unchecked
+5. Wires mutual exclusion between `chkBulkColor` and `chkBulkResetColor`
+6. Save button applies only checked fields via `State.updateItem` wrapped in `Guests.startBatch()` / `Guests.endBatch()`
+
+### `modalBulkEdit` fields
+| Element | Field | Notes |
+|---------|-------|-------|
+| `chkBulkSeats` + `bulkEditSeats` | `seats` | Clamped 1–50 |
+| `chkBulkFont` + `bulkEditFontSize` | `fontSize` | null if empty (auto) |
+| `chkBulkColor` + `bulkEditColor` | `color` | Mutual exclusive with chkBulkResetColor |
+| `chkBulkResetColor` | `color: null` | Reverts to dynamic occupancy color |
+
+### Exported symbols (items.js return object)
+- `toggleSelectItem(id)` — toggle single item in multi-selection
+- `getSelectedIds()` — returns `[...\_selectedIds]`
+- `selectItem`, `getSelected`, `deselectAll` — unchanged single-selection API
 
 ## Print Improvements
 

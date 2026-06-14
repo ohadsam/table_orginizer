@@ -802,35 +802,46 @@ ${buildGuestTableHTML(sorted)}`;
   }
 
   /* ── Compact table shape SVG (no seat circles) for the diagram+guests grid ── */
-  function _buildTableMiniSVG(item, occ) {
+  function _buildTableMiniSVG(item, occ, showLabel = true, showOccupancy = true) {
     const W = item.width, H = item.height;
     const bg = item.color || Items.tableColor(occ, item.seats);
     const stt = State.get().settings;
-    const numColor  = stt.fontNumberColor   || '#1a237e';
-    const occuColor = stt.fontOccupancyColor || '#888888';
-    const scale     = Math.min(W, H) / 130;
-    const numFont   = item.fontSize || stt.fontNumberSize || Math.max(10, Math.min(24, Math.round(15 * scale)));
-    const occFont   = stt.fontOccupancySize || Math.max(6, Math.min(9, Math.round(7 * scale)));
-    const num       = item.number != null ? String(item.number) : '?';
+    const numColor   = stt.fontNumberColor   || '#1a237e';
+    const occuColor  = stt.fontOccupancyColor || '#888888';
+    const labelColor = stt.fontLabelColor    || '#37474f';
+    const scale      = Math.min(W, H) / 130;
+    const numFont    = item.fontSize || stt.fontNumberSize || Math.max(10, Math.min(24, Math.round(15 * scale)));
+    const occFont    = stt.fontOccupancySize || Math.max(6, Math.min(9, Math.round(7 * scale)));
+    const lblFont    = stt.fontLabelSize     || Math.max(5, Math.min(10, Math.round(7 * scale)));
+    const num        = item.number != null ? String(item.number) : '?';
+    const hasLabel   = showLabel && item.label;
     let body = '';
     if (item.shape === 'circle') {
       const cx = W / 2, cy = H / 2;
       const r  = Math.min(W, H) / 2 - 4;
       body += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${bg}" stroke="#888" stroke-width="1.5"/>`;
-      body += `<text x="${cx}" y="${cy - r + occFont + 1}" text-anchor="middle" font-size="${occFont}" fill="${occuColor}">${occ}/${item.seats}</text>`;
-      body += `<text x="${cx}" y="${cy + numFont * 0.3}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="${numColor}">${UI.escHtml(num)}</text>`;
+      if (showOccupancy)
+        body += `<text x="${cx}" y="${cy - r + occFont + 1}" text-anchor="middle" font-size="${occFont}" fill="${occuColor}">${occ}/${item.seats}</text>`;
+      const numY = hasLabel ? cy - lblFont / 2 : cy;
+      body += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="${numColor}">${UI.escHtml(num)}</text>`;
+      if (hasLabel)
+        body += `<text x="${cx}" y="${numY + numFont * 0.6 + lblFont}" text-anchor="middle" font-size="${lblFont}" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
     } else {
       const p = 3, cx = W / 2, cy = H / 2;
       body += `<rect x="${p}" y="${p}" width="${W - p * 2}" height="${H - p * 2}" rx="5" fill="${bg}" stroke="#888" stroke-width="1.5"/>`;
-      body += `<text x="${cx}" y="${p + occFont + 1}" text-anchor="middle" font-size="${occFont}" fill="${occuColor}">${occ}/${item.seats}</text>`;
-      body += `<text x="${cx}" y="${cy + numFont * 0.3}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="${numColor}">${UI.escHtml(num)}</text>`;
+      if (showOccupancy)
+        body += `<text x="${cx}" y="${p + occFont + 1}" text-anchor="middle" font-size="${occFont}" fill="${occuColor}">${occ}/${item.seats}</text>`;
+      const numY = hasLabel ? cy - lblFont / 2 : cy;
+      body += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="${numColor}">${UI.escHtml(num)}</text>`;
+      if (hasLabel)
+        body += `<text x="${cx}" y="${numY + numFont * 0.6 + lblFont}" text-anchor="middle" font-size="${lblFont}" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
     }
     if (item.locked) body += `<text x="${W - 3}" y="14" text-anchor="end" font-size="9">🔒</text>`;
     return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" width="100%" xmlns="http://www.w3.org/2000/svg">${body}</svg>`;
   }
 
   /* ── Grid of (mini SVG + guest-list table) blocks for diagram+guests mode ── */
-  function _buildTablesWithGuestListsHTML(tables, guestFontSize, cols) {
+  function _buildTablesWithGuestListsHTML(tables, guestFontSize, cols, showLabel, showOccupancy) {
     const safeFontSize = Math.max(5, Math.min(12, parseInt(guestFontSize) || 8));
     const safeCols     = Math.max(2, Math.min(6, parseInt(cols) || 4));
 
@@ -848,7 +859,7 @@ ${buildGuestTableHTML(sorted)}`;
         : `<tr><td colspan="2" style="color:#aaa;text-align:center;font-style:italic">ריק</td></tr>`;
 
       return `<div class="diag-block">
-  <div class="diag-table-svg-wrap">${_buildTableMiniSVG(t, occ)}</div>
+  <div class="diag-table-svg-wrap">${_buildTableMiniSVG(t, occ, showLabel, showOccupancy)}</div>
   <table class="diag-mini-table" style="font-size:${safeFontSize}pt">
     <thead><tr><th colspan="2" style="background:${bg};color:${hdrClr};-webkit-print-color-adjust:exact;print-color-adjust:exact">${hdrText}</th></tr></thead>
     <tbody>${rows}</tbody>
@@ -861,7 +872,7 @@ ${buildGuestTableHTML(sorted)}`;
 
   /* ── Print tables-only diagram (landscape, one page, with seat circles) ── */
   function printTablesDiagram(opts) {
-    const { showGuestList = false, guestFontSize = 8, cols = 4 } = opts || {};
+    const { showGuestList = false, guestFontSize = 8, cols = 4, showLabel = true, showOccupancy = true } = opts || {};
     const tables = State.get().items.filter(i => i.type === 'table');
     if (!tables.length) { UI.toast('אין שולחנות לתצוגה', 'info', 1800); return; }
 
@@ -881,7 +892,7 @@ ${buildGuestTableHTML(sorted)}`;
   ${eventDate ? `<p class="print-meta">📅 ${UI.escHtml(eventDate)}</p>` : ''}
   ${buildStatsSummary()}
 </div>
-${_buildTablesWithGuestListsHTML(sorted, guestFontSize, cols)}`;
+${_buildTablesWithGuestListsHTML(sorted, guestFontSize, cols, showLabel, showOccupancy)}`;
     } else {
       const { svg } = buildRoomTablesOnlySVG();
       area.innerHTML = `
