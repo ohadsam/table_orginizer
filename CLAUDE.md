@@ -810,6 +810,9 @@ When ≥2 tables are selected and the context menu opens, `ctxBulkEditSep` and `
 - **Drag reorder vs. canvas drag**: Guest cards are `draggable="false"` by default. Only `pointerdown` on `.guest-reorder-handle` sets `draggable="true"`. Never set `draggable="true"` unconditionally — it would conflict with the pointer-based canvas drag for assigning guests to tables.
 - **Tag AND/OR mode**: `_tagFilterMode` resets to `'or'` whenever `_filterTags.size < 2`. The OR/AND toggle buttons are only rendered in `renderTagFilter()` when `_filterTags.size >= 2`.
 - **Batch during multi-updateItem loops**: Wrap any loop that calls `State.updateItem` multiple times in `Guests.startBatch()` / `Guests.endBatch()` to prevent O(n) sidebar re-renders.
+- **CSS cache busting**: When deploying CSS changes to GitHub Pages, bump the `?v=N` query string on the `<link>` tags in `index.html` (e.g. `style.css?v=3`). GitHub Pages CDN caches CSS files; the old version can be served while the new HTML is live, making elements with `display:none` (like `.dropdown-menu`) render as visible blocks.
+- **iOS Safari `position:fixed` in scroll containers**: Do NOT put `overflow-x: auto` / `overflow: scroll` on a parent of a `position:fixed` child. iOS Safari may treat the fixed child as `position:absolute` relative to the scrolling container. The `.header-actions` bar does not use `overflow-x: auto` for this reason; the button count is kept small enough to fit without scrolling.
+- **Canvas items block dropdown close**: Canvas items call `e.stopPropagation()` on click, preventing the document-level `closeAll()` from firing. Use a `{capture: true}` listener on `#canvasViewport` to close dropdowns before item handlers run.
 
 ## File Structure
 

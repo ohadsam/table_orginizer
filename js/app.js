@@ -95,14 +95,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // Close on any outside click
     document.addEventListener('click', () => closeAll());
 
+    // Canvas items call e.stopPropagation() so the document listener above won't fire for them.
+    // Use capture phase to catch canvas clicks before item handlers run.
+    document.getElementById('canvasViewport')?.addEventListener('click', () => closeAll(), { capture: true });
+
     // Close on Escape
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape') closeAll();
     });
 
-    // Close when window resizes or header-actions scrolls (menu position becomes stale)
+    // Close when window resizes (menu position becomes stale)
     window.addEventListener('resize', () => closeAll(), { passive: true });
-    document.querySelector('.header-actions')?.addEventListener('scroll', () => closeAll(), { passive: true });
   })();
 
   /* ── Layout Options ── */
