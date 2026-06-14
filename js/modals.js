@@ -1761,6 +1761,101 @@ const Modals = (() => {
   }
 
 
+  /* ═══════════════════════════════════════════
+     Normalize table sizes
+  ═══════════════════════════════════════════ */
+
+  const _shapeLabel     = { circle: 'עגול', rectangle: 'מלבן', square: 'ריבוע' };
+  const _shapeLabelPlur = { circle: 'עגולים', rectangle: 'מלבנים', square: 'ריבועים' };
+
+  function _normalizeSizePreview() {
+    const refEl    = document.getElementById('normalizeSizeRef');
+    const sameOnly = document.getElementById('normalizeSameShape')?.checked ?? true;
+    const refId    = refEl?.value;
+    const preview  = document.getElementById('normalizeSizePreview');
+    if (!preview) return;
+    if (!refId) { preview.textContent = ''; return; }
+
+    const tables = State.get().items.filter(i => i.type === 'table');
+    const ref    = tables.find(t => t.id === refId);
+    if (!ref) { preview.textContent = ''; return; }
+
+    const targets = sameOnly
+      ? tables.filter(t => t.id !== refId && t.shape === ref.shape)
+      : tables.filter(t => t.id !== refId);
+
+    if (!targets.length) {
+      preview.textContent = 'אין שולחנות נוספים להשוואה.';
+    } else {
+      const label = sameOnly ? (_shapeLabelPlur[ref.shape] || ref.shape) : 'שולחנות';
+      preview.textContent = `${targets.length} ${label} יושוו לגודל ${ref.width}×${ref.height} פיקסלים.`;
+    }
+  }
+
+  function openNormalizeSizes() {
+    const tables = State.get().items.filter(i => i.type === 'table');
+    if (tables.length < 2) {
+      UI.toast('יש צורך בלפחות שני שולחנות בכדי להשוות גדלים', 'info');
+      return;
+    }
+
+    const sel = document.getElementById('normalizeSizeRef');
+    if (sel) {
+      sel.innerHTML = [...tables]
+        .sort((a, b) => (a.number ?? 0) - (b.number ?? 0) || a.id.localeCompare(b.id))
+        .map(t => {
+          const sl = _shapeLabel[t.shape] || t.shape;
+          const lbl = t.label ? ` — ${UI.escHtml(t.label)}` : '';
+          return `<option value="${t.id}">שולחן ${t.number ?? '?'} (${sl} ${t.width}×${t.height})${lbl}</option>`;
+        })
+        .join('');
+    }
+
+    // Reset checkbox to default on every open
+    const chkEl   = document.getElementById('normalizeSameShape');
+    if (chkEl) chkEl.checked = true;
+
+    // Wire live-update listeners once (idempotent after first open)
+    const refEl   = document.getElementById('normalizeSizeRef');
+    const confirmBtn = document.getElementById('btnConfirmNormalizeSizes');
+    if (refEl)    refEl.onchange = _normalizeSizePreview;
+    if (chkEl)    chkEl.onchange = _normalizeSizePreview;
+    if (confirmBtn) confirmBtn.onclick = _confirmNormalizeSizes;
+
+    _normalizeSizePreview();
+    UI.openModal('modalNormalizeSizes');
+  }
+
+  function _confirmNormalizeSizes() {
+    const refEl    = document.getElementById('normalizeSizeRef');
+    const sameOnly = document.getElementById('normalizeSameShape')?.checked ?? true;
+    const refId    = refEl?.value;
+    if (!refId) return;
+
+    const tables  = State.get().items.filter(i => i.type === 'table');
+    const ref     = tables.find(t => t.id === refId);
+    if (!ref) { UI.toast('שולחן הייחוס לא נמצא — נסה לפתוח את החלון מחדש', 'warning'); UI.closeModal('modalNormalizeSizes'); return; }
+
+    const targets = sameOnly
+      ? tables.filter(t => t.id !== refId && t.shape === ref.shape)
+      : tables.filter(t => t.id !== refId);
+
+    if (!targets.length) {
+      UI.toast('אין שולחנות נוספים להשוואה', 'info');
+      UI.closeModal('modalNormalizeSizes');
+      return;
+    }
+
+    Guests.startBatch();
+    targets.forEach(t => State.updateItem(t.id, { width: ref.width, height: ref.height }));
+    Guests.endBatch();
+
+    UI.closeModal('modalNormalizeSizes');
+    const typeLabel = sameOnly ? (_shapeLabelPlur[ref.shape] || 'שולחנות') : 'שולחנות';
+    UI.toast(`${targets.length} ${typeLabel} הושוו לגודל שולחן ${ref.number ?? '?'} (${ref.width}×${ref.height}) ✓`, 'success', 2500);
+  }
+
+
   return {
     init,
     openAddTable, openEditTable,
@@ -1771,6 +1866,7 @@ const Modals = (() => {
     handleGuestDrop, updateEventHeader,
     renderTagsManager, renderPresetManager, renderTablePresets,
     renderEventsManager, showAutoAssignResult,
-    renderLayoutDropdown, openSaveLayout
+    renderLayoutDropdown, openSaveLayout,
+    openNormalizeSizes
   };
 })();

@@ -162,7 +162,8 @@
       <button class="btn btn-sm btn-secondary" id="btnToggleGrid" title="הצג/הסתר רשת">⊟ רשת</button>
       <button class="btn btn-sm btn-secondary" id="btnDistribute"    title="פזר שולחנות — סדר בצורה שווה ואחיד גדלם">⊞ פזר</button>
       <button class="btn btn-sm btn-secondary" id="btnRenumber"     title="מספר מחדש — סדר מספרי שולחנות לפי מיקומם (מימין לשמאל, מלמעלה למטה)"># מספר</button>
-      <button class="btn btn-sm btn-secondary" id="btnRenumberDesc" title="מספר הפוך — מספור בסדר הפוך: השולחן הכי שמאלי/תחתי מקבל מספר 1"># הפוך</button>
+      <button class="btn btn-sm btn-secondary" id="btnRenumberDesc"   title="מספר הפוך — מספור בסדר הפוך: השולחן הכי שמאלי/תחתי מקבל מספר 1"># הפוך</button>
+      <button class="btn btn-sm btn-secondary" id="btnNormalizeSizes" title="השווה גדלים — בחר שולחן ייחוס ושווה את גודל כל שולחנות מאותה צורה">↔ גודל</button>
       <span style="flex:1"></span>
       <small style="color:#90a4ae;font-size:11px">גרור לשינוי מיקום · גלגלת לזום · לחץ פריט לבחירה · Del למחיקה</small>
     </div>
@@ -1058,6 +1059,33 @@
       <button class="btn btn-primary"   id="btnImportLayoutsMerge">מיזוג (הוסף לקיימות)</button>
       <button class="btn btn-secondary" id="btnImportLayoutsReplace">החלפה</button>
       <button class="btn btn-ghost"     data-close-modal="modalImportLayouts">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- Normalize Sizes -->
+<div class="modal-overlay" id="modalNormalizeSizes">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h2>השווה גדלי שולחנות</h2>
+      <button class="modal-close" data-close-modal="modalNormalizeSizes">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label for="normalizeSizeRef">שולחן ייחוס (הגודל יועתק ממנו)</label>
+        <select id="normalizeSizeRef" class="input" style="width:100%"></select>
+      </div>
+      <div class="form-group" style="margin-top:10px">
+        <label class="checkbox-label">
+          <input type="checkbox" id="normalizeSameShape" checked>
+          החל רק על שולחנות מאותה צורה
+        </label>
+      </div>
+      <div id="normalizeSizePreview" style="margin-top:10px;padding:8px 10px;background:#f0f2ff;border-radius:6px;font-size:13px;color:#3949ab;min-height:32px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary"   id="btnConfirmNormalizeSizes">החל</button>
+      <button class="btn btn-secondary" data-close-modal="modalNormalizeSizes">ביטול</button>
     </div>
   </div>
 </div>
