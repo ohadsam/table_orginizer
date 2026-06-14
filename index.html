@@ -19,21 +19,49 @@
   <div class="header-center">
     <div id="eventNameDisplay">לחץ להגדרת האירוע</div>
     <div id="eventTypeDisplay"></div>
+    <div id="layoutOptionsRow">
+      <select id="selectLayoutOption" title="בחר פריסת הושבה שמורה לטעון">
+        <option value="">── פריסה נוכחית ──</option>
+      </select>
+      <button class="btn btn-icon layout-opt-btn" id="btnSaveLayout"   title="שמור את הפריסה הנוכחית בשם (שולחנות, שיבוצים ותצוגה)">💾</button>
+      <button class="btn btn-icon layout-opt-btn" id="btnDeleteLayout" title="מחק פריסת הושבה זו" style="display:none">🗑</button>
+    </div>
   </div>
   <div class="header-actions">
-    <button class="btn btn-icon" id="btnUndo"       title="בטל (Ctrl+Z)" disabled>↩️</button>
-    <button class="btn btn-icon" id="btnRedo"       title="שחזר (Ctrl+Y)" disabled>↪️</button>
-    <button class="btn btn-icon" id="btnBulkEdit"   title="ערוך שולחנות מסומנים — בחר שולחנות עם Ctrl+לחיצה" style="display:none">✏️</button>
-    <button class="btn btn-icon" id="btnSettings"   title="הגדרות אירוע">⚙️</button>
-    <button class="btn btn-icon" id="btnExport"     title="ייצוא כל הפרויקט לקובץ JSON (כל האירועים, הגדרות, שולחנות ומוזמנים)">📤</button>
-    <button class="btn btn-icon" id="btnImport"     title="ייבוא פרויקט מקובץ JSON — תומך בקבצי פרויקט מלא וגם בקבצי אירוע בודד">📥</button>
-    <button class="btn btn-icon" id="btnExportCsv"  title="ייצוא רשימת מוזמנים לקובץ CSV (אקסל)">📊</button>
-    <button class="btn btn-icon" id="btnPrintPlan"    title="הדפס תוכנית הושבה (כרטיסי שולחן)">🖨️</button>
-    <button class="btn btn-icon" id="btnPrintList"    title="הדפס רשימת מוזמנים מלאה">📋</button>
-    <button class="btn btn-icon" id="btnPrintAll"     title="הדפס הכל — תרשים אולם ורשימת מוזמנים">📄</button>
-    <button class="btn btn-icon" id="btnPrintFull"    title="הדפס מלא — תרשים + עמוד מפורט לכל שולחן + רשימת מוזמנים">📑</button>
-    <button class="btn btn-icon" id="btnPrintDiagram" title="הדפס תרשים שולחנות — כל השולחנות עם כסאות מלאים/ריקים בעמוד אחד">🗺</button>
-    <button class="btn btn-icon" id="btnPrintCards"   title="הדפס כרטיסי הושבה — כרטיס 8×8 ס&quot;מ לכל מוזמן">🎟️</button>
+    <button class="btn btn-icon" id="btnUndo"     title="בטל פעולה אחרונה (Ctrl+Z)" disabled>↩️</button>
+    <button class="btn btn-icon" id="btnRedo"     title="שחזר פעולה אחרונה (Ctrl+Y)" disabled>↪️</button>
+    <button class="btn btn-icon" id="btnBulkEdit" title="ערוך שולחנות מסומנים — בחר שולחנות עם Ctrl+לחיצה" style="display:none">✏️</button>
+    <button class="btn btn-icon" id="btnSettings" title="פתח הגדרות אירוע — שם, תאריך, סוג ועיצוב">⚙️</button>
+
+    <!-- ── Export / Import dropdown ── -->
+    <div class="header-dropdown" id="dropdownExport">
+      <button class="btn btn-icon dropdown-toggle" id="btnDropdownExport" title="תפריט ייצוא וייבוא — פרויקט, מוזמנים, CSV ופריסות הושבה">📦</button>
+      <div class="dropdown-menu" id="menuDropdownExport" role="menu">
+        <div class="dropdown-section-label">פרויקט</div>
+        <button class="dropdown-item" id="btnExport"    title="ייצוא כל הפרויקט לקובץ JSON — כולל כל האירועים, השולחנות, המוזמנים וההגדרות">📤 ייצוא פרויקט (JSON)</button>
+        <button class="dropdown-item" id="btnImport"    title="ייבוא פרויקט מקובץ JSON — תומך בקבצי פרויקט מלא (כל האירועים) וגם בקובץ אירוע בודד">📥 ייבוא פרויקט (JSON)</button>
+        <button class="dropdown-item" id="btnExportCsv" title="ייצוא רשימת מוזמנים האירוע הנוכחי לקובץ CSV לפתיחה באקסל">📊 ייצוא מוזמנים (CSV)</button>
+        <hr class="dropdown-sep">
+        <div class="dropdown-section-label">פריסות הושבה</div>
+        <button class="dropdown-item" id="btnExportLayouts" title="ייצוא כל פריסות ההושבה השמורות לקובץ JSON לגיבוי או שיתוף">📐 ייצוא פריסות הושבה (JSON)</button>
+        <button class="dropdown-item" id="btnImportLayouts" title="ייבוא פריסות הושבה מקובץ JSON — אפשרות מיזוג עם הקיימות או החלפה">📐 ייבוא פריסות הושבה (JSON)</button>
+      </div>
+    </div>
+
+    <!-- ── Print dropdown ── -->
+    <div class="header-dropdown" id="dropdownPrint">
+      <button class="btn btn-icon dropdown-toggle" id="btnDropdownPrint" title="תפריט הדפסה — בחר סוג הדפסה">🖨️</button>
+      <div class="dropdown-menu" id="menuDropdownPrint" role="menu">
+        <div class="dropdown-section-label">סוג הדפסה</div>
+        <button class="dropdown-item" id="btnPrintPlan"    title="הדפס תוכנית הושבה — כרטיס לכל שולחן עם שמות המוזמנים (3 עמודות, דף A4 לאורך)">🖨️ תוכנית הושבה (כרטיסי שולחן)</button>
+        <button class="dropdown-item" id="btnPrintList"    title="הדפס רשימת מוזמנים מלאה — ממוינת לפי מספר שולחן ושם (דף A4 לאורך)">📋 רשימת מוזמנים</button>
+        <button class="dropdown-item" id="btnPrintAll"     title="הדפס הכל — תרשים פריסת האולם ורשימת מוזמנים (דף A4 לרוחב)">📄 תרשים + רשימת מוזמנים</button>
+        <button class="dropdown-item" id="btnPrintFull"    title="הדפס מלא — תרשים האולם, עמוד מפורט לכל שולחן ורשימה סופית (דף A4 לרוחב)">📑 הדפסה מלאה (עמוד לכל שולחן)</button>
+        <button class="dropdown-item" id="btnPrintDiagram" title="הדפס תרשים שולחנות — כל השולחנות עם כסאות מלאים/ריקים בעמוד אחד">🗺 תרשים שולחנות</button>
+        <button class="dropdown-item" id="btnPrintCards"   title="הדפס כרטיסי הושבה — כרטיס 8×8 ס&quot;מ מתקפל לכל מוזמן (2 כרטיסים לשורה)">🎟️ כרטיסי הושבה</button>
+      </div>
+    </div>
+
     <a href="help.html" target="_blank" class="btn btn-icon" title="פתח מדריך למשתמש בחלון חדש">❓</a>
   </div>
 </header>
@@ -995,6 +1023,45 @@
   </div>
 </div>
 
+<!-- ═══════════════════ SAVE LAYOUT MODAL ═══════════════════ -->
+<div class="modal-overlay" id="modalSaveLayout">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <span class="modal-title">💾 שמירת פריסת הושבה</span>
+      <button class="modal-close" data-close-modal="modalSaveLayout">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label for="layoutOptionName">שם הפריסה</label>
+        <input type="text" id="layoutOptionName" class="input" placeholder="לדוגמה: סידור א׳" maxlength="60" autocomplete="off">
+        <p style="font-size:12px;color:#607d8b;margin-top:4px">שם זהה לפריסה קיימת יעדכן אותה; שם חדש ייצור פריסה נוספת.</p>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="btnConfirmSaveLayout">💾 שמור</button>
+      <button class="btn btn-ghost" data-close-modal="modalSaveLayout">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ IMPORT LAYOUTS MODAL ═══════════════════ -->
+<div class="modal-overlay" id="modalImportLayouts">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <span class="modal-title">📥 ייבוא פריסות הושבה</span>
+      <button class="modal-close" data-close-modal="modalImportLayouts">✕</button>
+    </div>
+    <div class="modal-body">
+      <p>כיצד לייבא את הפריסות מהקובץ?</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary"   id="btnImportLayoutsMerge">מיזוג (הוסף לקיימות)</button>
+      <button class="btn btn-secondary" id="btnImportLayoutsReplace">החלפה</button>
+      <button class="btn btn-ghost"     data-close-modal="modalImportLayouts">ביטול</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════════ ITEM NAV PANEL ═══════════════════ -->
 <div id="itemNavPanel">
   <button id="itemNavToggleBtn" class="item-nav-toggle-btn" title="פתח תפריט פריטים">▶</button>
@@ -1003,6 +1070,8 @@
     <div id="itemNavList" class="item-nav-list"></div>
   </div>
 </div>
+
+<input type="file" id="importLayoutsInput" accept=".json" style="display:none">
 
 <!-- ═══════════════════ SCRIPTS ═══════════════════ -->
 <script src="js/config.js"></script>

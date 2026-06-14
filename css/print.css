@@ -12,6 +12,7 @@
   .toast-container,
   #btnMobileSidebar,
   .modal-overlay,
+  .dropdown-menu,
   .app-layout { display: none !important; }
 
   /* Show correct print area based on mode */

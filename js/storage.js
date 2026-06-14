@@ -110,6 +110,7 @@ const Storage = (() => {
     _currentId = newId; // must set BEFORE state mutation so change events target the new key
     if (keepGuests) State.resetBoardKeepGuests();
     else            State.resetBoard();
+    State.setLayoutOptions([]);  // layout options are per-event; don't carry over to the new event
     saveNow();
     State.emit('eventSwitched');
     UI.toast('אירוע חדש נוצר ✓', 'success');
@@ -371,6 +372,50 @@ const Storage = (() => {
     });
   }
 
+  function exportLayoutOptions() {
+    const opts = State.get().layoutOptions;
+    if (!opts || !opts.length) { UI.toast('אין פריסות הושבה שמורות לייצוא', 'warning'); return; }
+    const data  = { version: 1, exportedAt: new Date().toISOString(), layoutOptions: JSON.parse(JSON.stringify(opts)) };
+    const json  = JSON.stringify(data, null, 2);
+    const blob  = new Blob([json], { type: 'application/json;charset=utf-8' });
+    const url   = URL.createObjectURL(blob);
+    const a     = document.createElement('a');
+    const name  = (State.get().event.name || 'פריסות').replace(/\s+/g, '_');
+    const date  = new Date().toISOString().slice(0, 10);
+    a.href = url; a.download = `${name}_פריסות_${date}.json`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    UI.toast(`יוצאו ${opts.length} פריסות הושבה ✓`, 'success');
+  }
+
+  function importLayoutOptions(file, merge) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (!Array.isArray(data.layoutOptions)) throw new Error('Invalid layout options file');
+          const incoming = data.layoutOptions;
+          let addedCount;
+          if (!merge) {
+            addedCount = incoming.length;
+            State.setLayoutOptions(incoming);
+          } else {
+            const existingIds = new Set(State.get().layoutOptions.map(o => o.id));
+            const toAdd = incoming.filter(o => !existingIds.has(o.id));
+            addedCount = toAdd.length;
+            State.setLayoutOptions([...State.get().layoutOptions, ...toAdd]);
+          }
+          saveNow();
+          UI.toast(`יובאו ${addedCount} פריסות הושבה ✓`, 'success');
+          resolve(data);
+        } catch(err) { UI.toast('שגיאה בקריאת קובץ הפריסות', 'error'); reject(err); }
+      };
+      reader.onerror = () => { UI.toast('שגיאה בפתיחת הקובץ', 'error'); reject(reader.error); };
+      reader.readAsText(file);
+    });
+  }
+
   // Auto-save on every state change
   State.on('change', save);
 
@@ -379,6 +424,7 @@ const Storage = (() => {
     exportJSON, exportProjectJSON, exportCSV,
     importJSON, importProjectJSON,
     exportGuestsJSON, importGuestsJSON,
+    exportLayoutOptions, importLayoutOptions,
     createEvent, switchEvent, deleteEvent,
     getEventsList, updateCurrentMeta
   };

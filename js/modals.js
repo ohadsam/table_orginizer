@@ -1226,10 +1226,58 @@ const Modals = (() => {
       UI.closeModal('modalAutoAssignResult');
     });
 
-    State.on('eventChanged',   updateEventHeader);
-    State.on('dataLoaded',     updateEventHeader);
-    State.on('presetsChanged', renderTablePresets);
+    State.on('eventChanged',        updateEventHeader);
+    State.on('dataLoaded',          updateEventHeader);
+    State.on('presetsChanged',      renderTablePresets);
+    State.on('layoutOptionsChanged', () => {
+      // Auto-clear active ID if its option was deleted
+      if (_activeLayoutId && !State.getLayoutOptions().find(o => o.id === _activeLayoutId))
+        _activeLayoutId = null;
+      renderLayoutDropdown();
+    });
+    State.on('dataLoaded',          renderLayoutDropdown);
+    State.on('eventSwitched',       () => { _activeLayoutId = null; renderLayoutDropdown(); });
     updateEventHeader();
+    renderLayoutDropdown();
+
+    // Delete layout (handler here so _activeLayoutId is in scope)
+    document.getElementById('btnDeleteLayout')?.addEventListener('click', () => {
+      if (!_activeLayoutId) return;
+      const name = State.getLayoutOptions().find(o => o.id === _activeLayoutId)?.name || _activeLayoutId;
+      if (!UI.confirmDialog(`למחוק את פריסת ההושבה "${name}"?`)) return;
+      State.deleteLayoutOption(_activeLayoutId);  // emits layoutOptionsChanged → auto-clears _activeLayoutId + re-renders
+      UI.toast(`הפריסה "${name}" נמחקה`, 'info');
+    });
+
+    // Save layout modal
+    document.getElementById('btnConfirmSaveLayout')?.addEventListener('click', confirmSaveLayout);
+    document.getElementById('layoutOptionName')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') confirmSaveLayout();
+    });
+
+    // Layout dropdown change: load selected option
+    document.getElementById('selectLayoutOption')?.addEventListener('change', e => {
+      const id   = e.target.value;
+      const prev = _activeLayoutId;
+      if (!id) {
+        _activeLayoutId = null;
+        renderLayoutDropdown();
+        return;
+      }
+      const optName = State.getLayoutOptions().find(o => o.id === id)?.name || id;
+      if (!UI.confirmDialog(`לטעון את פריסת ההושבה "${optName}"?\nהמצב הנוכחי יוחלף.`)) {
+        e.target.value = prev || '';
+        return;
+      }
+      _activeLayoutId = id;          // set before load so dataLoaded → renderLayoutDropdown sees the right value
+      if (!State.loadLayoutOption(id)) {
+        _activeLayoutId = prev;      // revert on failure
+        e.target.value  = prev || '';
+        renderLayoutDropdown();      // re-sync dropdown after revert
+      } else {
+        requestAnimationFrame(() => Canvas.fitAll());
+      }
+    });
   }
 
   /* ── Print Cards modal ── */
@@ -1673,6 +1721,41 @@ const Modals = (() => {
     UI.openModal('modalBulkEdit');
   }
 
+  /* ── Layout Options ── */
+  let _activeLayoutId = null;
+
+  function renderLayoutDropdown() {
+    const sel = document.getElementById('selectLayoutOption');
+    if (!sel) return;
+    const opts = State.getLayoutOptions();
+    sel.innerHTML = `<option value="">── פריסה נוכחית ──</option>` +
+      opts.map(o => `<option value="${UI.escHtml(o.id)}">${UI.escHtml(o.name)}</option>`).join('');
+    sel.value = _activeLayoutId || '';
+    const delBtn = document.getElementById('btnDeleteLayout');
+    if (delBtn) delBtn.style.display = _activeLayoutId ? '' : 'none';
+  }
+
+  function openSaveLayout() {
+    const opts   = State.getLayoutOptions();
+    const active = opts.find(o => o.id === _activeLayoutId);
+    document.getElementById('layoutOptionName').value = active?.name || '';
+    UI.openModal('modalSaveLayout');
+    setTimeout(() => document.getElementById('layoutOptionName')?.focus(), 120);
+  }
+
+  function confirmSaveLayout() {
+    const name = document.getElementById('layoutOptionName').value.trim();
+    if (!name) { UI.toast('נא להזין שם לפריסה', 'warning'); return; }
+    const opts     = State.getLayoutOptions();
+    const existing = opts.find(o => o.name === name);
+    const savedId  = State.saveLayoutOption(name, existing?.id || _activeLayoutId || null);
+    _activeLayoutId = savedId;
+    renderLayoutDropdown();
+    UI.closeModal('modalSaveLayout');
+    UI.toast(existing ? `הפריסה "${name}" עודכנה ✓` : `הפריסה "${name}" נשמרה ✓`, 'success', 1800);
+  }
+
+
   return {
     init,
     openAddTable, openEditTable,
@@ -1682,6 +1765,7 @@ const Modals = (() => {
     openPrintCards, openPrintDiagram, openBulkEdit,
     handleGuestDrop, updateEventHeader,
     renderTagsManager, renderPresetManager, renderTablePresets,
-    renderEventsManager, showAutoAssignResult
+    renderEventsManager, showAutoAssignResult,
+    renderLayoutDropdown, openSaveLayout
   };
 })();

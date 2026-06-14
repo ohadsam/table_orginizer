@@ -35,7 +35,8 @@ const State = (() => {
       ],
       _nextItemId: 1,
       _nextGuestId: 1,
-      _nextTableNum: 1
+      _nextTableNum: 1,
+      layoutOptions: []
     };
   }
 
@@ -186,10 +187,11 @@ const State = (() => {
       event:    { ...def.event,    ...(data.event    || {}) },
       settings: { ...def.settings, ...(data.settings || {}) },
       canvas:   { ...def.canvas,   ...(data.canvas   || {}) },
-      items:        Array.isArray(data.items)        ? data.items        : def.items,
-      guests:       Array.isArray(data.guests)       ? data.guests       : def.guests,
-      tags:         Array.isArray(data.tags)         ? data.tags         : def.tags,
-      tablePresets: Array.isArray(data.tablePresets) ? data.tablePresets : def.tablePresets
+      items:         Array.isArray(data.items)         ? data.items         : def.items,
+      guests:        Array.isArray(data.guests)        ? data.guests        : def.guests,
+      tags:          Array.isArray(data.tags)          ? data.tags          : def.tags,
+      tablePresets:  Array.isArray(data.tablePresets)  ? data.tablePresets  : def.tablePresets,
+      layoutOptions: Array.isArray(data.layoutOptions) ? data.layoutOptions : def.layoutOptions
     };
     _state.guests.forEach(g => { g.total = (g.adults || 0) + (g.children || 0); });
     emit('dataLoaded');
@@ -231,6 +233,54 @@ const State = (() => {
     emit('dataLoaded');
   }
 
+  /* ── layout options ── */
+  function saveLayoutOption(name, id) {
+    const opt = {
+      id:   id || ('opt_' + Date.now()),
+      name: name,
+      items:       JSON.parse(JSON.stringify(_state.items)),
+      assignments: {},
+      canvas:      { ..._state.canvas }
+    };
+    _state.guests.forEach(g => { opt.assignments[g.id] = g.tableId; });
+    const idx = _state.layoutOptions.findIndex(o => o.id === opt.id);
+    if (idx >= 0) _state.layoutOptions[idx] = opt;
+    else          _state.layoutOptions.push(opt);
+    emit('layoutOptionsChanged', { id: opt.id });
+    return opt.id;
+  }
+
+  function loadLayoutOption(id) {
+    const opt = _state.layoutOptions.find(o => o.id === id);
+    if (!opt) return false;
+    _state.items = JSON.parse(JSON.stringify(opt.items));
+    _state.guests.forEach(g => {
+      g.tableId = Object.prototype.hasOwnProperty.call(opt.assignments, g.id)
+        ? opt.assignments[g.id]
+        : null;
+    });
+    if (opt.canvas) _state.canvas = { ..._state.canvas, ...opt.canvas };
+    emit('dataLoaded');
+    return true;
+  }
+
+  function deleteLayoutOption(id) {
+    const idx = _state.layoutOptions.findIndex(o => o.id === id);
+    if (idx < 0) return false;
+    _state.layoutOptions.splice(idx, 1);
+    emit('layoutOptionsChanged', { id: null });
+    return true;
+  }
+
+  function getLayoutOptions() {
+    return _state.layoutOptions.map(o => ({ id: o.id, name: o.name }));
+  }
+
+  function setLayoutOptions(arr) {
+    _state.layoutOptions = Array.isArray(arr) ? JSON.parse(JSON.stringify(arr)) : [];
+    emit('layoutOptionsChanged', { id: null });
+  }
+
   /* ── guest-only import (merge or replace) ── */
   function importGuests(guestsData, tagsData, merge) {
     if (!merge) {
@@ -270,6 +320,7 @@ const State = (() => {
     addTablePreset, removeTablePreset,
     addTag, removeTag,
     serialize, deserialize, resetBoard, resetBoardKeepGuests, importGuests,
-    setEventField, setSetting, setCanvasView
+    setEventField, setSetting, setCanvasView,
+    saveLayoutOption, loadLayoutOption, deleteLayoutOption, getLayoutOptions, setLayoutOptions
   };
 })();
