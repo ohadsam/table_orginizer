@@ -583,14 +583,7 @@ const Items = (() => {
     m.querySelector('#ctxDelete').onclick = () => {
       const id = _ctxItemId;
       if (!id) return;
-      if (UI.confirmDialog('למחוק פריט זה?')) {
-        State.removeItem(id);
-        if (_selectedIds.has(id)) {
-          _selectedIds.delete(id);
-          _selectedId = _selectedIds.size > 0 ? [..._selectedIds].at(-1) : null;
-          _updateBulkEditBtn();
-        }
-      }
+      if (UI.confirmDialog('למחוק פריט זה?')) State.removeItem(id);
       _closeCtxMenu();
     };
 
@@ -715,7 +708,10 @@ const Items = (() => {
         toDelete.forEach(id => State.removeItem(id));
       }
     }
-    if (e.key === 'Escape') { _closeCtxMenu(); deselectAll(); }
+    if (e.key === 'Escape') {
+      _closeCtxMenu();
+      if (!document.querySelector('.modal-overlay.active')) deselectAll();
+    }
   });
 
   /* ── Drop highlight ── */
@@ -737,7 +733,14 @@ const Items = (() => {
   /* ── State sync ── */
   State.on('itemAdded',   item => renderItem(item));
   State.on('itemUpdated', item => refreshItem(item.id));
-  State.on('itemRemoved', id   => removeItemEl(id));
+  State.on('itemRemoved', id   => {
+    removeItemEl(id);
+    if (_selectedIds.has(id)) {
+      _selectedIds.delete(id);
+      if (_selectedId === id) _selectedId = _selectedIds.size > 0 ? [..._selectedIds].at(-1) : null;
+      _updateBulkEditBtn();
+    }
+  });
   State.on('guestAssigned', ({ tableId, prevTableId }) => {
     if (tableId)     refreshItem(tableId);
     if (prevTableId) refreshItem(prevTableId);
