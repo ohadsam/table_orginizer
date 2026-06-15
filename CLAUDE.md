@@ -731,38 +731,54 @@ The reorder handle (⠿ span) is separate from the pointer-based canvas-drag sys
 
 ## Tables-Only Diagram Print (`printTablesDiagram`)
 
-`Print.printTablesDiagram(opts)` — triggered by `btnPrintDiagram` (🗺) in the header, which now opens `modalPrintDiagram` (`Modals.openPrintDiagram()`). The modal lets the user choose the print mode and then calls `Print.printTablesDiagram({ showGuestList, guestFontSize, cols, showLabel, showOccupancy, svgNumFont, svgLblFont, svgOccFont })`.
+`Print.printTablesDiagram(opts)` — triggered by `btnPrintDiagram` (🗺) in the header, which now opens `modalPrintDiagram` (`Modals.openPrintDiagram()`). The modal lets the user choose the print mode and then calls `Print.printTablesDiagram({ showGuestList, guestFontSize, cols, showLabel, showOccupancy, fontMode, svgNumFont, svgLblFont, svgGstFont, svgOccFont })`.
+
+### Font mode (`fontMode`)
+
+Both standard and guest-list modes respect `fontMode`:
+
+| Value | Behaviour |
+|-------|-----------|
+| `'auto'` (default) | Font sizes are auto-scaled proportionally to each table's size using `scale = Math.min(W,H)/130`. Per-table and global settings are ignored — ensures consistent readability regardless of canvas extent. |
+| `'fixed'` | Fonts use explicit pt values (`svgNumFont`, `svgLblFont`, `svgGstFont`, `svgOccFont`). Standard SVG uses CSS `style="font-size:Xpt"` (physical units, unaffected by viewBox scale). Mini SVG uses the normalized 56.7-unit viewBox where 1 unit ≈ 1pt. |
+
+**Why auto ignores canvas px values**: Per-table `item.fontSize` and global `stt.fontNumberSize` are canvas pixel values. In standard mode the viewBox spans the entire canvas in px — a 24px font on a 2000px canvas prints ~9pt, but on a 500px canvas prints ~35pt. Auto mode avoids this unpredictability by scaling relative to each table's own size.
 
 ### Standard mode (`showGuestList: false`, default)
 - Compact event header (title, date, occupancy stats)
-- Full-detail SVG of **only table items** (`buildRoomTablesOnlySVG`): seat circles (filled/empty, using `CONFIG.COLORS.seatOccupied` / `seatOver` / `seatEmpty`), occupancy-based or custom colors, table numbers, labels, and guest names — same font scaling as `buildTableSVG` in items.js
+- Full-detail SVG of **only table items** (`buildRoomTablesOnlySVG(fontMode, overrideNumFont, overrideLblFont, overrideGstFont, overrideOccFont)`): seat circles (filled/empty, using `CONFIG.COLORS.seatOccupied` / `seatOver` / `seatEmpty`), occupancy-based or custom colors, table numbers, labels, and guest names
 - Bounding box uses `seatPad = CONFIG.SEAT_RADIUS * 2 + 10` to include seat circles that extend outside item bounds
 - `🔒` badge (top-right) for assignment-locked tables; `#` badge (purple, top-left) for number-locked tables
 - SVG `max-height: 162mm` leaves ~24mm for the compact header within 186mm landscape A4 usable height
+- **Fixed mode pt-to-px**: layout calculations (text y-positions, guest list line height) need canvas-px estimates of pt sizes. Conversion: `ptToPx = 1 / (min(250/vbW, 162/vbH) * 2.835)` where 250mm and 162mm are the estimated usable A4 landscape print dimensions.
 
 ### Guest-list mode (`showGuestList: true`)
 - Compact event header
 - CSS grid (`diag-blocks-wrap`) of one **block** per table, sorted by table number
 - Each block (`.diag-block`): flex row with a **mini table SVG** (`.diag-table-svg-wrap`, 20mm wide) beside a **compact HTML table** (`.diag-mini-table`, font size user-selectable 5–12pt)
-  - Mini SVG (`_buildTableMiniSVG(item, occ, showLabel, showOccupancy, numFontOverride=0, lblFontOverride=0, occFontOverride=0)`): shows table shape (circle/rect), occupancy-based color, table number (bold). When `showOccupancy=true`, occ/seats text at top. When `showLabel=true` and `item.label` is set, label text below number (number shifts up). No seat circles for compactness. Font overrides: 0 = auto-scaled (uses `item.fontXxx` → global settings → scale fallback). **ViewBox normalization**: the SVG uses `viewBox="0 0 56.7 NH"` where NW=56.7 user units ≈ 20mm at 1pt/unit (since 20mm ÷ 0.353mm/pt ≈ 56.7). This means 1 SVG user unit ≈ 1pt in print, so user-entered font sizes map directly to physical pt values. Auto-scale is computed from `scale = Math.min(56.7, NH) / 130`, always clamping to auto minimums (10pt num, 7pt label, 6pt occu) for the 20mm column. Modal overrides are JS-clamped: numFont ≤ 24, lblFont ≤ 14, occFont ≤ 9.
+  - Mini SVG (`_buildTableMiniSVG(item, occ, showLabel, showOccupancy, numFontOverride=0, lblFontOverride=0, occFontOverride=0)`): shows table shape (circle/rect), occupancy-based color, table number (bold). When `showOccupancy=true`, occ/seats text at top. When `showLabel=true` and `item.label` is set, label text below number (number shifts up). No seat circles for compactness. Font overrides: 0 = pure auto-scale (formula only, does NOT fall through to `item.fontXxx` or global settings — those are canvas px values and would be misinterpreted as pt in the normalized viewBox). **ViewBox normalization**: the SVG uses `viewBox="0 0 56.7 NH"` where NW=56.7 user units ≈ 20mm at 1pt/unit (since 20mm ÷ 0.353mm/pt ≈ 56.7). This means 1 SVG user unit ≈ 1pt in print, so user-entered font sizes map directly to physical pt values. Auto-scale: `scale = Math.min(56.7, NH) / 130`, clamping to minimums (10pt num, 7pt label, 6pt occu).
   - Mini table: colored header row (`background = item.color || tableOccupancyColor`; text color auto-contrasted via `_contrastColor(hex)`); rows of guest name + total count; split guests tagged `(פ)`
   - Header color uses `print-color-adjust: exact` so backgrounds print correctly
+- In fixed mode, `numFontOverride/lblFontOverride/occFontOverride` are set to `svgNumFont/svgLblFont/svgOccFont`; in auto mode they are 0
 - Grid columns: user-selected 2–5 (default 4); `guestFontSize` 5–12pt (default 8pt) controls guest-row text
 - `_contrastColor(hex)`: returns `#fff` or `#111` based on WCAG luminance threshold 0.55
 
 Both modes print landscape (`_injectLandscape()`); print mode `"diagram"` activates `#printTablesDiagramArea { display: flex }`.
 
 ### `modalPrintDiagram`
-Simple modal (`modal-sm`) with:
+Modal (`modal-sm`) with:
+- Font mode toggle: `btnDiagramFontAuto` (active by default) / `btnDiagramFontFixed` — segmented button pair using `.shape-btn` styling; toggles `#diagramFixedFontOpts` visibility and `#diagramFontModeHint`
+- Fixed font inputs (in `#diagramFixedFontOpts`, 4-column grid, visible only in fixed mode):
+  - `inputDiagramSvgNumFont` — table number font size (6–36pt, default 14)
+  - `inputDiagramSvgLblFont` — table label font size (6–24pt, default 9)
+  - `inputDiagramSvgGstFont` — guest names font size in standard SVG (6–18pt, default 8)
+  - `inputDiagramSvgOccFont` — occupancy text font size (6–18pt, default 7)
 - Checkbox `chkDiagramShowGuests` — shows/hides `#diagramGuestOpts` section
-- `inputDiagramGuestFont` — number input for guest font size (5–12, default 8)
-- `selectDiagramCols` — select for column count (2/3/4/5, default 4)
-- `chkDiagramShowLabel` (checked by default) — whether to print the table label inside the mini SVG in guest-list mode
-- `chkDiagramShowOccupancy` (checked by default) — whether to print the occ/seats ratio inside the mini SVG in guest-list mode
-- SVG font size overrides (shown inside `#diagramGuestOpts`, 3-column grid; 0 = auto):
-  - `inputDiagramSvgNumFont` — table number font size in the mini SVG
-  - `inputDiagramSvgLblFont` — label font size in the mini SVG
-  - `inputDiagramSvgOccFont` — occupancy font size in the mini SVG
+- Guest list options (in `#diagramGuestOpts`, visible only when guest checkbox checked):
+  - `inputDiagramGuestFont` — guest row font size in HTML table (5–12pt, default 8)
+  - `selectDiagramCols` — column count (2/3/4/5, default 4)
+  - `chkDiagramShowLabel` (checked by default) — show table label in mini SVG
+  - `chkDiagramShowOccupancy` (checked by default) — show occ/seats in mini SVG
 - `btnDoPrintDiagram` — closes modal and calls `Print.printTablesDiagram(opts)`
 
 ## Multi-Table Bulk Edit

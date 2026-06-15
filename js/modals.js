@@ -1600,24 +1600,51 @@ const Modals = (() => {
 
   /* ── Print Diagram modal ── */
   function openPrintDiagram() {
+    const btnAuto   = document.getElementById('btnDiagramFontAuto');
+    const btnFixed  = document.getElementById('btnDiagramFontFixed');
+    const fixedOpts = document.getElementById('diagramFixedFontOpts');
+    const hint      = document.getElementById('diagramFontModeHint');
+
+    if (btnAuto && btnFixed && fixedOpts) {
+      // Reset to auto mode on every open
+      btnAuto.classList.add('active');  btnFixed.classList.remove('active');
+      fixedOpts.style.display = 'none';
+      if (hint) hint.style.display = '';
+
+      btnAuto.onclick = () => {
+        btnAuto.classList.add('active');  btnFixed.classList.remove('active');
+        fixedOpts.style.display = 'none';
+        if (hint) hint.style.display = '';
+      };
+      btnFixed.onclick = () => {
+        btnFixed.classList.add('active'); btnAuto.classList.remove('active');
+        fixedOpts.style.display = '';
+        if (hint) hint.style.display = 'none';
+      };
+    }
+
     const chk  = document.getElementById('chkDiagramShowGuests');
     const opts = document.getElementById('diagramGuestOpts');
     if (chk) {
       chk.onchange = () => { if (opts) opts.style.display = chk.checked ? '' : 'none'; };
     }
+
     const btn = document.getElementById('btnDoPrintDiagram');
     if (btn) {
       btn.onclick = () => {
         UI.closeModal('modalPrintDiagram');
+        const fontMode      = btnFixed?.classList.contains('active') ? 'fixed' : 'auto';
         const showGuests    = chk?.checked || false;
-        const fontSize      = parseInt(document.getElementById('inputDiagramGuestFont')?.value)    || 8;
-        const cols          = parseInt(document.getElementById('selectDiagramCols')?.value)         || 4;
+        const fontSize      = parseInt(document.getElementById('inputDiagramGuestFont')?.value) || 8;
+        const cols          = parseInt(document.getElementById('selectDiagramCols')?.value)     || 4;
         const showLabel     = document.getElementById('chkDiagramShowLabel')?.checked     !== false;
         const showOccupancy = document.getElementById('chkDiagramShowOccupancy')?.checked !== false;
-        const svgNumFont    = Math.max(0, Math.min(24, parseInt(document.getElementById('inputDiagramSvgNumFont')?.value) || 0));
-        const svgLblFont    = Math.max(0, Math.min(14, parseInt(document.getElementById('inputDiagramSvgLblFont')?.value) || 0));
-        const svgOccFont    = Math.max(0, Math.min(9,  parseInt(document.getElementById('inputDiagramSvgOccFont')?.value) || 0));
-        Print.printTablesDiagram({ showGuestList: showGuests, guestFontSize: fontSize, cols, showLabel, showOccupancy, svgNumFont, svgLblFont, svgOccFont });
+        const svgNumFont    = Math.max(6, Math.min(36, parseInt(document.getElementById('inputDiagramSvgNumFont')?.value) || 14));
+        const svgLblFont    = Math.max(6, Math.min(24, parseInt(document.getElementById('inputDiagramSvgLblFont')?.value) || 9));
+        const svgGstFont    = Math.max(6, Math.min(18, parseInt(document.getElementById('inputDiagramSvgGstFont')?.value) || 8));
+        const svgOccFont    = Math.max(6, Math.min(18, parseInt(document.getElementById('inputDiagramSvgOccFont')?.value) || 7));
+        Print.printTablesDiagram({ showGuestList: showGuests, guestFontSize: fontSize, cols,
+          showLabel, showOccupancy, fontMode, svgNumFont, svgLblFont, svgGstFont, svgOccFont });
       };
     }
     UI.openModal('modalPrintDiagram');

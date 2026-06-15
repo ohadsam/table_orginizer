@@ -696,6 +696,7 @@ input, select, textarea { font-family: inherit; }
   flex-direction: column;
   animation: modal-in .18s ease;
 }
+.modal-sm { max-width: 420px; }
 .modal-lg { max-width: 580px; }
 .modal-xl { max-width: 820px; }
 .modal-md { max-width: 520px; }
