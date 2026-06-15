@@ -863,30 +863,32 @@ ${buildGuestTableHTML(sorted)}`;
     const lblFont = lblFontOverride || Math.max(7,  Math.min(14, Math.round(10 * scale)));
     const num     = item.number != null ? String(item.number) : '?';
     const hasLabel = showLabel && item.label;
-    let body = '';
+    const textRot  = item.textRotation || 0;
+    let shapes = '', texts = '';
     if (item.shape === 'circle') {
       const cx = NW / 2, cy = NH / 2;
       const r  = Math.min(NW, NH) / 2 - 4;
-      body += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r.toFixed(1)}" fill="${bg}" stroke="#888" stroke-width="1"/>`;
+      shapes += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r.toFixed(1)}" fill="${bg}" stroke="#888" stroke-width="1"/>`;
       if (showOccupancy)
-        body += `<text x="${cx.toFixed(1)}" y="${(cy - r + occFont + 1).toFixed(1)}" text-anchor="middle" font-size="${occFont}" fill="${occuColor}">${occ}/${item.seats}</text>`;
+        texts += `<text x="${cx.toFixed(1)}" y="${(cy - r + occFont + 1).toFixed(1)}" text-anchor="middle" font-size="${occFont}" fill="${occuColor}">${occ}/${item.seats}</text>`;
       const numY = hasLabel ? cy - lblFont / 2 : cy;
-      body += `<text x="${cx.toFixed(1)}" y="${numY.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="${numColor}">${UI.escHtml(num)}</text>`;
+      texts += `<text x="${cx.toFixed(1)}" y="${numY.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="${numColor}">${UI.escHtml(num)}</text>`;
       if (hasLabel)
-        body += `<text x="${cx.toFixed(1)}" y="${(numY + numFont * 0.6 + lblFont).toFixed(1)}" text-anchor="middle" font-size="${lblFont}" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
+        texts += `<text x="${cx.toFixed(1)}" y="${(numY + numFont * 0.6 + lblFont).toFixed(1)}" text-anchor="middle" font-size="${lblFont}" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
     } else {
       const p = 3, cx = NW / 2, cy = NH / 2;
-      body += `<rect x="${p}" y="${p}" width="${(NW - p * 2).toFixed(1)}" height="${(NH - p * 2).toFixed(1)}" rx="4" fill="${bg}" stroke="#888" stroke-width="1"/>`;
+      shapes += `<rect x="${p}" y="${p}" width="${(NW - p * 2).toFixed(1)}" height="${(NH - p * 2).toFixed(1)}" rx="4" fill="${bg}" stroke="#888" stroke-width="1"/>`;
       if (showOccupancy)
-        body += `<text x="${cx.toFixed(1)}" y="${(p + occFont + 1).toFixed(1)}" text-anchor="middle" font-size="${occFont}" fill="${occuColor}">${occ}/${item.seats}</text>`;
+        texts += `<text x="${cx.toFixed(1)}" y="${(p + occFont + 1).toFixed(1)}" text-anchor="middle" font-size="${occFont}" fill="${occuColor}">${occ}/${item.seats}</text>`;
       const numY = hasLabel ? cy - lblFont / 2 : cy;
-      body += `<text x="${cx.toFixed(1)}" y="${numY.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="${numColor}">${UI.escHtml(num)}</text>`;
+      texts += `<text x="${cx.toFixed(1)}" y="${numY.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="${numColor}">${UI.escHtml(num)}</text>`;
       if (hasLabel)
-        body += `<text x="${cx.toFixed(1)}" y="${(numY + numFont * 0.6 + lblFont).toFixed(1)}" text-anchor="middle" font-size="${lblFont}" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
+        texts += `<text x="${cx.toFixed(1)}" y="${(numY + numFont * 0.6 + lblFont).toFixed(1)}" text-anchor="middle" font-size="${lblFont}" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
     }
-    if (item.locked)        body += `<text x="${(NW - 3).toFixed(1)}" y="${Math.min(14, NH - 2).toFixed(1)}" text-anchor="end" font-size="9">🔒</text>`;
-    if (item.numberLocked)  body += `<text x="3" y="${Math.min(13, NH - 3).toFixed(1)}" text-anchor="start" font-size="8" font-weight="700" fill="#7e57c2">#</text>`;
-    return `<svg viewBox="0 0 ${NW} ${NH}" preserveAspectRatio="xMidYMid meet" width="100%" xmlns="http://www.w3.org/2000/svg">${body}</svg>`;
+    const badges = (item.locked ? `<text x="${(NW - 3).toFixed(1)}" y="${Math.min(14, NH - 2).toFixed(1)}" text-anchor="end" font-size="9">🔒</text>` : '')
+                 + (item.numberLocked ? `<text x="3" y="${Math.min(13, NH - 3).toFixed(1)}" text-anchor="start" font-size="8" font-weight="700" fill="#7e57c2">#</text>` : '');
+    const textGroup = textRot ? `<g transform="rotate(${textRot},${(NW/2).toFixed(1)},${(NH/2).toFixed(1)})">${texts}</g>` : texts;
+    return `<svg viewBox="0 0 ${NW} ${NH}" preserveAspectRatio="xMidYMid meet" width="100%" xmlns="http://www.w3.org/2000/svg">${shapes}${textGroup}${badges}</svg>`;
   }
 
   /* ── Grid of (mini SVG + guest-list table) blocks for diagram+guests mode ── */

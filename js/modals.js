@@ -1705,10 +1705,14 @@ const Modals = (() => {
       };
     }
 
-    const chk  = document.getElementById('chkDiagramShowGuests');
-    const opts = document.getElementById('diagramGuestOpts');
+    const chk     = document.getElementById('chkDiagramShowGuests');
+    const opts    = document.getElementById('diagramGuestOpts');
+    const stdOpts = document.getElementById('diagramStdOpts');
     if (chk) {
-      chk.onchange = () => { if (opts) opts.style.display = chk.checked ? '' : 'none'; };
+      chk.onchange = () => {
+        if (opts)    opts.style.display    = chk.checked ? '' : 'none';
+        if (stdOpts) stdOpts.style.display = chk.checked ? 'none' : '';
+      };
     }
 
     const btn = document.getElementById('btnDoPrintDiagram');
