@@ -50,6 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnRenumberDesc')?.addEventListener('click',    () => Items.renumberTables({ reversed: true }));
   document.getElementById('btnNormalizeSizes')?.addEventListener('click',  () => Modals.openNormalizeSizes());
   document.getElementById('btnBulkEdit')?.addEventListener('click',        () => Modals.openBulkEdit());
+  document.getElementById('btnAlign')?.addEventListener('click',           () => Modals.openAlignItems());
 
   /* ── Header dropdowns ── */
   (function initHeaderDropdowns() {

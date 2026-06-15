@@ -519,9 +519,13 @@ Every canvas item has a `⋮` action button (top-left corner, visible on hover/s
 - **שכפל** — calls `State.duplicateItem(id)`; new item is selected
 - **שנה טקסט** — inline input + Enter/✓ → `State.updateItem(id, { label })`; calls `Guests.render()` for tables
 - **שנה צבע** — inline color picker; ✓ button confirms (`State.updateItem`) and calls `Guests.render()` for tables; ✕ sets `color: null` (reverts to occupancy color for tables, default type color for special items)
+- **סיבוב פריט** — inline row (`#ctxRotRow`, **all items**): ↺ (-90°) / ↻ (+90°) buttons apply immediately (menu stays open); number input 0–359 + ✓ saves; ⊙ resets to null (no rotation). Stored as `item.rotation` (degrees). CSS `transform: rotate(Ndeg)` is applied to the element. Resize handle is hidden when rotation ≠ 0 (resize doesn't work correctly with CSS rotation).
+- **סיבוב טקסט** — inline row (`#ctxTextRotRow`, **all items**): select 0°/90°/180°/270°; ✓ saves to `item.textRotation`. For tables: wraps all text elements in `<g transform="rotate(deg,cx,cy)">`. For special items: applies `transform:rotate(deg);display:inline-block` to `.special-label`.
 - **גודל גופן / צבע גופן** — two inline rows (`#ctxFontSizeRow`, `#ctxFontColorRow`) shown **only for non-table items**. ✓ saves to `item.fontSize` / `item.fontColor`; ✕ clears to null (auto). Applied in `buildSpecialHTML()` via inline style on the `.special-label` span. Both fields are hex-sanitized before rendering.
 - **גודל אייקון** — inline row (`#ctxIconSizeRow`) shown **only for non-table items**. ✓ saves to `item.iconSize`; ✕ clears to null (auto = CSS `font-size: 24px`). Applied in `buildSpecialHTML()` via inline `font-size` on the `.special-icon` span.
+- **הסתר אייקון** — inline row (`#ctxHideIconRow`, **non-table items only**): checkbox + ✓ saves to `item.hideIcon` (bool). When true, `buildSpecialHTML()` skips the `<span class="special-icon">` element entirely.
 - **✓ שמור וסגור** — (`#ctxSaveAll`) shown **only for non-table items**; closes the menu. For non-table items all inline row ✓/✕ buttons apply their change immediately **without** closing the menu (via `_closeIfTable()` helper), so the user can adjust multiple properties before clicking this button.
+- **⊞ יישר/פזר פריטים** — (`#ctxAlignBtn`) shown when ≥2 items are selected; opens `Modals.openAlignItems()`.
 - **מחק** — confirm dialog → `State.removeItem(id)`
 
 ### Context menu pitfalls
@@ -780,6 +784,66 @@ Modal (`modal-sm`) with:
   - `chkDiagramShowLabel` (checked by default) — show table label in mini SVG
   - `chkDiagramShowOccupancy` (checked by default) — show occ/seats in mini SVG
 - `btnDoPrintDiagram` — closes modal and calls `Print.printTablesDiagram(opts)`
+
+### Standard diagram mode toggles (new in modal, before the guest-list section)
+Three checkboxes control what appears in the standard SVG diagram (when "הצג רשימת מוזמנים" is unchecked):
+- `chkDiagramStdLabel` (checked by default) — show/hide table labels in SVG
+- `chkDiagramStdOccupancy` (checked by default) — show/hide occupancy (X/Y) text in SVG
+- `chkDiagramStdGuests` (unchecked by default) — show/hide guest names in SVG
+
+`buildRoomTablesOnlySVG` signature: `(fontMode, overrideNumFont, overrideLblFont, overrideGstFont, overrideOccFont, showLabel, showOccupancy, showGuests)`. All three boolean params default to their natural values (showLabel=true, showOccupancy=true, showGuests=false). textRotation per item is respected in SVG output.
+
+## Item Rotation
+
+Every canvas item supports rotation via `item.rotation` (integer degrees, 0–359, null = no rotation).
+
+- Applied as CSS `transform: rotate(Ndeg)` on the `.canvas-item` element in `renderItem`.
+- Resize handle (`.resize-handle`) is hidden when `item.rotation` is set (resize doesn't work correctly with CSS rotation due to coordinate mismatch).
+- Set via context menu rotation row (↺ -90°, ↻ +90°, number input 0–359, ⊙ reset).
+- +90°/−90° buttons apply immediately; menu stays open for iterative rotation.
+- Rotation is preserved in JSON export/import automatically (serialized in item state).
+- **Note**: Drag still works correctly (center-based). findFreePosition and bounding-box logic use the unrotated item bounds.
+
+## Text Rotation
+
+Every item supports independent text rotation via `item.textRotation` (0, 90, 180, 270 degrees, null = 0).
+
+- **Tables** (`buildTableSVG`): text elements (number, label, occupancy, guest names) are accumulated in a `texts` string, then wrapped in `<g transform="rotate(textRot,W/2,H/2)">` before adding to the SVG. Shape/seat elements stay in `shapes` (never rotated). Lock/number badges stay in `badges` (never rotated).
+- **Special items** (`buildSpecialHTML`): adds `transform:rotate(textRotDeg);display:inline-block` to `.special-label` inline style.
+- Set via context menu text-rotation select (0°/90°/180°/270°) + ✓.
+- Also applied in `buildRoomTablesOnlySVG` (diagram print) using the same `<g transform="rotate(...)">` pattern.
+
+## Hide Icon
+
+Special items (dancefloor, DJ, door, shape) support hiding the emoji icon via `item.hideIcon` (boolean, null = false).
+
+- When `item.hideIcon` is truthy, `buildSpecialHTML()` skips the `<span class="special-icon">` element entirely.
+- Set via context menu "הסתר אייקון" checkbox + ✓ (shown only for non-table items).
+- Allows text-only labels for items where the icon is unwanted.
+
+## Align / Distribute Items (`modalAlignItems`)
+
+`Modals.openAlignItems()` — triggered by header button `btnAlign` (⊞, visible when ≥2 items selected) or context menu "⊞ יישר/פזר פריטים" (shown when ≥2 items selected).
+
+Uses `Items.getSelectedIds()` to get the set of items to align. All coordinate math uses `item.x` / `item.y` (canvas center positions) and `item.width` / `item.height`.
+
+### Alignment operations
+| Button ID | Action |
+|-----------|--------|
+| `alignLeft` | All items' left edge = min left edge in selection |
+| `alignRight` | All items' right edge = max right edge in selection |
+| `alignTop` | All items' top edge = min top edge in selection |
+| `alignBottom` | All items' bottom edge = max bottom edge in selection |
+| `alignCenterH` | All items' center X = mean center X of selection |
+| `alignCenterV` | All items' center Y = mean center Y of selection |
+| `distributeH` | Sort by X; equal center-to-center horizontal spacing (requires ≥3 items) |
+| `distributeV` | Sort by Y; equal center-to-center vertical spacing (requires ≥3 items) |
+
+Distribution keeps the leftmost/topmost and rightmost/bottommost items fixed; middle items are repositioned with equal center-to-center step.
+
+All operations are wrapped in `Guests.startBatch()` / `Guests.endBatch()` to avoid O(n) sidebar re-renders.
+
+`btnAlign` visibility is managed by `_updateBulkEditBtn()` in `items.js` — shown when `_selectedIds.size >= 2`.
 
 ## Multi-Table Bulk Edit
 

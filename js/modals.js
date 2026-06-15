@@ -1598,6 +1598,88 @@ const Modals = (() => {
     UI.openModal('modalPrintCards');
   }
 
+  /* ── Align / Distribute Items modal ── */
+  function openAlignItems() {
+    const ids = Items.getSelectedIds();
+    if (ids.length < 2) { UI.toast('יש לסמן לפחות 2 פריטים', 'info', 1800); return; }
+    document.getElementById('alignItemCount').textContent = ids.length;
+
+    function applyAlign(type) {
+      const items = ids.map(id => State.getItem(id)).filter(Boolean);
+      if (items.length < 2) return;
+      let applied = false;
+      Guests.startBatch();
+      switch (type) {
+        case 'left': {
+          const edge = Math.min(...items.map(i => i.x - i.width / 2));
+          items.forEach(i => State.updateItem(i.id, { x: edge + i.width / 2 }));
+          applied = true; break;
+        }
+        case 'right': {
+          const edge = Math.max(...items.map(i => i.x + i.width / 2));
+          items.forEach(i => State.updateItem(i.id, { x: edge - i.width / 2 }));
+          applied = true; break;
+        }
+        case 'top': {
+          const edge = Math.min(...items.map(i => i.y - i.height / 2));
+          items.forEach(i => State.updateItem(i.id, { y: edge + i.height / 2 }));
+          applied = true; break;
+        }
+        case 'bottom': {
+          const edge = Math.max(...items.map(i => i.y + i.height / 2));
+          items.forEach(i => State.updateItem(i.id, { y: edge - i.height / 2 }));
+          applied = true; break;
+        }
+        case 'centerH': {
+          const cx = items.reduce((s, i) => s + i.x, 0) / items.length;
+          items.forEach(i => State.updateItem(i.id, { x: cx }));
+          applied = true; break;
+        }
+        case 'centerV': {
+          const cy = items.reduce((s, i) => s + i.y, 0) / items.length;
+          items.forEach(i => State.updateItem(i.id, { y: cy }));
+          applied = true; break;
+        }
+        case 'distributeH': {
+          if (items.length < 3) { UI.toast('פיזור שווה דורש לפחות 3 פריטים', 'info', 1800); break; }
+          const sorted = [...items].sort((a, b) => a.x - b.x);
+          const firstX = sorted[0].x, lastX = sorted[sorted.length - 1].x;
+          const step = (lastX - firstX) / (sorted.length - 1);
+          sorted.forEach((i, idx) => {
+            if (idx === 0 || idx === sorted.length - 1) return;
+            State.updateItem(i.id, { x: firstX + idx * step });
+          });
+          applied = true; break;
+        }
+        case 'distributeV': {
+          if (items.length < 3) { UI.toast('פיזור שווה דורש לפחות 3 פריטים', 'info', 1800); break; }
+          const sorted = [...items].sort((a, b) => a.y - b.y);
+          const firstY = sorted[0].y, lastY = sorted[sorted.length - 1].y;
+          const step = (lastY - firstY) / (sorted.length - 1);
+          sorted.forEach((i, idx) => {
+            if (idx === 0 || idx === sorted.length - 1) return;
+            State.updateItem(i.id, { y: firstY + idx * step });
+          });
+          applied = true; break;
+        }
+      }
+      Guests.endBatch();
+      if (applied) UI.toast('יושר ✓', 'success', 1500);
+    }
+
+    const actions = {
+      alignLeft: 'left', alignCenterH: 'centerH', alignRight: 'right',
+      alignTop: 'top', alignCenterV: 'centerV', alignBottom: 'bottom',
+      distributeH: 'distributeH', distributeV: 'distributeV'
+    };
+    Object.entries(actions).forEach(([btnId, type]) => {
+      const btn = document.getElementById(btnId);
+      if (btn) btn.onclick = () => applyAlign(type);
+    });
+
+    UI.openModal('modalAlignItems');
+  }
+
   /* ── Print Diagram modal ── */
   function openPrintDiagram() {
     const btnAuto   = document.getElementById('btnDiagramFontAuto');
@@ -1623,10 +1705,14 @@ const Modals = (() => {
       };
     }
 
-    const chk  = document.getElementById('chkDiagramShowGuests');
-    const opts = document.getElementById('diagramGuestOpts');
+    const chk     = document.getElementById('chkDiagramShowGuests');
+    const opts    = document.getElementById('diagramGuestOpts');
+    const stdOpts = document.getElementById('diagramStdOpts');
     if (chk) {
-      chk.onchange = () => { if (opts) opts.style.display = chk.checked ? '' : 'none'; };
+      chk.onchange = () => {
+        if (opts)    opts.style.display    = chk.checked ? '' : 'none';
+        if (stdOpts) stdOpts.style.display = chk.checked ? 'none' : '';
+      };
     }
 
     const btn = document.getElementById('btnDoPrintDiagram');
@@ -1643,8 +1729,13 @@ const Modals = (() => {
         const svgLblFont    = Math.max(6, Math.min(24, parseInt(document.getElementById('inputDiagramSvgLblFont')?.value) || 9));
         const svgGstFont    = Math.max(6, Math.min(18, parseInt(document.getElementById('inputDiagramSvgGstFont')?.value) || 8));
         const svgOccFont    = Math.max(6, Math.min(18, parseInt(document.getElementById('inputDiagramSvgOccFont')?.value) || 7));
+        // Standard-mode visibility toggles
+        const stdShowLabel     = document.getElementById('chkDiagramStdLabel')?.checked     !== false;
+        const stdShowOccupancy = document.getElementById('chkDiagramStdOccupancy')?.checked !== false;
+        const stdShowGuests    = document.getElementById('chkDiagramStdGuests')?.checked    === true;
         Print.printTablesDiagram({ showGuestList: showGuests, guestFontSize: fontSize, cols,
-          showLabel, showOccupancy, fontMode, svgNumFont, svgLblFont, svgGstFont, svgOccFont });
+          showLabel, showOccupancy, fontMode, svgNumFont, svgLblFont, svgGstFont, svgOccFont,
+          stdShowLabel, stdShowOccupancy, stdShowGuests });
       };
     }
     UI.openModal('modalPrintDiagram');
@@ -1889,7 +1980,7 @@ const Modals = (() => {
     openEditItem, openAddGuest, openEditGuest,
     openAddShape, openSettings, openAutoAssign,
     openFindTable, openItemDetails,
-    openPrintCards, openPrintDiagram, openBulkEdit,
+    openPrintCards, openPrintDiagram, openBulkEdit, openAlignItems,
     handleGuestDrop, updateEventHeader,
     renderTagsManager, renderPresetManager, renderTablePresets,
     renderEventsManager, showAutoAssignResult,

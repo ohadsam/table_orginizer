@@ -209,11 +209,14 @@ const Items = (() => {
       });
     }
 
-    el.dataset.shape = item.shape || '';
-    el.style.left    = (item.x - item.width  / 2) + 'px';
-    el.style.top     = (item.y - item.height / 2) + 'px';
-    el.style.width   = item.width  + 'px';
-    el.style.height  = item.height + 'px';
+    el.dataset.shape   = item.shape || '';
+    el.style.left      = (item.x - item.width  / 2) + 'px';
+    el.style.top       = (item.y - item.height / 2) + 'px';
+    el.style.width     = item.width  + 'px';
+    el.style.height    = item.height + 'px';
+    el.style.transform = item.rotation ? `rotate(${item.rotation}deg)` : '';
+    const rhEl = el.querySelector('.resize-handle');
+    if (rhEl) rhEl.style.display = item.rotation ? 'none' : '';
 
     const content = el.querySelector('.item-content');
     if (content) {
@@ -295,6 +298,7 @@ const Items = (() => {
   /* ── SVG table (with scaled fonts and guest rows) ── */
   function buildTableSVG(item) {
     const W = item.width, H = item.height;
+    const textRot   = item.textRotation || 0;
     const guests    = State.getTableGuests(item.id);
     const occupancy = State.getTableOccupancy(item.id);
     const hasSpace  = occupancy <= item.seats;
@@ -315,102 +319,89 @@ const Items = (() => {
     const occuColor  = stt.fontOccupancyColor || '#888888';
     const lineH      = guestFont + 2.5;
 
-    let svgInner = '';
+    // shapes: table body + seat circles; texts: all labels/numbers; badges: lock indicators
+    let shapes = '', texts = '', badges = '';
 
     if (item.shape === 'circle') {
       const sR = Math.min(W, H) / 2 - R_seat - 2;
       const r  = Math.max(10, sR - R_seat - 4);
       const cx = W / 2, cy = H / 2;
 
-      svgInner += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${bgColor}" stroke="#888" stroke-width="1.5"/>`;
+      shapes += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${bgColor}" stroke="#888" stroke-width="1.5"/>`;
       for (let i = 0; i < item.seats; i++) {
         const ang  = (i / item.seats) * 2 * Math.PI - Math.PI / 2;
         const sx   = cx + sR * Math.cos(ang);
         const sy   = cy + sR * Math.sin(ang);
         const fill = i < occupancy ? (hasSpace ? CONFIG.COLORS.seatOccupied : CONFIG.COLORS.seatOver) : CONFIG.COLORS.seatEmpty;
-        svgInner += `<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="${R_seat}" fill="${fill}" stroke="#fff" stroke-width="1.2"/>`;
+        shapes += `<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="${R_seat}" fill="${fill}" stroke="#fff" stroke-width="1.2"/>`;
       }
 
-      // Occupancy ratio (small, top of circle body)
-      svgInner += `<text x="${cx}" y="${cy - r + occuFont + 1}" text-anchor="middle" font-size="${occuFont}" fill="${occuColor}">${occupancy}/${item.seats}</text>`;
-
-      // Table number — large, bold, prominent
+      texts += `<text x="${cx}" y="${cy - r + occuFont + 1}" text-anchor="middle" font-size="${occuFont}" fill="${occuColor}">${occupancy}/${item.seats}</text>`;
       const numY = cy - (item.label ? numFont * 0.45 : numFont * 0.2);
-      svgInner += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="${numColor}">${item.number || ''}</text>`;
-
-      // Label below number (with visual gap)
+      texts += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="${numColor}">${item.number || ''}</text>`;
       let textY;
       if (item.label) {
         textY = numY + numFont * 0.65 + labelFont * 0.35 + 3;
-        svgInner += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${labelFont}" font-weight="600" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
+        texts += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${labelFont}" font-weight="600" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
         textY += labelFont * 0.65 + 14;
       } else {
         textY = numY + numFont * 0.6 + 2;
       }
-
-      // Guest names — one per line; reserve one slot for overflow indicator if needed
       const rawMaxG = Math.max(0, Math.floor((cy + r - 5 - textY) / lineH));
       const maxG = (guests.length > rawMaxG) ? Math.max(0, rawMaxG - 1) : rawMaxG;
       guests.slice(0, maxG).forEach(g => {
         const nm = g.name.length > 12 ? g.name.slice(0, 11) + '…' : g.name;
-        svgInner += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${guestFont}" fill="${guestColor}">${UI.escHtml(nm)}</text>`;
+        texts += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${guestFont}" fill="${guestColor}">${UI.escHtml(nm)}</text>`;
         textY += lineH;
       });
       const extra = guests.length - maxG;
-      if (extra > 0) svgInner += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${occuFont}" fill="${occuColor}">+${extra}</text>`;
+      if (extra > 0) texts += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${occuFont}" fill="${occuColor}">+${extra}</text>`;
 
     } else {
       // Rectangle / square
       const pad = R_seat + 4;
       const rw  = W - pad * 2, rh = H - pad * 2;
-      svgInner += `<rect x="${pad}" y="${pad}" width="${rw}" height="${rh}" rx="6" fill="${bgColor}" stroke="#888" stroke-width="1.5"/>`;
+      shapes += `<rect x="${pad}" y="${pad}" width="${rw}" height="${rh}" rx="6" fill="${bgColor}" stroke="#888" stroke-width="1.5"/>`;
       const seatsArr = distributeRectSeats(item.seats, rw, rh);
       let sIdx = 0;
       for (const [sx, sy] of seatsArr) {
         const fill = sIdx < occupancy ? (hasSpace ? CONFIG.COLORS.seatOccupied : CONFIG.COLORS.seatOver) : CONFIG.COLORS.seatEmpty;
-        svgInner += `<circle cx="${(pad + sx).toFixed(1)}" cy="${(pad + sy).toFixed(1)}" r="${R_seat}" fill="${fill}" stroke="#fff" stroke-width="1.2"/>`;
+        shapes += `<circle cx="${(pad + sx).toFixed(1)}" cy="${(pad + sy).toFixed(1)}" r="${R_seat}" fill="${fill}" stroke="#fff" stroke-width="1.2"/>`;
         sIdx++;
       }
       const cx = W / 2, cy = H / 2;
 
-      // Occupancy (small, top of rect interior)
-      svgInner += `<text x="${cx}" y="${pad + occuFont + 1}" text-anchor="middle" font-size="${occuFont}" fill="${occuColor}">${occupancy}/${item.seats}</text>`;
-
-      // Table number — large, bold
+      texts += `<text x="${cx}" y="${pad + occuFont + 1}" text-anchor="middle" font-size="${occuFont}" fill="${occuColor}">${occupancy}/${item.seats}</text>`;
       const numY = cy - (item.label ? numFont * 0.45 : numFont * 0.2);
-      svgInner += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="${numColor}">${item.number || ''}</text>`;
-
-      // Label
+      texts += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="${numColor}">${item.number || ''}</text>`;
       let textY;
       if (item.label) {
         textY = numY + numFont * 0.65 + labelFont * 0.35 + 3;
-        svgInner += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${labelFont}" font-weight="600" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
+        texts += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${labelFont}" font-weight="600" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
         textY += labelFont * 0.65 + 14;
       } else {
         textY = numY + numFont * 0.6 + 2;
       }
-
-      // Guest names — one per line; reserve one slot for overflow indicator if needed
       const availH  = H - pad - 4 - textY;
       const rawMaxG = Math.max(0, Math.floor(availH / lineH));
       const maxG    = (guests.length > rawMaxG) ? Math.max(0, rawMaxG - 1) : rawMaxG;
       guests.slice(0, maxG).forEach(g => {
         const nm = g.name.length > 16 ? g.name.slice(0, 15) + '…' : g.name;
-        svgInner += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${guestFont}" fill="${guestColor}">${UI.escHtml(nm)}</text>`;
+        texts += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${guestFont}" fill="${guestColor}">${UI.escHtml(nm)}</text>`;
         textY += lineH;
       });
       const extra = guests.length - maxG;
-      if (extra > 0) svgInner += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${occuFont}" fill="${occuColor}">+${extra}</text>`;
+      if (extra > 0) texts += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${occuFont}" fill="${occuColor}">+${extra}</text>`;
     }
 
-    if (item.locked) {
-      svgInner += `<text x="${W - 4}" y="14" text-anchor="end" font-size="13">🔒</text>`;
-    }
-    if (item.numberLocked) {
-      svgInner += `<text x="4" y="14" text-anchor="start" font-size="11" font-weight="700" fill="#7e57c2">#</text>`;
-    }
+    if (item.locked)       badges += `<text x="${W - 4}" y="14" text-anchor="end" font-size="13">🔒</text>`;
+    if (item.numberLocked) badges += `<text x="4" y="14" text-anchor="start" font-size="11" font-weight="700" fill="#7e57c2">#</text>`;
 
-    return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" overflow="visible" xmlns="http://www.w3.org/2000/svg">${svgInner}</svg>`;
+    const textGroup = textRot
+      ? `<g transform="rotate(${textRot},${W / 2},${H / 2})">${texts}</g>`
+      : texts;
+
+    return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" overflow="visible" xmlns="http://www.w3.org/2000/svg">${shapes}${textGroup}${badges}</svg>`;
   }
 
   function distributeRectSeats(totalSeats, rw, rh) {
@@ -447,11 +438,16 @@ const Items = (() => {
     const fSize  = (item.fontSize  > 0) ? item.fontSize  : null;
     const fColor = _safeHex(item.fontColor);
     const iSize  = (item.iconSize  > 0) ? item.iconSize  : null;
-    const lblStyle  = [fSize ? `font-size:${fSize}px` : '', fColor ? `color:${fColor}` : ''].filter(Boolean).join(';');
+    const tRot   = item.textRotation || 0;
+    const lblStyle = [
+      fSize ? `font-size:${fSize}px` : '',
+      fColor ? `color:${fColor}` : '',
+      tRot ? `transform:rotate(${tRot}deg);display:inline-block` : ''
+    ].filter(Boolean).join(';');
     const iconStyle = iSize ? ` style="font-size:${iSize}px"` : '';
+    const iconHtml  = item.hideIcon ? '' : `<span class="special-icon"${iconStyle}>${icon}</span>`;
     return `<div class="special-item-inner" style="background:${bg};border-radius:${br};border:1.5px solid ${item.borderColor||'#aaa'}">
-      <span class="special-icon"${iconStyle}>${icon}</span>
-      <span class="special-label"${lblStyle ? ` style="${lblStyle}"` : ''}>${UI.escHtml(item.label || item.type)}</span>
+      ${iconHtml}<span class="special-label"${lblStyle ? ` style="${lblStyle}"` : ''}>${UI.escHtml(item.label || item.type)}</span>
     </div>`;
   }
 
@@ -478,6 +474,24 @@ const Items = (() => {
          <button id="ctxApplyColor" class="ctx-apply-btn" title="שמור צבע">✓</button>
          <button id="ctxClearColor" class="ctx-apply-btn ctx-clear-btn" title="הסר צבע מותאם">✕</button>
        </div>
+       <div class="ctx-inline-row" id="ctxRotRow">
+         <span class="ctx-row-lbl" title="סיבוב פריט">↻</span>
+         <button id="ctxRotMinus" class="ctx-apply-btn ctx-rot-btn" title="-90°">↺</button>
+         <input id="ctxRotInput" class="ctx-inline-input" type="number" min="0" max="359" style="width:46px" placeholder="0°">
+         <button id="ctxRotPlus" class="ctx-apply-btn ctx-rot-btn" title="+90°">↻</button>
+         <button id="ctxApplyRot" class="ctx-apply-btn" title="שמור">✓</button>
+         <button id="ctxResetRot" class="ctx-apply-btn ctx-clear-btn" title="אפס">⊙</button>
+       </div>
+       <div class="ctx-inline-row" id="ctxTextRotRow">
+         <span class="ctx-row-lbl" title="סיבוב טקסט">↺A</span>
+         <select id="ctxTextRotSelect" class="ctx-inline-input" style="width:66px;padding:1px 2px">
+           <option value="0">0°</option>
+           <option value="90">90°</option>
+           <option value="180">180°</option>
+           <option value="270">270°</option>
+         </select>
+         <button id="ctxApplyTextRot" class="ctx-apply-btn" title="שמור סיבוב טקסט">✓</button>
+       </div>
        <hr class="ctx-menu-sep" id="ctxFontSep">
        <div class="ctx-inline-row" id="ctxFontSizeRow">
          <span class="ctx-row-lbl" title="גודל גופן">Aa</span>
@@ -497,9 +511,16 @@ const Items = (() => {
          <button id="ctxApplyIconSize" class="ctx-apply-btn" title="שמור גודל אייקון">✓</button>
          <button id="ctxClearIconSize" class="ctx-apply-btn ctx-clear-btn" title="אפס">✕</button>
        </div>
+       <div class="ctx-inline-row" id="ctxHideIconRow">
+         <span class="ctx-row-lbl" title="הצגת אייקון">👁</span>
+         <label style="font-size:12px;cursor:pointer;flex:1"><input type="checkbox" id="ctxHideIconCheck"> הסתר אייקון</label>
+         <button id="ctxApplyHideIcon" class="ctx-apply-btn" title="שמור">✓</button>
+       </div>
        <button class="ctx-menu-btn ctx-save-all-btn" id="ctxSaveAll">✓&nbsp; שמור וסגור</button>
        <hr class="ctx-menu-sep" id="ctxBulkEditSep" style="display:none">
        <button class="ctx-menu-btn" id="ctxBulkEditBtn" style="display:none">✏️&nbsp; <span id="ctxBulkEditLabel">ערוך נבחרים</span></button>
+       <hr class="ctx-menu-sep" id="ctxAlignSep" style="display:none">
+       <button class="ctx-menu-btn" id="ctxAlignBtn" style="display:none">⊞&nbsp; יישר/פזר פריטים</button>
        <hr class="ctx-menu-sep">
        <button class="ctx-menu-btn ctx-danger" id="ctxDelete">🗑&nbsp; מחק</button>`;
     document.body.appendChild(m);
@@ -543,6 +564,39 @@ const Items = (() => {
       _closeIfTable();
     };
 
+    // Rotation: +90/-90 keep menu open (iterative); input ✓ also keeps open
+    m.querySelector('#ctxRotMinus').onclick = () => {
+      if (!_ctxItemId) return;
+      const cur = State.getItem(_ctxItemId);
+      if (!cur) return;
+      const newRot = ((cur.rotation || 0) - 90 + 360) % 360;
+      State.updateItem(_ctxItemId, { rotation: newRot || null });
+      m.querySelector('#ctxRotInput').value = newRot || '';
+    };
+    m.querySelector('#ctxRotPlus').onclick = () => {
+      if (!_ctxItemId) return;
+      const cur = State.getItem(_ctxItemId);
+      if (!cur) return;
+      const newRot = ((cur.rotation || 0) + 90) % 360;
+      State.updateItem(_ctxItemId, { rotation: newRot || null });
+      m.querySelector('#ctxRotInput').value = newRot || '';
+    };
+    m.querySelector('#ctxApplyRot').onclick = () => {
+      if (!_ctxItemId) return;
+      const v = parseInt(m.querySelector('#ctxRotInput').value);
+      State.updateItem(_ctxItemId, { rotation: (!isNaN(v) && v > 0) ? (v % 360 || null) : null });
+    };
+    m.querySelector('#ctxResetRot').onclick = () => {
+      if (_ctxItemId) State.updateItem(_ctxItemId, { rotation: null });
+      m.querySelector('#ctxRotInput').value = '';
+    };
+    m.querySelector('#ctxApplyTextRot').onclick = () => {
+      if (!_ctxItemId) return;
+      const v = parseInt(m.querySelector('#ctxTextRotSelect').value) || 0;
+      State.updateItem(_ctxItemId, { textRotation: v || null });
+      _closeIfTable();
+    };
+
     m.querySelector('#ctxApplyFontSize').onclick = () => {
       if (_ctxItemId) {
         const v = parseInt(m.querySelector('#ctxFontSizeInput').value);
@@ -573,11 +627,22 @@ const Items = (() => {
       if (_ctxItemId) State.updateItem(_ctxItemId, { iconSize: null });
       _closeIfTable();
     };
+    m.querySelector('#ctxApplyHideIcon').onclick = () => {
+      if (!_ctxItemId) return;
+      const checked = m.querySelector('#ctxHideIconCheck').checked;
+      State.updateItem(_ctxItemId, { hideIcon: checked || null });
+      _closeIfTable();
+    };
     m.querySelector('#ctxSaveAll').onclick = () => { _closeCtxMenu(); };
 
     m.querySelector('#ctxBulkEditBtn').onclick = () => {
       _closeCtxMenu();
       Modals.openBulkEdit();
+    };
+
+    m.querySelector('#ctxAlignBtn').onclick = () => {
+      _closeCtxMenu();
+      Modals.openAlignItems();
     };
 
     m.querySelector('#ctxDelete').onclick = () => {
@@ -623,19 +688,30 @@ const Items = (() => {
     document.getElementById('ctxFontSizeRow').style.display   = isSpecial ? '' : 'none';
     document.getElementById('ctxFontColorRow').style.display  = isSpecial ? '' : 'none';
     document.getElementById('ctxIconSizeRow').style.display   = isSpecial ? '' : 'none';
+    document.getElementById('ctxHideIconRow').style.display   = isSpecial ? '' : 'none';
     document.getElementById('ctxSaveAll').style.display       = isSpecial ? '' : 'none';
     if (isSpecial) {
       document.getElementById('ctxFontSizeInput').value  = item.fontSize  || '';
       document.getElementById('ctxIconSizeInput').value  = item.iconSize  || '';
       const safeClr = (item.fontColor && /^#[0-9a-fA-F]{3,8}$/.test(item.fontColor)) ? item.fontColor : '#222222';
       document.getElementById('ctxFontColorInput').value = safeClr;
+      document.getElementById('ctxHideIconCheck').checked = !!item.hideIcon;
     }
+    // Rotation fields (all items)
+    document.getElementById('ctxRotInput').value = item.rotation || '';
+    document.getElementById('ctxTextRotSelect').value = String(item.textRotation || 0);
+    // Bulk edit option (tables only, ≥2)
     const selTables = [..._selectedIds].filter(sid => State.getItem(sid)?.type === 'table');
     const showBulk  = selTables.length >= 2;
     document.getElementById('ctxBulkEditSep').style.display = showBulk ? '' : 'none';
     document.getElementById('ctxBulkEditBtn').style.display = showBulk ? '' : 'none';
     const lbl = document.getElementById('ctxBulkEditLabel');
     if (lbl) lbl.textContent = `ערוך ${selTables.length} שולחנות נבחרים`;
+    // Alignment option (any items, ≥2)
+    const showAlign = _selectedIds.size >= 2;
+    document.getElementById('ctxAlignSep').style.display = showAlign ? '' : 'none';
+    document.getElementById('ctxAlignBtn').style.display = showAlign ? '' : 'none';
+    if (showAlign) document.getElementById('ctxAlignBtn').textContent = `⊞ יישר/פזר ${_selectedIds.size} פריטים`;
     _ctxMenu.style.display = 'block';
     const mw = _ctxMenu.offsetWidth  || 190;
     const mh = _ctxMenu.offsetHeight || 180;
@@ -655,7 +731,9 @@ const Items = (() => {
   const _selectedIds = new Set();
 
   function _updateBulkEditBtn() {
-    const btn = document.getElementById('btnBulkEdit');
+    const btn      = document.getElementById('btnBulkEdit');
+    const alignBtn = document.getElementById('btnAlign');
+    if (alignBtn) alignBtn.style.display = _selectedIds.size >= 2 ? '' : 'none';
     if (!btn) return;
     const n = [..._selectedIds].filter(id => State.getItem(id)?.type === 'table').length;
     btn.style.display = n >= 1 ? '' : 'none';
