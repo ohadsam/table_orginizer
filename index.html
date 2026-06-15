@@ -31,6 +31,7 @@
     <button class="btn btn-icon" id="btnUndo"     title="בטל פעולה אחרונה (Ctrl+Z)" disabled>↩️</button>
     <button class="btn btn-icon" id="btnRedo"     title="שחזר פעולה אחרונה (Ctrl+Y)" disabled>↪️</button>
     <button class="btn btn-icon" id="btnBulkEdit" title="ערוך שולחנות מסומנים — בחר שולחנות עם Ctrl+לחיצה" style="display:none">✏️</button>
+    <button class="btn btn-icon" id="btnAlign"    title="יישור ופיזור פריטים — Ctrl+לחיצה לסימון מרובה" style="display:none">⊞</button>
     <button class="btn btn-icon" id="btnSettings" title="פתח הגדרות אירוע — שם, תאריך, סוג ועיצוב">⚙️</button>
 
     <!-- ── Export / Import dropdown ── -->
@@ -776,6 +777,26 @@
         </div>
       </div>
       <hr style="margin:10px 0;border:none;border-top:1px solid #e0e0e0">
+      <div class="form-section-label" style="font-size:12px;font-weight:600;color:#607d8b;margin-bottom:6px">מה יוצג בתרשים</div>
+      <div class="form-group" style="margin-bottom:4px">
+        <label class="checkbox-label">
+          <input type="checkbox" id="chkDiagramStdLabel" checked>
+          <span>הצג תויות שולחנות</span>
+        </label>
+      </div>
+      <div class="form-group" style="margin-bottom:4px">
+        <label class="checkbox-label">
+          <input type="checkbox" id="chkDiagramStdOccupancy" checked>
+          <span>הצג תפוסה (X/Y)</span>
+        </label>
+      </div>
+      <div class="form-group" style="margin-bottom:4px">
+        <label class="checkbox-label">
+          <input type="checkbox" id="chkDiagramStdGuests">
+          <span>הצג שמות מוזמנים בתרשים</span>
+        </label>
+      </div>
+      <hr style="margin:10px 0;border:none;border-top:1px solid #e0e0e0">
       <div class="form-group">
         <label class="checkbox-label">
           <input type="checkbox" id="chkDiagramShowGuests">
@@ -1072,6 +1093,35 @@
       <button class="btn btn-primary"   id="btnImportLayoutsMerge">מיזוג (הוסף לקיימות)</button>
       <button class="btn btn-secondary" id="btnImportLayoutsReplace">החלפה</button>
       <button class="btn btn-ghost"     data-close-modal="modalImportLayouts">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- Align / Distribute Items Modal -->
+<div class="modal-overlay" id="modalAlignItems">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h2>⊞ יישור ופיזור פריטים (<span id="alignItemCount">0</span>)</h2>
+      <button class="modal-close" data-close-modal="modalAlignItems">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-section-label">יישור לפי ציר</div>
+      <div class="align-btn-grid">
+        <button class="btn align-action-btn" id="alignLeft"    title="יישר את הקצה השמאלי של כל הפריטים">⊢<span>שמאל</span></button>
+        <button class="btn align-action-btn" id="alignCenterH" title="מרכז את כל הפריטים אופקית">⬜<span>מרכז אופקי</span></button>
+        <button class="btn align-action-btn" id="alignRight"   title="יישר את הקצה הימני של כל הפריטים">⊣<span>ימין</span></button>
+        <button class="btn align-action-btn" id="alignTop"     title="יישר את הקצה העליון של כל הפריטים">⊤<span>עליון</span></button>
+        <button class="btn align-action-btn" id="alignCenterV" title="מרכז את כל הפריטים אנכית">⬜<span>מרכז אנכי</span></button>
+        <button class="btn align-action-btn" id="alignBottom"  title="יישר את הקצה התחתון של כל הפריטים">⊥<span>תחתון</span></button>
+      </div>
+      <div class="form-section-label" style="margin-top:12px">פיזור שווה (3 פריטים לפחות)</div>
+      <div class="align-btn-grid align-btn-grid-2">
+        <button class="btn align-action-btn" id="distributeH" title="פיזור שווה אופקי — מרחק שווה בין מרכזי הפריטים">↔<span>פיזור אופקי</span></button>
+        <button class="btn align-action-btn" id="distributeV" title="פיזור שווה אנכי — מרחק שווה בין מרכזי הפריטים">↕<span>פיזור אנכי</span></button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close-modal="modalAlignItems">סגור</button>
     </div>
   </div>
 </div>

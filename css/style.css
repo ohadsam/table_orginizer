@@ -699,6 +699,35 @@ input, select, textarea { font-family: inherit; }
 .modal-sm { max-width: 420px; }
 .modal-lg { max-width: 580px; }
 .modal-xl { max-width: 820px; }
+
+/* ── Align Items modal ── */
+.align-btn-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.align-btn-grid-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+.align-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 4px;
+  font-size: 18px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.align-action-btn span { font-size: 11px; color: var(--text-light); }
+.align-action-btn:hover { background: var(--bg-hover); border-color: var(--primary); }
+
+/* ── Context menu rotation button ── */
+.ctx-rot-btn { font-size: 14px; }
 .modal-md { max-width: 520px; }
 
 /* ── Item details modal layout ── */

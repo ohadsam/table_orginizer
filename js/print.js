@@ -29,12 +29,12 @@ const Print = (() => {
       const lx = item.x - item.width  / 2 - minX;
       const ly = item.y - item.height / 2 - minY;
       const W  = item.width, H = item.height;
-      body += `<g transform="translate(${lx.toFixed(1)},${ly.toFixed(1)})">`;
 
       if (item.type === 'table') {
         const occ    = State.getTableOccupancy(item.id);
         const bg     = item.color || Items.tableColor(occ, item.seats);
         const guests = State.getTableGuests(item.id);
+        const textRot = item.textRotation || 0;
 
         // Per-table font sizes — same scale formula as buildTableSVG in items.js
         const scale   = Math.min(W, H) / 130;
@@ -44,17 +44,19 @@ const Print = (() => {
         const occFont = item.fontOccupancySize || stt.fontOccupancySize || Math.max(6,  Math.min(9,  Math.round(7  * scale)));
         const lineH   = gstFont + 2.5;
 
+        let itemShapes = '', itemTexts = '';
+
         if (item.shape === 'circle') {
           const r = Math.min(W, H) / 2 - 5;
           const cx = W / 2, cy = H / 2;
-          body += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${bg}" stroke="#888" stroke-width="1.5"/>`;
-          body += `<text x="${cx}" y="${cy - r + occFont + 1}" text-anchor="middle" font-size="${occFont}" fill="${occuColor}">${occ}/${item.seats}</text>`;
+          itemShapes += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${bg}" stroke="#888" stroke-width="1.5"/>`;
+          itemTexts += `<text x="${cx}" y="${cy - r + occFont + 1}" text-anchor="middle" font-size="${occFont}" fill="${occuColor}">${occ}/${item.seats}</text>`;
           const numY = cy - (item.label ? numFont * 0.45 : numFont * 0.2);
-          body += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="${numColor}">${item.number || ''}</text>`;
+          itemTexts += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="${numColor}">${item.number || ''}</text>`;
           let textY;
           if (item.label) {
             textY = numY + numFont * 0.65 + lblFont * 0.35 + 3;
-            body += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${lblFont}" font-weight="700" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
+            itemTexts += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${lblFont}" font-weight="700" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
             textY += lblFont * 0.65 + 14;
           } else {
             textY = numY + numFont * 0.6 + 2;
@@ -63,22 +65,22 @@ const Print = (() => {
           const maxG = (guests.length > rawMaxG) ? Math.max(0, rawMaxG - 1) : rawMaxG;
           guests.slice(0, maxG).forEach(g => {
             const nm = g.name.length > 10 ? g.name.slice(0, 9) + '…' : g.name;
-            body += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${gstFont}" fill="${guestColor}">${UI.escHtml(nm)}</text>`;
+            itemTexts += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${gstFont}" fill="${guestColor}">${UI.escHtml(nm)}</text>`;
             textY += lineH;
           });
           const extra = guests.length - maxG;
-          if (extra > 0) body += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${occFont}" fill="${occuColor}">+${extra}</text>`;
+          if (extra > 0) itemTexts += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${occFont}" fill="${occuColor}">+${extra}</text>`;
         } else {
           const p = 3;
-          body += `<rect x="${p}" y="${p}" width="${W - p * 2}" height="${H - p * 2}" rx="5" fill="${bg}" stroke="#888" stroke-width="1.5"/>`;
+          itemShapes += `<rect x="${p}" y="${p}" width="${W - p * 2}" height="${H - p * 2}" rx="5" fill="${bg}" stroke="#888" stroke-width="1.5"/>`;
           const cx = W / 2, cy = H / 2;
-          body += `<text x="${cx}" y="${p + occFont + 1}" text-anchor="middle" font-size="${occFont}" fill="${occuColor}">${occ}/${item.seats}</text>`;
+          itemTexts += `<text x="${cx}" y="${p + occFont + 1}" text-anchor="middle" font-size="${occFont}" fill="${occuColor}">${occ}/${item.seats}</text>`;
           const numY = cy - (item.label ? numFont * 0.45 : numFont * 0.2);
-          body += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="${numColor}">${item.number || ''}</text>`;
+          itemTexts += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="${numFont}" font-weight="800" fill="${numColor}">${item.number || ''}</text>`;
           let textY;
           if (item.label) {
             textY = numY + numFont * 0.65 + lblFont * 0.35 + 3;
-            body += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${lblFont}" font-weight="700" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
+            itemTexts += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${lblFont}" font-weight="700" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
             textY += lblFont * 0.65 + 14;
           } else {
             textY = numY + numFont * 0.6 + 2;
@@ -88,13 +90,15 @@ const Print = (() => {
           const maxG = (guests.length > rawMaxG) ? Math.max(0, rawMaxG - 1) : rawMaxG;
           guests.slice(0, maxG).forEach(g => {
             const nm = g.name.length > 12 ? g.name.slice(0, 11) + '…' : g.name;
-            body += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${gstFont}" fill="${guestColor}">${UI.escHtml(nm)}</text>`;
+            itemTexts += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${gstFont}" fill="${guestColor}">${UI.escHtml(nm)}</text>`;
             textY += lineH;
           });
           const extra = guests.length - maxG;
-          if (extra > 0) body += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${occFont}" fill="${occuColor}">+${extra}</text>`;
+          if (extra > 0) itemTexts += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${occFont}" fill="${occuColor}">+${extra}</text>`;
         }
-        if (item.locked) body += `<text x="${W - 3}" y="14" text-anchor="end" font-size="11">🔒</text>`;
+        const badgeHtml = item.locked ? `<text x="${W - 3}" y="14" text-anchor="end" font-size="11">🔒</text>` : '';
+        const textGroup = textRot ? `<g transform="rotate(${textRot},${W/2},${H/2})">${itemTexts}</g>` : itemTexts;
+        body += `<g transform="translate(${lx.toFixed(1)},${ly.toFixed(1)})">${itemShapes}${textGroup}${badgeHtml}</g>`;
       } else {
         const bg      = item.color || CONFIG.COLORS[item.type] || CONFIG.COLORS.shape;
         const icons   = { dancefloor: '🕺', dj: '🎵', door: '🚪' };
@@ -104,11 +108,12 @@ const Print = (() => {
         const icoSize = item.iconSize || 14;
         const lblSize = item.fontSize || 9;
         const lblColor = /^#[0-9a-fA-F]{3,8}$/.test(item.fontColor || '') ? item.fontColor : '#333';
+        body += `<g transform="translate(${lx.toFixed(1)},${ly.toFixed(1)})">`;
         body += `<rect x="0" y="0" width="${W}" height="${H}" rx="${br}" fill="${bg}" stroke="#aaa" stroke-width="1.5"/>`;
         body += `<text x="${W / 2}" y="${H / 2 - 4}" text-anchor="middle" dominant-baseline="middle" font-size="${icoSize}">${icon}</text>`;
         body += `<text x="${W / 2}" y="${H / 2 + lblSize + 2}" text-anchor="middle" font-size="${lblSize}" fill="${lblColor}">${UI.escHtml(lbl)}</text>`;
+        body += '</g>';
       }
-      body += '</g>';
     });
 
     // max-height:120mm keeps the diagram on the same page as the header (landscape A4 = ~186mm usable)
@@ -133,13 +138,14 @@ const Print = (() => {
     const occuSize  = item.fontOccupancySize || stt.fontOccupancySize || 9;
     const lineH = guestSize + 2.5;
     const guests = State.getTableGuests(item.id);
-    let body = '';
+    const textRot = item.textRotation || 0;
+    let shapes = '', texts = '';
 
     if (item.shape === 'circle') {
       const sR = Math.min(W, H) / 2 - R - 2;
       const r  = Math.max(10, sR - R - 4);
       const cx = W / 2, cy = H / 2;
-      body += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${bgColor}" stroke="#888" stroke-width="1.5"/>`;
+      shapes += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${bgColor}" stroke="#888" stroke-width="1.5"/>`;
       for (let i = 0; i < item.seats; i++) {
         const ang  = (i / item.seats) * 2 * Math.PI - Math.PI / 2;
         const sx   = cx + sR * Math.cos(ang);
@@ -147,15 +153,15 @@ const Print = (() => {
         const fill = i < occ
           ? (hasSpace ? CONFIG.COLORS.seatOccupied : CONFIG.COLORS.seatOver)
           : CONFIG.COLORS.seatEmpty;
-        body += `<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="${R}" fill="${fill}" stroke="#fff" stroke-width="1.2"/>`;
+        shapes += `<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="${R}" fill="${fill}" stroke="#fff" stroke-width="1.2"/>`;
       }
-      body += `<text x="${cx}" y="${cy - r + occuSize + 1}" text-anchor="middle" font-size="${occuSize}" fill="${occuColor}">${occ}/${item.seats}</text>`;
+      texts += `<text x="${cx}" y="${cy - r + occuSize + 1}" text-anchor="middle" font-size="${occuSize}" fill="${occuColor}">${occ}/${item.seats}</text>`;
       const numY = cy - (item.label ? numSize * 0.45 : numSize * 0.2);
-      body += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="${numSize}" font-weight="800" fill="${numColor}">${item.number || ''}</text>`;
+      texts += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="${numSize}" font-weight="800" fill="${numColor}">${item.number || ''}</text>`;
       let textY;
       if (item.label) {
         textY = numY + numSize * 0.65 + labelSize * 0.35 + 3;
-        body += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${labelSize}" font-weight="600" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
+        texts += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${labelSize}" font-weight="600" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
         textY += labelSize * 0.65 + 14;
       } else {
         textY = numY + numSize * 0.6 + 2;
@@ -164,30 +170,30 @@ const Print = (() => {
       const maxG = (guests.length > rawMaxG) ? Math.max(0, rawMaxG - 1) : rawMaxG;
       guests.slice(0, maxG).forEach(g => {
         const nm = g.name.length > 12 ? g.name.slice(0, 11) + '…' : g.name;
-        body += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${guestSize}" fill="${guestColor}">${UI.escHtml(nm)}</text>`;
+        texts += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${guestSize}" fill="${guestColor}">${UI.escHtml(nm)}</text>`;
         textY += lineH;
       });
       const extra = guests.length - maxG;
-      if (extra > 0) body += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${occuSize}" fill="${occuColor}">+${extra}</text>`;
+      if (extra > 0) texts += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${occuSize}" fill="${occuColor}">+${extra}</text>`;
     } else {
       const pad = R + 4;
       const rw = W - pad * 2, rh = H - pad * 2;
-      body += `<rect x="${pad}" y="${pad}" width="${rw}" height="${rh}" rx="6" fill="${bgColor}" stroke="#888" stroke-width="1.5"/>`;
+      shapes += `<rect x="${pad}" y="${pad}" width="${rw}" height="${rh}" rx="6" fill="${bgColor}" stroke="#888" stroke-width="1.5"/>`;
       const seats = Items.distributeRectSeats(item.seats, rw, rh);
       seats.forEach(([sx, sy], i) => {
         const fill = i < occ
           ? (hasSpace ? CONFIG.COLORS.seatOccupied : CONFIG.COLORS.seatOver)
           : CONFIG.COLORS.seatEmpty;
-        body += `<circle cx="${(pad + sx).toFixed(1)}" cy="${(pad + sy).toFixed(1)}" r="${R}" fill="${fill}" stroke="#fff" stroke-width="1.2"/>`;
+        shapes += `<circle cx="${(pad + sx).toFixed(1)}" cy="${(pad + sy).toFixed(1)}" r="${R}" fill="${fill}" stroke="#fff" stroke-width="1.2"/>`;
       });
       const cx = W / 2, cy = H / 2;
-      body += `<text x="${cx}" y="${pad + occuSize + 1}" text-anchor="middle" font-size="${occuSize}" fill="${occuColor}">${occ}/${item.seats}</text>`;
+      texts += `<text x="${cx}" y="${pad + occuSize + 1}" text-anchor="middle" font-size="${occuSize}" fill="${occuColor}">${occ}/${item.seats}</text>`;
       const numY = cy - (item.label ? numSize * 0.45 : numSize * 0.2);
-      body += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="${numSize}" font-weight="800" fill="${numColor}">${item.number || ''}</text>`;
+      texts += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" font-size="${numSize}" font-weight="800" fill="${numColor}">${item.number || ''}</text>`;
       let textY;
       if (item.label) {
         textY = numY + numSize * 0.65 + labelSize * 0.35 + 3;
-        body += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${labelSize}" font-weight="600" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
+        texts += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" font-size="${labelSize}" font-weight="600" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
         textY += labelSize * 0.65 + 14;
       } else {
         textY = numY + numSize * 0.6 + 2;
@@ -197,15 +203,15 @@ const Print = (() => {
       const maxG = (guests.length > rawMaxG) ? Math.max(0, rawMaxG - 1) : rawMaxG;
       guests.slice(0, maxG).forEach(g => {
         const nm = g.name.length > 16 ? g.name.slice(0, 15) + '…' : g.name;
-        body += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${guestSize}" fill="${guestColor}">${UI.escHtml(nm)}</text>`;
+        texts += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${guestSize}" fill="${guestColor}">${UI.escHtml(nm)}</text>`;
         textY += lineH;
       });
       const extra = guests.length - maxG;
-      if (extra > 0) body += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${occuSize}" fill="${occuColor}">+${extra}</text>`;
+      if (extra > 0) texts += `<text x="${cx}" y="${textY}" text-anchor="middle" font-size="${occuSize}" fill="${occuColor}">+${extra}</text>`;
     }
-    if (item.locked) body += `<text x="${W - 4}" y="14" text-anchor="end" font-size="13">🔒</text>`;
-
-    return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-height:180pt;max-width:260pt;display:block;margin:0 auto" xmlns="http://www.w3.org/2000/svg">${body}</svg>`;
+    const badge = item.locked ? `<text x="${W - 4}" y="14" text-anchor="end" font-size="13">🔒</text>` : '';
+    const textGroup = textRot ? `<g transform="rotate(${textRot},${W/2},${H/2})">${texts}</g>` : texts;
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-height:180pt;max-width:260pt;display:block;margin:0 auto" xmlns="http://www.w3.org/2000/svg">${shapes}${textGroup}${badge}</svg>`;
   }
 
   /* ── Print seating plan ── */
@@ -678,12 +684,15 @@ ${buildGuestTableHTML(sorted)}`;
   }
 
   /* ── Tables-only room diagram SVG with seat circles ── */
-  function buildRoomTablesOnlySVG(fontMode, overrideNumFont, overrideLblFont, overrideGstFont, overrideOccFont) {
+  function buildRoomTablesOnlySVG(fontMode, overrideNumFont, overrideLblFont, overrideGstFont, overrideOccFont, showLabel, showOccupancy, showGuests) {
     fontMode        = fontMode        || 'auto';
     overrideNumFont = overrideNumFont || 14;
     overrideLblFont = overrideLblFont || 9;
     overrideGstFont = overrideGstFont || 8;
     overrideOccFont = overrideOccFont || 7;
+    showLabel    = showLabel    !== false;
+    showOccupancy = showOccupancy !== false;
+    showGuests   = showGuests   === true;
 
     const tables = State.get().items.filter(i => i.type === 'table');
     if (!tables.length) return { svg: '<p style="color:#999;text-align:center">אין שולחנות לתצוגה</p>' };
@@ -742,74 +751,83 @@ ${buildGuestTableHTML(sorted)}`;
       const gstA = fontMode === 'fixed' ? `style="font-size:${overrideGstFont}pt"` : `font-size="${autoGst}"`;
       const occA = fontMode === 'fixed' ? `style="font-size:${overrideOccFont}pt"` : `font-size="${autoOcc}"`;
 
-      body += `<g transform="translate(${lx.toFixed(1)},${ly.toFixed(1)})">`;
+      const textRot = item.textRotation || 0;
+      let itemShapes = '', itemTexts = '', itemBadges = '';
+
       if (item.shape === 'circle') {
         const sR = Math.min(W, H) / 2 - R - 2;
         const r  = Math.max(10, sR - R - 4);
         const cx = W / 2, cy = H / 2;
-        body += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${bg}" stroke="#888" stroke-width="1.5"/>`;
+        itemShapes += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${bg}" stroke="#888" stroke-width="1.5"/>`;
         for (let i = 0; i < item.seats; i++) {
           const ang  = (i / item.seats) * 2 * Math.PI - Math.PI / 2;
           const sx   = cx + sR * Math.cos(ang);
           const sy   = cy + sR * Math.sin(ang);
           const fill = i < occ ? (hasSpace ? CONFIG.COLORS.seatOccupied : CONFIG.COLORS.seatOver) : CONFIG.COLORS.seatEmpty;
-          body += `<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="${R}" fill="${fill}" stroke="#fff" stroke-width="1.2"/>`;
+          itemShapes += `<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="${R}" fill="${fill}" stroke="#fff" stroke-width="1.2"/>`;
         }
-        body += `<text x="${cx}" y="${cy - r + occFontPx + 1}" text-anchor="middle" ${occA} fill="${occuColor}">${occ}/${item.seats}</text>`;
-        const numY = cy - (item.label ? numFontPx * 0.45 : numFontPx * 0.2);
-        body += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" ${numA} font-weight="800" fill="${numColor}">${item.number || ''}</text>`;
+        if (showOccupancy) itemTexts += `<text x="${cx}" y="${cy - r + occFontPx + 1}" text-anchor="middle" ${occA} fill="${occuColor}">${occ}/${item.seats}</text>`;
+        const hasLbl = showLabel && item.label;
+        const numY = cy - (hasLbl ? numFontPx * 0.45 : numFontPx * 0.2);
+        itemTexts += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" ${numA} font-weight="800" fill="${numColor}">${item.number || ''}</text>`;
         let textY;
-        if (item.label) {
+        if (hasLbl) {
           textY = numY + numFontPx * 0.65 + lblFontPx * 0.35 + 3;
-          body += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" ${lblA} font-weight="700" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
+          itemTexts += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" ${lblA} font-weight="700" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
           textY += lblFontPx * 0.65 + 14;
         } else {
           textY = numY + numFontPx * 0.6 + 2;
         }
-        const rawMaxG = Math.max(0, Math.floor((cy + r - 5 - textY) / lineH));
-        const maxG    = (guests.length > rawMaxG) ? Math.max(0, rawMaxG - 1) : rawMaxG;
-        guests.slice(0, maxG).forEach(g => {
-          const nm = g.name.length > 10 ? g.name.slice(0, 9) + '…' : g.name;
-          body += `<text x="${cx}" y="${textY}" text-anchor="middle" ${gstA} fill="${guestColor}">${UI.escHtml(nm)}</text>`;
-          textY += lineH;
-        });
-        const extra = guests.length - maxG;
-        if (extra > 0) body += `<text x="${cx}" y="${textY}" text-anchor="middle" ${occA} fill="${occuColor}">+${extra}</text>`;
+        if (showGuests) {
+          const rawMaxG = Math.max(0, Math.floor((cy + r - 5 - textY) / lineH));
+          const maxG    = (guests.length > rawMaxG) ? Math.max(0, rawMaxG - 1) : rawMaxG;
+          guests.slice(0, maxG).forEach(g => {
+            const nm = g.name.length > 10 ? g.name.slice(0, 9) + '…' : g.name;
+            itemTexts += `<text x="${cx}" y="${textY}" text-anchor="middle" ${gstA} fill="${guestColor}">${UI.escHtml(nm)}</text>`;
+            textY += lineH;
+          });
+          const extra = guests.length - maxG;
+          if (extra > 0) itemTexts += `<text x="${cx}" y="${textY}" text-anchor="middle" ${occA} fill="${occuColor}">+${extra}</text>`;
+        }
       } else {
         const pad = R + 4;
         const rw = W - pad * 2, rh = H - pad * 2;
-        body += `<rect x="${pad}" y="${pad}" width="${rw}" height="${rh}" rx="5" fill="${bg}" stroke="#888" stroke-width="1.5"/>`;
+        itemShapes += `<rect x="${pad}" y="${pad}" width="${rw}" height="${rh}" rx="5" fill="${bg}" stroke="#888" stroke-width="1.5"/>`;
         const seatsArr = Items.distributeRectSeats(item.seats, rw, rh);
         seatsArr.forEach(([sx, sy], i) => {
           const fill = i < occ ? (hasSpace ? CONFIG.COLORS.seatOccupied : CONFIG.COLORS.seatOver) : CONFIG.COLORS.seatEmpty;
-          body += `<circle cx="${(pad + sx).toFixed(1)}" cy="${(pad + sy).toFixed(1)}" r="${R}" fill="${fill}" stroke="#fff" stroke-width="1.2"/>`;
+          itemShapes += `<circle cx="${(pad + sx).toFixed(1)}" cy="${(pad + sy).toFixed(1)}" r="${R}" fill="${fill}" stroke="#fff" stroke-width="1.2"/>`;
         });
         const cx = W / 2, cy = H / 2;
-        body += `<text x="${cx}" y="${pad + occFontPx + 1}" text-anchor="middle" ${occA} fill="${occuColor}">${occ}/${item.seats}</text>`;
-        const numY = cy - (item.label ? numFontPx * 0.45 : numFontPx * 0.2);
-        body += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" ${numA} font-weight="800" fill="${numColor}">${item.number || ''}</text>`;
+        if (showOccupancy) itemTexts += `<text x="${cx}" y="${pad + occFontPx + 1}" text-anchor="middle" ${occA} fill="${occuColor}">${occ}/${item.seats}</text>`;
+        const hasLbl = showLabel && item.label;
+        const numY = cy - (hasLbl ? numFontPx * 0.45 : numFontPx * 0.2);
+        itemTexts += `<text x="${cx}" y="${numY}" text-anchor="middle" dominant-baseline="middle" ${numA} font-weight="800" fill="${numColor}">${item.number || ''}</text>`;
         let textY;
-        if (item.label) {
+        if (hasLbl) {
           textY = numY + numFontPx * 0.65 + lblFontPx * 0.35 + 3;
-          body += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" ${lblA} font-weight="700" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
+          itemTexts += `<text x="${cx}" y="${textY}" text-anchor="middle" dominant-baseline="middle" ${lblA} font-weight="700" fill="${labelColor}">${UI.escHtml(item.label)}</text>`;
           textY += lblFontPx * 0.65 + 14;
         } else {
           textY = numY + numFontPx * 0.6 + 2;
         }
-        const availH  = H - pad - 4 - textY;
-        const rawMaxG = Math.max(0, Math.floor(availH / lineH));
-        const maxG    = (guests.length > rawMaxG) ? Math.max(0, rawMaxG - 1) : rawMaxG;
-        guests.slice(0, maxG).forEach(g => {
-          const nm = g.name.length > 12 ? g.name.slice(0, 11) + '…' : g.name;
-          body += `<text x="${cx}" y="${textY}" text-anchor="middle" ${gstA} fill="${guestColor}">${UI.escHtml(nm)}</text>`;
-          textY += lineH;
-        });
-        const extra = guests.length - maxG;
-        if (extra > 0) body += `<text x="${cx}" y="${textY}" text-anchor="middle" ${occA} fill="${occuColor}">+${extra}</text>`;
+        if (showGuests) {
+          const availH  = H - pad - 4 - textY;
+          const rawMaxG = Math.max(0, Math.floor(availH / lineH));
+          const maxG    = (guests.length > rawMaxG) ? Math.max(0, rawMaxG - 1) : rawMaxG;
+          guests.slice(0, maxG).forEach(g => {
+            const nm = g.name.length > 12 ? g.name.slice(0, 11) + '…' : g.name;
+            itemTexts += `<text x="${cx}" y="${textY}" text-anchor="middle" ${gstA} fill="${guestColor}">${UI.escHtml(nm)}</text>`;
+            textY += lineH;
+          });
+          const extra = guests.length - maxG;
+          if (extra > 0) itemTexts += `<text x="${cx}" y="${textY}" text-anchor="middle" ${occA} fill="${occuColor}">+${extra}</text>`;
+        }
       }
-      if (item.locked)       body += `<text x="${W - 3}" y="14" text-anchor="end" font-size="11">🔒</text>`;
-      if (item.numberLocked) body += `<text x="4" y="14" text-anchor="start" font-size="11" font-weight="700" fill="#7e57c2">#</text>`;
-      body += '</g>';
+      if (item.locked)       itemBadges += `<text x="${W - 3}" y="14" text-anchor="end" font-size="11">🔒</text>`;
+      if (item.numberLocked) itemBadges += `<text x="4" y="14" text-anchor="start" font-size="11" font-weight="700" fill="#7e57c2">#</text>`;
+      const textGroup = textRot ? `<g transform="rotate(${textRot},${W/2},${H/2})">${itemTexts}</g>` : itemTexts;
+      body += `<g transform="translate(${lx.toFixed(1)},${ly.toFixed(1)})">${itemShapes}${textGroup}${itemBadges}</g>`;
     });
 
     return {
@@ -904,7 +922,8 @@ ${buildGuestTableHTML(sorted)}`;
   /* ── Print tables-only diagram (landscape, one page, with seat circles) ── */
   function printTablesDiagram(opts) {
     const { showGuestList = false, guestFontSize = 8, cols = 4, showLabel = true, showOccupancy = true,
-            fontMode = 'auto', svgNumFont = 14, svgLblFont = 9, svgGstFont = 8, svgOccFont = 7 } = opts || {};
+            fontMode = 'auto', svgNumFont = 14, svgLblFont = 9, svgGstFont = 8, svgOccFont = 7,
+            stdShowLabel = true, stdShowOccupancy = true, stdShowGuests = false } = opts || {};
     const tables = State.get().items.filter(i => i.type === 'table');
     if (!tables.length) { UI.toast('אין שולחנות לתצוגה', 'info', 1800); return; }
 
@@ -929,7 +948,7 @@ ${_buildTablesWithGuestListsHTML(sorted, guestFontSize, cols, showLabel, showOcc
   fontMode === 'fixed' ? svgLblFont : 0,
   fontMode === 'fixed' ? svgOccFont : 0)}`;
     } else {
-      const { svg } = buildRoomTablesOnlySVG(fontMode, svgNumFont, svgLblFont, svgGstFont, svgOccFont);
+      const { svg } = buildRoomTablesOnlySVG(fontMode, svgNumFont, svgLblFont, svgGstFont, svgOccFont, stdShowLabel, stdShowOccupancy, stdShowGuests);
       area.innerHTML = `
 <div class="print-header" style="margin-bottom:6pt;padding-bottom:5pt">
   <h1 style="font-size:16pt;margin-bottom:2pt">${UI.escHtml(eventTitle)} — תרשים שולחנות</h1>
