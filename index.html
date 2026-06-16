@@ -1198,6 +1198,82 @@
   </div>
 </div>
 
+<!-- ═══════════════════ ADD GUEST TO TABLE MODAL ═══════════════════ -->
+<div class="modal-overlay" id="modalAddGuestToTable">
+  <div class="modal modal-md">
+    <div class="modal-header">
+      <h2 id="addGuestToTableTitle">הוסף מוזמנים לשולחן</h2>
+      <button class="modal-close" data-close-modal="modalAddGuestToTable">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="margin-bottom:10px">
+        <input type="text" id="addGuestToTableSearch" class="input" placeholder="חפש מוזמן..." autofocus style="width:100%">
+      </div>
+      <div id="addGuestToTableList" style="max-height:340px;overflow-y:auto;border:1px solid var(--border);border-radius:6px"></div>
+      <p id="addGuestToTableEmpty" style="display:none;text-align:center;color:#aaa;padding:24px;margin:0">
+        אין מוזמנים לא משובצים
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="btnConfirmAddGuestToTable">הוסף לשולחן</button>
+      <button class="btn btn-ghost" data-close-modal="modalAddGuestToTable">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ GETTING STARTED MODAL ═══════════════════ -->
+<div class="modal-overlay" id="modalGettingStarted">
+  <div class="modal modal-md">
+    <div class="modal-header gs-header">
+      <h2>🎉 ברוכים הבאים למתזמן המושבים!</h2>
+      <button class="modal-close gs-close" data-close-modal="modalGettingStarted">✕</button>
+    </div>
+    <div class="modal-body" style="padding-top:18px">
+      <p style="font-size:14px;color:#555;margin:0 0 18px">הנה כמה צעדים פשוטים לתחילת העבודה:</p>
+      <div class="gs-steps">
+        <div class="gs-step">
+          <span class="gs-num">1</span>
+          <div>
+            <strong>הגדר את האירוע</strong>
+            <p>לחץ על ⚙️ בכותרת כדי להזין שם אירוע, תאריך ופרטים</p>
+          </div>
+        </div>
+        <div class="gs-step">
+          <span class="gs-num">2</span>
+          <div>
+            <strong>הוסף שולחנות לאולם</strong>
+            <p>לחץ <strong>שולחן +</strong> (בסרגל הצד) כדי להוסיף שולחנות — גרור אותם ושנה גדלים בחופשיות</p>
+          </div>
+        </div>
+        <div class="gs-step">
+          <span class="gs-num">3</span>
+          <div>
+            <strong>הוסף מוזמנים</strong>
+            <p>לחץ <strong>הוסף מוזמן</strong> לרשימת המוזמנים, או ייבא רשימה מ-CSV / JSON</p>
+          </div>
+        </div>
+        <div class="gs-step">
+          <span class="gs-num">4</span>
+          <div>
+            <strong>שבץ מוזמנים לשולחנות</strong>
+            <p>גרור מוזמן לשולחן בלוח, או השתמש בשיבוץ אוטומטי 🤖</p>
+          </div>
+        </div>
+        <div class="gs-step">
+          <span class="gs-num">5</span>
+          <div>
+            <strong>שמור גיבוי חיצוני</strong>
+            <p>המערכת שומרת בדפדפן בלבד — יצא את הפרויקט (📦 ← ייצוא פרויקט) לגיבוי</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" data-close-modal="modalGettingStarted">הבנתי, בואו נתחיל! 🚀</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════════ ITEM NAV PANEL ═══════════════════ -->
 <div id="itemNavPanel">
   <button id="itemNavToggleBtn" class="item-nav-toggle-btn" title="פתח תפריט פריטים">▶</button>

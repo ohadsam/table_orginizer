@@ -551,9 +551,20 @@ Left column — editable form:
 - **נעל שולחן** (`detailsTableLock`)
 
 Right column — live guest roster:
+- **+ הוסף מוזמן** button (header row, `btnDetailAddGuest`) — calls `openAddGuestToTable(id)`
 - Table with columns: שם, מבוגרים, ילדים, תגיות, הערות, buttons
 - **✏️ ערוך** — closes `modalItemDetails` and opens `openEditGuest(id)` (called directly inside the same IIFE)
 - **✕ הסר** — `confirmDialog` → `State.assignGuest(gid, null)` → `openItemDetails(id)` to refresh
+
+### Add Guest to Table (`modalAddGuestToTable`)
+
+`Modals.openAddGuestToTable(tableId)` — opened from the `+ הוסף מוזמן` button in `openItemDetails`.
+
+- Shows a searchable list of all unassigned guests (`tableId === null && !splitOf`)
+- Multi-select via checkboxes; search filters by name (case-insensitive substring)
+- Confirming assigns all checked guests via `State.assignGuest` wrapped in `Guests.startBatch()/endBatch()`
+- After confirm: closes `modalAddGuestToTable`, re-opens `openItemDetails(tableId)` to refresh the roster, shows a success toast
+- Module-level `_addGuestToTableId` tracks the target table ID across render cycles
 
 ### Special item fields (single-column)
 Label, width (min 40), height (min 40), color picker. Shape selector shown only for `type === 'shape'`.
@@ -959,6 +970,42 @@ When ≥2 tables are selected and the context menu opens, `ctxBulkEditSep` and `
 - **CSS cache busting**: When deploying CSS changes to GitHub Pages, bump the `?v=N` query string on the `<link>` tags in `index.html` (e.g. `style.css?v=3`). GitHub Pages CDN caches CSS files; the old version can be served while the new HTML is live, making elements with `display:none` (like `.dropdown-menu`) render as visible blocks.
 - **iOS Safari `position:fixed` in scroll containers**: Do NOT put `overflow-x: auto` / `overflow: scroll` on a parent of a `position:fixed` child. iOS Safari may treat the fixed child as `position:absolute` relative to the scrolling container. The `.header-actions` bar does not use `overflow-x: auto` for this reason; the button count is kept small enough to fit without scrolling.
 - **Canvas items block dropdown close**: Canvas items call `e.stopPropagation()` on click, preventing the document-level `closeAll()` from firing. Use a `{capture: true}` listener on `#canvasViewport` to close dropdowns before item handlers run.
+
+## Storage Warning & Getting Started
+
+### Storage warning (`UI.showStorageWarning(force)`)
+
+A fixed-position floating notification (`.storage-warning`) appended to `<body>`, warning users that all data is stored in localStorage and will be lost on cache clear.
+
+**Behavior:**
+- `force=true` — always shows (used on new event creation, first load)
+- `force=false` — respects two localStorage guards:
+  - `sp_storage_warn_dismissed = 'true'` → never show again
+  - `sp_storage_warn_last` (timestamp) → show only if 4+ hours have passed since last show
+- Updating `sp_storage_warn_last` on every show (even forced) prevents the periodic popup from firing again right after a forced show
+- "אל תציג הודעה זו שוב" checkbox — sets `sp_storage_warn_dismissed = 'true'` when closing
+
+**Trigger points:**
+- `app.js` DOMContentLoaded: `showStorageWarning(true)` if no data (first load), else `showStorageWarning(false)` (periodic)
+- `modals.js` `btnConfirmNewEvent` handler: `showStorageWarning(true)` after event creation (400ms delay)
+
+**CSS:** `.storage-warning`, `.sw-header`, `.sw-icon`, `.sw-title`, `.sw-close`, `.sw-body`, `.sw-no-more`, animations `sw-in`/`sw-out`, class `sw-hiding` triggers exit animation before removal.
+
+### Getting started tips (`UI.showGettingStarted(force)`)
+
+Opens `modalGettingStarted` — a styled modal with 5 numbered tips (set up event, add tables, add guests, assign, backup).
+
+**Behavior:**
+- `force=true` — always shows
+- `force=false` — shows only if `sp_gs_shown` is not `'true'` in localStorage
+- Always sets `sp_gs_shown = 'true'` after showing (so `force=false` shows at most once)
+- Opens with 500ms delay (allows page to settle)
+
+**Trigger points:**
+- `app.js` DOMContentLoaded: `showGettingStarted(true)` if no data (first load)
+- `modals.js` `btnConfirmNewEvent` handler: `showGettingStarted(true)` after event creation (400ms delay)
+
+**CSS:** `.gs-header`, `.gs-close`, `.gs-steps`, `.gs-step`, `.gs-num` — blue gradient header, numbered step circles.
 
 ## File Structure
 

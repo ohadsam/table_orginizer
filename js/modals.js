@@ -250,6 +250,103 @@ const Modals = (() => {
     if (copy) { Items.selectItem(copy.id); UI.toast('הפריט שוכפל ✓', 'success', 1800); }
   }
 
+  /* ═══════════════════ ADD GUEST TO TABLE ═══════════════════ */
+  let _addGuestToTableId       = null;
+  let _addGuestToTableSel      = new Set(); // selected IDs preserved across search re-renders
+  let _addGuestToTableConfirmed = false;    // flag so the observer doesn't re-open after confirm
+
+  function openAddGuestToTable(tableId) {
+    _addGuestToTableId        = tableId;
+    _addGuestToTableSel       = new Set();
+    _addGuestToTableConfirmed = false;
+    const table = State.getItem(tableId);
+    if (!table) return;
+
+    const title = document.getElementById('addGuestToTableTitle');
+    if (title) title.textContent = `הוסף מוזמנים לשולחן ${table.number != null ? table.number : ''}`.trim();
+
+    const searchEl = document.getElementById('addGuestToTableSearch');
+    if (searchEl) {
+      searchEl.value = '';
+      searchEl.oninput = () => _renderAddGuestToTableList(searchEl.value);
+    }
+
+    _renderAddGuestToTableList('');
+
+    const confirmBtn = document.getElementById('btnConfirmAddGuestToTable');
+    if (confirmBtn) confirmBtn.onclick = _confirmAddGuestToTable;
+
+    // Close item-details before opening so Escape returns cleanly.
+    // A MutationObserver re-opens item-details when this modal loses .active
+    // (handles Escape, backdrop click, and cancel button uniformly).
+    UI.closeModal('modalItemDetails');
+    UI.openModal('modalAddGuestToTable');
+
+    const overlay = document.getElementById('modalAddGuestToTable');
+    if (overlay) {
+      const obs = new MutationObserver(() => {
+        if (!overlay.classList.contains('active')) {
+          obs.disconnect();
+          if (!_addGuestToTableConfirmed) openItemDetails(_addGuestToTableId);
+        }
+      });
+      obs.observe(overlay, { attributes: true, attributeFilter: ['class'] });
+    }
+  }
+
+  function _renderAddGuestToTableList(search) {
+    const listEl  = document.getElementById('addGuestToTableList');
+    const emptyEl = document.getElementById('addGuestToTableEmpty');
+    if (!listEl) return;
+
+    const q = (search || '').trim().toLowerCase();
+    const unassigned = State.get().guests.filter(g =>
+      !g.tableId && !g.splitOf && (!q || (g.name || '').toLowerCase().includes(q))
+    );
+
+    if (!unassigned.length) {
+      listEl.innerHTML = '';
+      if (emptyEl) emptyEl.style.display = '';
+      return;
+    }
+    if (emptyEl) emptyEl.style.display = 'none';
+
+    listEl.innerHTML = unassigned.map(g => {
+      const tagStr  = (g.tags || []).slice(0, 2).map(t => UI.escHtml(t)).join(', ');
+      const checked = _addGuestToTableSel.has(g.id) ? 'checked' : '';
+      return `<label class="add-guest-row">
+        <input type="checkbox" data-guest-add="${UI.escHtml(g.id)}" ${checked} style="cursor:pointer">
+        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${UI.escHtml(g.name || '')}</span>
+        <span style="font-size:11px;color:#888;white-space:nowrap">${g.total > 1 ? g.total + ' אנשים' : ''}${tagStr ? (g.total > 1 ? ' · ' : '') + tagStr : ''}</span>
+      </label>`;
+    }).join('');
+
+    // Keep the selection Set in sync when the user checks/unchecks
+    listEl.querySelectorAll('[data-guest-add]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        if (cb.checked) _addGuestToTableSel.add(cb.dataset.guestAdd);
+        else            _addGuestToTableSel.delete(cb.dataset.guestAdd);
+      });
+    });
+  }
+
+  function _confirmAddGuestToTable() {
+    if (!_addGuestToTableId || !_addGuestToTableSel.size) {
+      UI.toast('לא נבחרו מוזמנים', 'warning', 2000);
+      return;
+    }
+    const count = _addGuestToTableSel.size;
+    _addGuestToTableConfirmed = true; // prevent observer from re-opening without updates
+
+    Guests.startBatch();
+    _addGuestToTableSel.forEach(gid => State.assignGuest(gid, _addGuestToTableId));
+    Guests.endBatch();
+
+    UI.closeModal('modalAddGuestToTable'); // observer fires here but _confirmed=true so it skips
+    openItemDetails(_addGuestToTableId);   // explicitly re-open with updated guest list
+    UI.toast(`${count} מוזמן${count > 1 ? 'ים' : ''} נוסף${count > 1 ? 'ו' : ''} לשולחן ✓`, 'success', 2000);
+  }
+
   /* ═══════════════════ ITEM FULL DETAILS ═══════════════════ */
   let _detailsItemId = null;
   let _detailsShape  = null;
@@ -340,10 +437,13 @@ const Modals = (() => {
             </div>
           </div>
           <div class="details-col">
-            <h3 class="details-section-title">
-              מוזמנים בשולחן
-              <span class="details-occ">${occ}/${item.seats}</span>
-            </h3>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+              <h3 class="details-section-title" style="margin:0">
+                מוזמנים בשולחן
+                <span class="details-occ">${occ}/${item.seats}</span>
+              </h3>
+              <button class="btn btn-sm btn-secondary" id="btnDetailAddGuest" title="הוסף מוזמנים לשולחן">+ הוסף מוזמן</button>
+            </div>
             ${guests.length ? `
             <table class="details-guest-table">
               <thead>
@@ -380,6 +480,10 @@ const Modals = (() => {
           UI.closeModal('modalItemDetails');
           openEditGuest(btn.dataset.detailEditGuest);
         });
+      });
+
+      body.querySelector('#btnDetailAddGuest')?.addEventListener('click', () => {
+        openAddGuestToTable(id);
       });
 
     } else {
@@ -1219,6 +1323,8 @@ const Modals = (() => {
       UI.closeModal('modalNewEvent');
       UI.closeModal('modalSettings');
       Storage.createEvent({ keepGuests: keep });
+      // Always show storage warning and getting-started tips on new event creation
+      setTimeout(() => { UI.showStorageWarning(true); UI.showGettingStarted(true); }, 400);
     });
 
     // Import guests modal (merge/replace handled in app.js)
@@ -2003,7 +2109,7 @@ const Modals = (() => {
     openAddTable, openEditTable,
     openEditItem, openAddGuest, openEditGuest,
     openAddShape, openSettings, openAutoAssign,
-    openFindTable, openItemDetails,
+    openFindTable, openItemDetails, openAddGuestToTable,
     openPrintCards, openPrintDiagram, openBulkEdit, openAlignItems,
     handleGuestDrop, updateEventHeader,
     renderTagsManager, renderPresetManager, renderTablePresets,

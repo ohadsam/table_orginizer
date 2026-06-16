@@ -196,9 +196,14 @@ document.addEventListener('DOMContentLoaded', () => {
     Storage.saveNow();
   });
 
-  /* ── Show welcome if empty ── */
+  /* ── Show welcome / storage warning ── */
   if (!hasData) {
-    UI.toast('ברוכים הבאים! התחל בהגדרת האירוע ➜ ⚙️', 'info', 6000);
+    // First-ever load: show getting-started tips + storage warning
+    UI.showGettingStarted(true);
+    setTimeout(() => UI.showStorageWarning(true), 1000);
+  } else {
+    // Returning user: show storage warning periodically (every 4h unless dismissed)
+    UI.showStorageWarning(false);
   }
 
   console.log('🎉 Seating Planner loaded');
