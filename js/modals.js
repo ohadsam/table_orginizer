@@ -1705,13 +1705,21 @@ const Modals = (() => {
       };
     }
 
-    const chk     = document.getElementById('chkDiagramShowGuests');
-    const opts    = document.getElementById('diagramGuestOpts');
-    const stdOpts = document.getElementById('diagramStdOpts');
+    const chk      = document.getElementById('chkDiagramShowGuests');
+    const opts     = document.getElementById('diagramGuestOpts');
+    const stdOpts  = document.getElementById('diagramStdOpts');
     if (chk) {
       chk.onchange = () => {
         if (opts)    opts.style.display    = chk.checked ? '' : 'none';
         if (stdOpts) stdOpts.style.display = chk.checked ? 'none' : '';
+      };
+    }
+
+    const chkGis    = document.getElementById('chkDiagramGuestInShape');
+    const gisOptsEl = document.getElementById('diagramGuestInShapeOpts');
+    if (chkGis) {
+      chkGis.onchange = () => {
+        if (gisOptsEl) gisOptsEl.style.display = chkGis.checked ? '' : 'none';
       };
     }
 
@@ -1733,9 +1741,25 @@ const Modals = (() => {
         const stdShowLabel     = document.getElementById('chkDiagramStdLabel')?.checked     !== false;
         const stdShowOccupancy = document.getElementById('chkDiagramStdOccupancy')?.checked !== false;
         const stdShowGuests    = document.getElementById('chkDiagramStdGuests')?.checked    === true;
+        // Guest-in-shape mode
+        const guestInShape = chkGis?.checked || false;
+        const _sc = v => /^#[0-9a-fA-F]{6}$/.test(v || '') ? v : null;
+        const gisOpts = guestInShape ? {
+          numFont:    Math.max(8,  Math.min(40, parseInt(document.getElementById('inputGisNumFont')?.value)  || 18)),
+          numColor:   _sc(document.getElementById('inputGisNumColor')?.value)  || '#1a237e',
+          occFont:    Math.max(6,  Math.min(30, parseInt(document.getElementById('inputGisOccFont')?.value)  || 11)),
+          occColor:   _sc(document.getElementById('inputGisOccColor')?.value)  || '#888888',
+          lblFont:    Math.max(6,  Math.min(30, parseInt(document.getElementById('inputGisLblFont')?.value)  || 12)),
+          lblColor:   _sc(document.getElementById('inputGisLblColor')?.value)  || '#37474f',
+          gstFont:    Math.max(6,  Math.min(30, parseInt(document.getElementById('inputGisGstFont')?.value)  || 10)),
+          gstColor:   _sc(document.getElementById('inputGisGstColor')?.value)  || '#333333',
+          showOcc:    document.getElementById('chkGisShowOcc')?.checked    !== false,
+          showLabel:  document.getElementById('chkGisShowLabel')?.checked  !== false,
+          showCounts: document.getElementById('chkGisShowCounts')?.checked === true,
+        } : null;
         Print.printTablesDiagram({ showGuestList: showGuests, guestFontSize: fontSize, cols,
           showLabel, showOccupancy, fontMode, svgNumFont, svgLblFont, svgGstFont, svgOccFont,
-          stdShowLabel, stdShowOccupancy, stdShowGuests });
+          stdShowLabel, stdShowOccupancy, stdShowGuests, guestInShape, gisOpts });
       };
     }
     UI.openModal('modalPrintDiagram');

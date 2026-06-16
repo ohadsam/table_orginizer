@@ -831,6 +831,49 @@
             <span>הצג תפוסה (X/Y) על ציור השולחן</span>
           </label>
         </div>
+        <hr style="margin:8px 0;border:none;border-top:1px solid #e0e0e0">
+        <div class="form-group" style="margin-bottom:6px">
+          <label class="checkbox-label">
+            <input type="checkbox" id="chkDiagramGuestInShape">
+            <span>הצג שמות בתוך הצורה (מגדיל את ציור השולחן)</span>
+          </label>
+        </div>
+        <div id="diagramGuestInShapeOpts" style="display:none">
+          <table style="width:100%;font-size:12px;border-collapse:collapse">
+            <thead><tr style="color:#607d8b;font-weight:600">
+              <td style="padding:2px 4px"></td>
+              <td style="padding:2px 4px;text-align:center">גודל</td>
+              <td style="padding:2px 4px;text-align:center">צבע</td>
+              <td style="padding:2px 4px;text-align:center">הצג</td>
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td style="padding:2px 4px">מספר שולחן</td>
+                <td style="padding:2px 4px;text-align:center"><input type="number" id="inputGisNumFont" min="8" max="40" value="18" class="input" style="width:52px;text-align:center"></td>
+                <td style="padding:2px 4px;text-align:center"><input type="color" id="inputGisNumColor" value="#1a237e" style="width:28px;height:24px;padding:2px;border:1px solid #ccc;border-radius:3px;cursor:pointer"></td>
+                <td></td>
+              </tr>
+              <tr>
+                <td style="padding:2px 4px">תפוסה</td>
+                <td style="padding:2px 4px;text-align:center"><input type="number" id="inputGisOccFont" min="6" max="30" value="11" class="input" style="width:52px;text-align:center"></td>
+                <td style="padding:2px 4px;text-align:center"><input type="color" id="inputGisOccColor" value="#888888" style="width:28px;height:24px;padding:2px;border:1px solid #ccc;border-radius:3px;cursor:pointer"></td>
+                <td style="padding:2px 4px;text-align:center"><input type="checkbox" id="chkGisShowOcc" checked title="הצג תפוסה"></td>
+              </tr>
+              <tr>
+                <td style="padding:2px 4px">תווית</td>
+                <td style="padding:2px 4px;text-align:center"><input type="number" id="inputGisLblFont" min="6" max="30" value="12" class="input" style="width:52px;text-align:center"></td>
+                <td style="padding:2px 4px;text-align:center"><input type="color" id="inputGisLblColor" value="#37474f" style="width:28px;height:24px;padding:2px;border:1px solid #ccc;border-radius:3px;cursor:pointer"></td>
+                <td style="padding:2px 4px;text-align:center"><input type="checkbox" id="chkGisShowLabel" checked title="הצג תווית"></td>
+              </tr>
+              <tr>
+                <td style="padding:2px 4px">שמות מוזמנים</td>
+                <td style="padding:2px 4px;text-align:center"><input type="number" id="inputGisGstFont" min="6" max="30" value="10" class="input" style="width:52px;text-align:center"></td>
+                <td style="padding:2px 4px;text-align:center"><input type="color" id="inputGisGstColor" value="#333333" style="width:28px;height:24px;padding:2px;border:1px solid #ccc;border-radius:3px;cursor:pointer"></td>
+                <td style="padding:2px 4px;text-align:center"><label class="checkbox-label" title="הצג כמות אנשים ליד השם"><input type="checkbox" id="chkGisShowCounts"><span style="font-size:11px">כמות</span></label></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
     <div class="modal-footer">

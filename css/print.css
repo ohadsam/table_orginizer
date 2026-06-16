@@ -314,6 +314,10 @@
     width: 1%;
     direction: ltr;
   }
+  .diag-block-shape {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
 
   /* Page settings — landscape override injected by print.js at runtime for printAll/printFull;
      cards page margins injected similarly */
