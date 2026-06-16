@@ -71,6 +71,12 @@
     max-height: 162mm; /* landscape A4 ~186mm usable minus ~24mm for header */
     height: auto;
   }
+  body[data-print-orient="portrait"] .print-diagram-wrap svg {
+    max-height: 245mm; /* portrait A4 ~273mm usable minus ~28mm for header */
+  }
+
+  /* Shape icon in seating plan cards */
+  .print-table-shape { font-size: 9pt; color: #555; margin-inline-start: 6pt; }
 
   /* ── Print header ── */
   .print-header {

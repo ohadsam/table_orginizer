@@ -302,7 +302,7 @@ Five modes, each with its own hidden `<div>` in `index.html`:
 
 | Mode | Print area | Content |
 |------|-----------|---------|
-| `plan` | `#printPlanArea` | Table cards grid (3-column) + stats header |
+| `plan` | `#printPlanArea` | Table cards grid (3-column) + stats header; tables sorted by number ascending; shape icon (○/▭/□) shown beside seat count |
 | `list` | `#printListArea` | Sortable guest table with table number column |
 | `all` | `#printAllArea` | Room SVG diagram + page break + full guest table |
 | `full` | `#printFullArea` | Room diagram + **one page per table** (visual SVG + full guest detail) + final guest table |
@@ -746,7 +746,7 @@ The reorder handle (⠿ span) is separate from the pointer-based canvas-drag sys
 
 ## Tables-Only Diagram Print (`printTablesDiagram`)
 
-`Print.printTablesDiagram(opts)` — triggered by `btnPrintDiagram` (🗺) in the header, which now opens `modalPrintDiagram` (`Modals.openPrintDiagram()`). The modal lets the user choose the print mode and then calls `Print.printTablesDiagram({ showGuestList, guestFontSize, cols, showLabel, showOccupancy, fontMode, svgNumFont, svgLblFont, svgGstFont, svgOccFont })`.
+`Print.printTablesDiagram(opts)` — triggered by `btnPrintDiagram` (🗺) in the header, which now opens `modalPrintDiagram` (`Modals.openPrintDiagram()`). The modal lets the user choose the print mode and then calls `Print.printTablesDiagram({ showGuestList, guestFontSize, cols, showLabel, showOccupancy, fontMode, svgNumFont, svgLblFont, svgGstFont, svgOccFont, orientation })`.
 
 ### Font mode (`fontMode`)
 
@@ -764,7 +764,7 @@ Both standard and guest-list modes respect `fontMode`:
 - Full-detail SVG of **only table items** (`buildRoomTablesOnlySVG(fontMode, overrideNumFont, overrideLblFont, overrideGstFont, overrideOccFont)`): seat circles (filled/empty, using `CONFIG.COLORS.seatOccupied` / `seatOver` / `seatEmpty`), occupancy-based or custom colors, table numbers, labels, and guest names
 - Bounding box uses `seatPad = CONFIG.SEAT_RADIUS * 2 + 10` to include seat circles that extend outside item bounds
 - `🔒` badge (top-right) for assignment-locked tables; `#` badge (purple, top-left) for number-locked tables
-- SVG `max-height: 162mm` leaves ~24mm for the compact header within 186mm landscape A4 usable height
+- SVG `max-height: 162mm` in landscape (A4 ~186mm usable minus ~24mm for header); `max-height: 245mm` in portrait (A4 ~273mm usable minus ~28mm for header) — controlled by `body[data-print-orient]` CSS attribute set at print time
 - **Fixed mode pt-to-px**: layout calculations (text y-positions, guest list line height) need canvas-px estimates of pt sizes. Conversion: `ptToPx = 1 / (min(250/vbW, 162/vbH) * 2.835)` where 250mm and 162mm are the estimated usable A4 landscape print dimensions.
 
 ### Guest-list mode (`showGuestList: true`)
@@ -823,10 +823,11 @@ h = 10 (top pad) + numFont + 4
 | `showLabel` | boolean | true | Show table label |
 | `showCounts` | boolean | false | Show guest count `(N)` beside name |
 
-Both modes print landscape (`_injectLandscape()`); print mode `"diagram"` activates `#printTablesDiagramArea { display: flex }`.
+Print orientation is user-selectable (`orientation = 'landscape'` default, or `'portrait'`). `_injectLandscape()` is called for landscape; `_clearLandscape()` for portrait. `document.body.dataset.printOrient` is set to the chosen orientation so CSS can apply the correct SVG `max-height`. Print mode `"diagram"` activates `#printTablesDiagramArea { display: flex }`.
 
 ### `modalPrintDiagram`
 Modal (`modal-sm`) with:
+- **Orientation toggle**: `btnDiagramOrientPortrait` (📄 לאורך) / `btnDiagramOrientLandscape` (🖼 לרוחב, active by default) — two `.shape-btn` buttons; reset to landscape on every open
 - Font mode toggle: `btnDiagramFontAuto` (active by default) / `btnDiagramFontFixed` — segmented button pair using `.shape-btn` styling; toggles `#diagramFixedFontOpts` visibility and `#diagramFontModeHint`
 - Fixed font inputs (in `#diagramFixedFontOpts`, 4-column grid, visible only in fixed mode):
   - `inputDiagramSvgNumFont` — table number font size (6–36pt, default 14)

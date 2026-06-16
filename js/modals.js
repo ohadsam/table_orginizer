@@ -1815,6 +1815,10 @@ const Modals = (() => {
     const opts     = document.getElementById('diagramGuestOpts');
     const stdOpts  = document.getElementById('diagramStdOpts');
     if (chk) {
+      // Reset to unchecked on every open so section visibility matches checkbox state
+      chk.checked = false;
+      if (opts)    opts.style.display    = 'none';
+      if (stdOpts) stdOpts.style.display = '';
       chk.onchange = () => {
         if (opts)    opts.style.display    = chk.checked ? '' : 'none';
         if (stdOpts) stdOpts.style.display = chk.checked ? 'none' : '';
@@ -1824,8 +1828,27 @@ const Modals = (() => {
     const chkGis    = document.getElementById('chkDiagramGuestInShape');
     const gisOptsEl = document.getElementById('diagramGuestInShapeOpts');
     if (chkGis) {
+      // Reset to unchecked on every open
+      chkGis.checked = false;
+      if (gisOptsEl) gisOptsEl.style.display = 'none';
       chkGis.onchange = () => {
         if (gisOptsEl) gisOptsEl.style.display = chkGis.checked ? '' : 'none';
+      };
+    }
+
+    const btnOrientPortrait  = document.getElementById('btnDiagramOrientPortrait');
+    const btnOrientLandscape = document.getElementById('btnDiagramOrientLandscape');
+    if (btnOrientPortrait && btnOrientLandscape) {
+      // Reset to landscape on every open
+      btnOrientLandscape.classList.add('active');
+      btnOrientPortrait.classList.remove('active');
+      btnOrientPortrait.onclick = () => {
+        btnOrientPortrait.classList.add('active');
+        btnOrientLandscape.classList.remove('active');
+      };
+      btnOrientLandscape.onclick = () => {
+        btnOrientLandscape.classList.add('active');
+        btnOrientPortrait.classList.remove('active');
       };
     }
 
@@ -1834,6 +1857,7 @@ const Modals = (() => {
       btn.onclick = () => {
         UI.closeModal('modalPrintDiagram');
         const fontMode      = btnFixed?.classList.contains('active') ? 'fixed' : 'auto';
+        const orientation   = btnOrientPortrait?.classList.contains('active') ? 'portrait' : 'landscape';
         const showGuests    = chk?.checked || false;
         const fontSize      = parseInt(document.getElementById('inputDiagramGuestFont')?.value) || 8;
         const cols          = parseInt(document.getElementById('selectDiagramCols')?.value)     || 4;
@@ -1865,7 +1889,7 @@ const Modals = (() => {
         } : null;
         Print.printTablesDiagram({ showGuestList: showGuests, guestFontSize: fontSize, cols,
           showLabel, showOccupancy, fontMode, svgNumFont, svgLblFont, svgGstFont, svgOccFont,
-          stdShowLabel, stdShowOccupancy, stdShowGuests, guestInShape, gisOpts });
+          stdShowLabel, stdShowOccupancy, stdShowGuests, guestInShape, gisOpts, orientation });
       };
     }
     UI.openModal('modalPrintDiagram');

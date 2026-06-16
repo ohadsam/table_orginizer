@@ -218,12 +218,14 @@ const Print = (() => {
   function printPlan() {
     const planArea = document.getElementById('printPlanArea');
     const state    = State.get();
-    const tables   = State.getTables();
+    const tables   = [...State.getTables()].sort((a, b) => (a.number ?? 999) - (b.number ?? 999));
 
     const eventTitle = state.event.name || 'תוכנית הושבה';
     const eventType  = CONFIG.EVENT_TYPES[state.event.type] || '';
     const eventDate  = state.event.date ? (() => { const [y,m,d] = state.event.date.split('-'); return new Date(+y,+m-1,+d).toLocaleDateString('he-IL'); })() : '';
     const venue      = state.event.venue || '';
+
+    const shapeIcon = { circle: '○', rectangle: '▭', square: '□' };
 
     const tableCards = tables.map(t => {
       const guests  = State.getTableGuests(t.id);
@@ -235,11 +237,13 @@ const Print = (() => {
       const colorClass   = occ === 0 ? 'empty' : (occ <= t.seats ? 'ok' : 'over');
       const borderStyle  = t.color ? `border-color:${t.color};` : '';
       const headerStyle  = t.color ? `background:${t.color}22;` : '';
+      const icon = shapeIcon[t.shape] || '▭';
       return `
 <div class="print-table-card ${colorClass}" style="${borderStyle}">
   <div class="print-table-header" style="${headerStyle}">
     <span class="print-table-num">שולחן ${t.number || '?'}</span>
     ${t.label ? `<span class="print-table-label"> — ${UI.escHtml(t.label)}</span>` : ''}
+    <span class="print-table-shape" title="${t.shape || ''}">${icon} ${t.seats}</span>
     <span class="print-table-occ">${occ}/${t.seats}</span>
   </div>
   <ul class="print-guest-list">${guestList || '<li><em>ריק</em></li>'}</ul>
@@ -1035,7 +1039,7 @@ ${buildGuestTableHTML(sorted)}`;
     const { showGuestList = false, guestFontSize = 8, cols = 4, showLabel = true, showOccupancy = true,
             fontMode = 'auto', svgNumFont = 14, svgLblFont = 9, svgGstFont = 8, svgOccFont = 7,
             stdShowLabel = true, stdShowOccupancy = true, stdShowGuests = false,
-            guestInShape = false, gisOpts = null } = opts || {};
+            guestInShape = false, gisOpts = null, orientation = 'landscape' } = opts || {};
     const tables = State.get().items.filter(i => i.type === 'table');
     if (!tables.length) { UI.toast('אין שולחנות לתצוגה', 'info', 1800); return; }
 
@@ -1073,13 +1077,19 @@ ${buildGuestTableHTML(sorted)}`;
 <div class="print-diagram-wrap">${svg}</div>`;
     }
 
-    _injectLandscape();
-    document.body.dataset.printMode = 'diagram';
+    if (orientation === 'portrait') {
+      _clearLandscape();
+    } else {
+      _injectLandscape();
+    }
+    document.body.dataset.printMode  = 'diagram';
+    document.body.dataset.printOrient = orientation;
     try {
       window.print();
     } finally {
       setTimeout(() => {
-        document.body.dataset.printMode = '';
+        document.body.dataset.printMode  = '';
+        document.body.dataset.printOrient = '';
         area.innerHTML = '';
         _clearLandscape();
       }, 2000);
