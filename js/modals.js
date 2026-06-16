@@ -250,6 +250,103 @@ const Modals = (() => {
     if (copy) { Items.selectItem(copy.id); UI.toast('הפריט שוכפל ✓', 'success', 1800); }
   }
 
+  /* ═══════════════════ ADD GUEST TO TABLE ═══════════════════ */
+  let _addGuestToTableId       = null;
+  let _addGuestToTableSel      = new Set(); // selected IDs preserved across search re-renders
+  let _addGuestToTableConfirmed = false;    // flag so the observer doesn't re-open after confirm
+
+  function openAddGuestToTable(tableId) {
+    _addGuestToTableId        = tableId;
+    _addGuestToTableSel       = new Set();
+    _addGuestToTableConfirmed = false;
+    const table = State.getItem(tableId);
+    if (!table) return;
+
+    const title = document.getElementById('addGuestToTableTitle');
+    if (title) title.textContent = `הוסף מוזמנים לשולחן ${table.number != null ? table.number : ''}`.trim();
+
+    const searchEl = document.getElementById('addGuestToTableSearch');
+    if (searchEl) {
+      searchEl.value = '';
+      searchEl.oninput = () => _renderAddGuestToTableList(searchEl.value);
+    }
+
+    _renderAddGuestToTableList('');
+
+    const confirmBtn = document.getElementById('btnConfirmAddGuestToTable');
+    if (confirmBtn) confirmBtn.onclick = _confirmAddGuestToTable;
+
+    // Close item-details before opening so Escape returns cleanly.
+    // A MutationObserver re-opens item-details when this modal loses .active
+    // (handles Escape, backdrop click, and cancel button uniformly).
+    UI.closeModal('modalItemDetails');
+    UI.openModal('modalAddGuestToTable');
+
+    const overlay = document.getElementById('modalAddGuestToTable');
+    if (overlay) {
+      const obs = new MutationObserver(() => {
+        if (!overlay.classList.contains('active')) {
+          obs.disconnect();
+          if (!_addGuestToTableConfirmed) openItemDetails(_addGuestToTableId);
+        }
+      });
+      obs.observe(overlay, { attributes: true, attributeFilter: ['class'] });
+    }
+  }
+
+  function _renderAddGuestToTableList(search) {
+    const listEl  = document.getElementById('addGuestToTableList');
+    const emptyEl = document.getElementById('addGuestToTableEmpty');
+    if (!listEl) return;
+
+    const q = (search || '').trim().toLowerCase();
+    const unassigned = State.get().guests.filter(g =>
+      !g.tableId && !g.splitOf && (!q || (g.name || '').toLowerCase().includes(q))
+    );
+
+    if (!unassigned.length) {
+      listEl.innerHTML = '';
+      if (emptyEl) emptyEl.style.display = '';
+      return;
+    }
+    if (emptyEl) emptyEl.style.display = 'none';
+
+    listEl.innerHTML = unassigned.map(g => {
+      const tagStr  = (g.tags || []).slice(0, 2).map(t => UI.escHtml(t)).join(', ');
+      const checked = _addGuestToTableSel.has(g.id) ? 'checked' : '';
+      return `<label class="add-guest-row">
+        <input type="checkbox" data-guest-add="${UI.escHtml(g.id)}" ${checked} style="cursor:pointer">
+        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${UI.escHtml(g.name || '')}</span>
+        <span style="font-size:11px;color:#888;white-space:nowrap">${g.total > 1 ? g.total + ' אנשים' : ''}${tagStr ? (g.total > 1 ? ' · ' : '') + tagStr : ''}</span>
+      </label>`;
+    }).join('');
+
+    // Keep the selection Set in sync when the user checks/unchecks
+    listEl.querySelectorAll('[data-guest-add]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        if (cb.checked) _addGuestToTableSel.add(cb.dataset.guestAdd);
+        else            _addGuestToTableSel.delete(cb.dataset.guestAdd);
+      });
+    });
+  }
+
+  function _confirmAddGuestToTable() {
+    if (!_addGuestToTableId || !_addGuestToTableSel.size) {
+      UI.toast('לא נבחרו מוזמנים', 'warning', 2000);
+      return;
+    }
+    const count = _addGuestToTableSel.size;
+    _addGuestToTableConfirmed = true; // prevent observer from re-opening without updates
+
+    Guests.startBatch();
+    _addGuestToTableSel.forEach(gid => State.assignGuest(gid, _addGuestToTableId));
+    Guests.endBatch();
+
+    UI.closeModal('modalAddGuestToTable'); // observer fires here but _confirmed=true so it skips
+    openItemDetails(_addGuestToTableId);   // explicitly re-open with updated guest list
+    UI.toast(`${count} מוזמן${count > 1 ? 'ים' : ''} נוסף${count > 1 ? 'ו' : ''} לשולחן ✓`, 'success', 2000);
+  }
+
   /* ═══════════════════ ITEM FULL DETAILS ═══════════════════ */
   let _detailsItemId = null;
   let _detailsShape  = null;
@@ -340,10 +437,13 @@ const Modals = (() => {
             </div>
           </div>
           <div class="details-col">
-            <h3 class="details-section-title">
-              מוזמנים בשולחן
-              <span class="details-occ">${occ}/${item.seats}</span>
-            </h3>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+              <h3 class="details-section-title" style="margin:0">
+                מוזמנים בשולחן
+                <span class="details-occ">${occ}/${item.seats}</span>
+              </h3>
+              <button class="btn btn-sm btn-secondary" id="btnDetailAddGuest" title="הוסף מוזמנים לשולחן">+ הוסף מוזמן</button>
+            </div>
             ${guests.length ? `
             <table class="details-guest-table">
               <thead>
@@ -380,6 +480,10 @@ const Modals = (() => {
           UI.closeModal('modalItemDetails');
           openEditGuest(btn.dataset.detailEditGuest);
         });
+      });
+
+      body.querySelector('#btnDetailAddGuest')?.addEventListener('click', () => {
+        openAddGuestToTable(id);
       });
 
     } else {
@@ -1219,6 +1323,8 @@ const Modals = (() => {
       UI.closeModal('modalNewEvent');
       UI.closeModal('modalSettings');
       Storage.createEvent({ keepGuests: keep });
+      // Always show storage warning and getting-started tips on new event creation
+      setTimeout(() => { UI.showStorageWarning(true); UI.showGettingStarted(true); }, 400);
     });
 
     // Import guests modal (merge/replace handled in app.js)
@@ -1705,13 +1811,21 @@ const Modals = (() => {
       };
     }
 
-    const chk     = document.getElementById('chkDiagramShowGuests');
-    const opts    = document.getElementById('diagramGuestOpts');
-    const stdOpts = document.getElementById('diagramStdOpts');
+    const chk      = document.getElementById('chkDiagramShowGuests');
+    const opts     = document.getElementById('diagramGuestOpts');
+    const stdOpts  = document.getElementById('diagramStdOpts');
     if (chk) {
       chk.onchange = () => {
         if (opts)    opts.style.display    = chk.checked ? '' : 'none';
         if (stdOpts) stdOpts.style.display = chk.checked ? 'none' : '';
+      };
+    }
+
+    const chkGis    = document.getElementById('chkDiagramGuestInShape');
+    const gisOptsEl = document.getElementById('diagramGuestInShapeOpts');
+    if (chkGis) {
+      chkGis.onchange = () => {
+        if (gisOptsEl) gisOptsEl.style.display = chkGis.checked ? '' : 'none';
       };
     }
 
@@ -1733,9 +1847,25 @@ const Modals = (() => {
         const stdShowLabel     = document.getElementById('chkDiagramStdLabel')?.checked     !== false;
         const stdShowOccupancy = document.getElementById('chkDiagramStdOccupancy')?.checked !== false;
         const stdShowGuests    = document.getElementById('chkDiagramStdGuests')?.checked    === true;
+        // Guest-in-shape mode
+        const guestInShape = chkGis?.checked || false;
+        const _sc = v => /^#[0-9a-fA-F]{6}$/.test(v || '') ? v : null;
+        const gisOpts = guestInShape ? {
+          numFont:    Math.max(8,  Math.min(40, parseInt(document.getElementById('inputGisNumFont')?.value)  || 18)),
+          numColor:   _sc(document.getElementById('inputGisNumColor')?.value)  || '#1a237e',
+          occFont:    Math.max(6,  Math.min(30, parseInt(document.getElementById('inputGisOccFont')?.value)  || 11)),
+          occColor:   _sc(document.getElementById('inputGisOccColor')?.value)  || '#888888',
+          lblFont:    Math.max(6,  Math.min(30, parseInt(document.getElementById('inputGisLblFont')?.value)  || 12)),
+          lblColor:   _sc(document.getElementById('inputGisLblColor')?.value)  || '#37474f',
+          gstFont:    Math.max(6,  Math.min(30, parseInt(document.getElementById('inputGisGstFont')?.value)  || 10)),
+          gstColor:   _sc(document.getElementById('inputGisGstColor')?.value)  || '#333333',
+          showOcc:    document.getElementById('chkGisShowOcc')?.checked    !== false,
+          showLabel:  document.getElementById('chkGisShowLabel')?.checked  !== false,
+          showCounts: document.getElementById('chkGisShowCounts')?.checked === true,
+        } : null;
         Print.printTablesDiagram({ showGuestList: showGuests, guestFontSize: fontSize, cols,
           showLabel, showOccupancy, fontMode, svgNumFont, svgLblFont, svgGstFont, svgOccFont,
-          stdShowLabel, stdShowOccupancy, stdShowGuests });
+          stdShowLabel, stdShowOccupancy, stdShowGuests, guestInShape, gisOpts });
       };
     }
     UI.openModal('modalPrintDiagram');
@@ -1979,7 +2109,7 @@ const Modals = (() => {
     openAddTable, openEditTable,
     openEditItem, openAddGuest, openEditGuest,
     openAddShape, openSettings, openAutoAssign,
-    openFindTable, openItemDetails,
+    openFindTable, openItemDetails, openAddGuestToTable,
     openPrintCards, openPrintDiagram, openBulkEdit, openAlignItems,
     handleGuestDrop, updateEventHeader,
     renderTagsManager, renderPresetManager, renderTablePresets,

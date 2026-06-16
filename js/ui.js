@@ -85,6 +85,51 @@ const UI = (() => {
     });
   }
 
+  /* ── Storage warning (floating notification) ── */
+  const _WARN_DISMISSED_KEY = 'sp_storage_warn_dismissed';
+  const _WARN_TS_KEY        = 'sp_storage_warn_last';
+  const _WARN_INTERVAL      = 4 * 60 * 60 * 1000; // 4 hours
+
+  function showStorageWarning(force) {
+    if (!force) {
+      if (localStorage.getItem(_WARN_DISMISSED_KEY) === 'true') return;
+      const last = parseInt(localStorage.getItem(_WARN_TS_KEY) || '0');
+      if (Date.now() - last < _WARN_INTERVAL) return;
+    }
+    localStorage.setItem(_WARN_TS_KEY, String(Date.now()));
+    document.getElementById('_storageWarn')?.remove();
+
+    const div = document.createElement('div');
+    div.id = '_storageWarn';
+    div.className = 'storage-warning';
+    div.innerHTML = `
+      <div class="sw-header">
+        <span class="sw-icon">💾</span>
+        <strong class="sw-title">שמירה בדפדפן בלבד</strong>
+        <button class="sw-close" title="סגור">✕</button>
+      </div>
+      <p class="sw-body">כל הנתונים נשמרים <strong>בדפדפן בלבד</strong>. ניקוי Cache של הדפדפן ימחק את כל הנתונים. מומלץ לייצא את הפרויקט (📦 → ייצוא פרויקט) מידי פעם לגיבוי חיצוני.</p>
+      <label class="sw-no-more"><input type="checkbox" id="_swDismiss"> אל תציג הודעה זו שוב</label>`;
+    document.body.appendChild(div);
+
+    div.querySelector('.sw-close').addEventListener('click', () => {
+      if (document.getElementById('_swDismiss')?.checked) {
+        localStorage.setItem(_WARN_DISMISSED_KEY, 'true');
+      }
+      div.classList.add('sw-hiding');
+      setTimeout(() => div.remove(), 300);
+    });
+  }
+
+  /* ── Getting started tips (modal, one-time or forced) ── */
+  const _GS_KEY = 'sp_gs_shown';
+
+  function showGettingStarted(force) {
+    if (!force && localStorage.getItem(_GS_KEY) === 'true') return;
+    localStorage.setItem(_GS_KEY, 'true');
+    setTimeout(() => openModal('modalGettingStarted'), 500);
+  }
+
   /* ── Mobile sidebar toggle ── */
   function initMobileSidebar() {
     const toggle = document.getElementById('btnMobileSidebar');
@@ -104,5 +149,5 @@ const UI = (() => {
     });
   }
 
-  return { toast, openModal, closeModal, closeAllModals, updateStats, tagColor, tagBadge, escHtml, confirmDialog, initModals, initMobileSidebar };
+  return { toast, openModal, closeModal, closeAllModals, updateStats, tagColor, tagBadge, escHtml, confirmDialog, initModals, initMobileSidebar, showStorageWarning, showGettingStarted };
 })();

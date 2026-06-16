@@ -1551,3 +1551,109 @@ textarea.input { resize: vertical; min-height: 60px; }
   flex-wrap: wrap;
   gap: 8px;
 }
+
+/* ── Storage warning floating notification ── */
+.storage-warning {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  z-index: 8999;
+  background: #fff;
+  border: 1.5px solid #f39c12;
+  border-radius: 10px;
+  padding: 14px 16px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.16);
+  max-width: 320px;
+  direction: rtl;
+  animation: sw-in 0.3s ease;
+}
+@keyframes sw-in {
+  from { transform: translateY(12px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.storage-warning.sw-hiding {
+  animation: sw-out 0.3s ease forwards;
+}
+@keyframes sw-out {
+  to { transform: translateY(12px); opacity: 0; }
+}
+.sw-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.sw-icon { font-size: 20px; line-height: 1; }
+.sw-title { flex: 1; font-size: 13px; color: #222; }
+.sw-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #999;
+  font-size: 16px;
+  padding: 0 2px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+.sw-close:hover { color: #333; }
+.sw-body {
+  font-size: 12px;
+  color: #555;
+  margin: 0 0 10px;
+  line-height: 1.55;
+}
+.sw-no-more {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #888;
+  cursor: pointer;
+}
+
+/* ── Getting started modal ── */
+.gs-header {
+  background: linear-gradient(135deg, #3949ab 0%, #5c6bc0 100%);
+  color: #fff;
+}
+.gs-header h2 { color: #fff; }
+.gs-close { color: rgba(255,255,255,0.85) !important; }
+.gs-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.gs-step {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.gs-num {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #3949ab;
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gs-step > div > strong { font-size: 14px; color: #1a237e; display: block; margin-bottom: 3px; }
+.gs-step > div > p { font-size: 12px; color: #666; margin: 0; line-height: 1.55; }
+
+/* ── Add-guest-to-table row ── */
+.add-guest-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border, #e0e0e0);
+  transition: background 0.1s;
+}
+.add-guest-row:last-child { border-bottom: none; }
+.add-guest-row:hover { background: #f0f4ff; }
+.add-guest-row input[type=checkbox] { flex-shrink: 0; cursor: pointer; }

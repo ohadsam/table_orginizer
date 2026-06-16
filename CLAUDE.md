@@ -551,9 +551,20 @@ Left column — editable form:
 - **נעל שולחן** (`detailsTableLock`)
 
 Right column — live guest roster:
+- **+ הוסף מוזמן** button (header row, `btnDetailAddGuest`) — calls `openAddGuestToTable(id)`
 - Table with columns: שם, מבוגרים, ילדים, תגיות, הערות, buttons
 - **✏️ ערוך** — closes `modalItemDetails` and opens `openEditGuest(id)` (called directly inside the same IIFE)
 - **✕ הסר** — `confirmDialog` → `State.assignGuest(gid, null)` → `openItemDetails(id)` to refresh
+
+### Add Guest to Table (`modalAddGuestToTable`)
+
+`Modals.openAddGuestToTable(tableId)` — opened from the `+ הוסף מוזמן` button in `openItemDetails`.
+
+- Shows a searchable list of all unassigned guests (`tableId === null && !splitOf`)
+- Multi-select via checkboxes; search filters by name (case-insensitive substring)
+- Confirming assigns all checked guests via `State.assignGuest` wrapped in `Guests.startBatch()/endBatch()`
+- After confirm: closes `modalAddGuestToTable`, re-opens `openItemDetails(tableId)` to refresh the roster, shows a success toast
+- Module-level `_addGuestToTableId` tracks the target table ID across render cycles
 
 ### Special item fields (single-column)
 Label, width (min 40), height (min 40), color picker. Shape selector shown only for `type === 'shape'`.
@@ -758,6 +769,9 @@ Both standard and guest-list modes respect `fontMode`:
 
 ### Guest-list mode (`showGuestList: true`)
 - Compact event header
+- Two sub-modes controlled by `guestInShape` parameter:
+
+#### Standard sub-mode (`guestInShape: false`, default)
 - CSS grid (`diag-blocks-wrap`) of one **block** per table, sorted by table number
 - Each block (`.diag-block`): flex row with a **mini table SVG** (`.diag-table-svg-wrap`, 20mm wide) beside a **compact HTML table** (`.diag-mini-table`, font size user-selectable 5–12pt)
   - Mini SVG (`_buildTableMiniSVG(item, occ, showLabel, showOccupancy, numFontOverride=0, lblFontOverride=0, occFontOverride=0)`): shows table shape (circle/rect), occupancy-based color, table number (bold). When `showOccupancy=true`, occ/seats text at top. When `showLabel=true` and `item.label` is set, label text below number (number shifts up). No seat circles for compactness. Font overrides: 0 = pure auto-scale (formula only, does NOT fall through to `item.fontXxx` or global settings — those are canvas px values and would be misinterpreted as pt in the normalized viewBox). **ViewBox normalization**: the SVG uses `viewBox="0 0 56.7 NH"` where NW=56.7 user units ≈ 20mm at 1pt/unit (since 20mm ÷ 0.353mm/pt ≈ 56.7). This means 1 SVG user unit ≈ 1pt in print, so user-entered font sizes map directly to physical pt values. Auto-scale: `scale = Math.min(56.7, NH) / 130`, clamping to minimums (10pt num, 7pt label, 6pt occu).
@@ -766,6 +780,48 @@ Both standard and guest-list modes respect `fontMode`:
 - In fixed mode, `numFontOverride/lblFontOverride/occFontOverride` are set to `svgNumFont/svgLblFont/svgOccFont`; in auto mode they are 0
 - Grid columns: user-selected 2–5 (default 4); `guestFontSize` 5–12pt (default 8pt) controls guest-row text
 - `_contrastColor(hex)`: returns `#fff` or `#111` based on WCAG luminance threshold 0.55
+
+#### Guest-in-shape sub-mode (`guestInShape: true`, `gisOpts` object required)
+All guests are rendered **inside** the table shape SVG, which grows vertically to fit. No HTML guest table beside it.
+
+`_calcTableGuestInShapeHeight(item, guests, opts)` — calculates required SVG height:
+```
+h = 10 (top pad) + numFont + 4
+  + (occFont + 3)  if opts.showOcc
+  + (lblFont + 3)  if opts.showLabel && item.label
+  + 7              if guests.length > 0 (divider)
+  + guests.length × (gstFont + 3)
+  + 8 (bottom pad)
+```
+
+`_buildTableGuestInShapeSVG(item, occ, guests, opts, forcedH)` — renders one table:
+- Fixed SVG width `NW = 150` units
+- Height: `NH = forcedH` (or contentH if not forced); for circles `NH = max(NW, forcedH)` (minimum square)
+- Circle tables draw an `ellipse` (rx = NW/2−3, ry = NH/2−3); rectangles/squares draw a `rect`
+- Content flows top-to-bottom: number → occupancy → label → divider line → guest names
+- Guest names truncated to 20 chars (16 if count is shown); `opts.showCounts` appends ` (N)` when `guest.total > 1`
+
+`_buildTablesGuestInShapeHTML(tables, cols, opts)` — normalizes sizes within `(shape, seats)` groups:
+1. First pass: compute `_calcTableGuestInShapeHeight` for every table
+2. Build `groupMaxH` map: key = `"${shape}_${seats}"`, value = max height in group
+3. Second pass: render each table with `forcedH = groupMaxH.get(key)`
+4. Returns `<div class="diag-blocks-wrap" ...>` grid
+
+**`gisOpts` fields**:
+
+| Field | Type | Default | Notes |
+|-------|------|---------|-------|
+| `numFont` | number | 18 | Table number font size (8–40) |
+| `numColor` | hex | `#1a237e` | Table number color |
+| `occFont` | number | 11 | Occupancy font size (6–30) |
+| `occColor` | hex | `#888888` | Occupancy color |
+| `lblFont` | number | 12 | Label font size (6–30) |
+| `lblColor` | hex | `#37474f` | Label color |
+| `gstFont` | number | 10 | Guest name font size (6–30) |
+| `gstColor` | hex | `#333333` | Guest name color |
+| `showOcc` | boolean | true | Show occupancy (X/Y) |
+| `showLabel` | boolean | true | Show table label |
+| `showCounts` | boolean | false | Show guest count `(N)` beside name |
 
 Both modes print landscape (`_injectLandscape()`); print mode `"diagram"` activates `#printTablesDiagramArea { display: flex }`.
 
@@ -777,16 +833,18 @@ Modal (`modal-sm`) with:
   - `inputDiagramSvgLblFont` — table label font size (6–24pt, default 9)
   - `inputDiagramSvgGstFont` — guest names font size in standard SVG (6–18pt, default 8)
   - `inputDiagramSvgOccFont` — occupancy text font size (6–18pt, default 7)
-- Checkbox `chkDiagramShowGuests` — shows/hides `#diagramGuestOpts` section
+- Checkbox `chkDiagramShowGuests` — shows/hides `#diagramGuestOpts` section; also hides `#diagramStdOpts`
 - Guest list options (in `#diagramGuestOpts`, visible only when guest checkbox checked):
   - `inputDiagramGuestFont` — guest row font size in HTML table (5–12pt, default 8)
   - `selectDiagramCols` — column count (2/3/4/5, default 4)
   - `chkDiagramShowLabel` (checked by default) — show table label in mini SVG
   - `chkDiagramShowOccupancy` (checked by default) — show occ/seats in mini SVG
+  - `chkDiagramGuestInShape` — enable guest-in-shape mode; shows `#diagramGuestInShapeOpts`
+  - In `#diagramGuestInShapeOpts`: 4-row table (number/occupancy/label/guests) with font-size + color-picker + show-toggle per row; plus `chkGisShowCounts` for showing guest count beside name
 - `btnDoPrintDiagram` — closes modal and calls `Print.printTablesDiagram(opts)`
 
-### Standard diagram mode toggles (new in modal, before the guest-list section)
-Three checkboxes control what appears in the standard SVG diagram (when "הצג רשימת מוזמנים" is unchecked):
+### Standard diagram mode toggles (in modal, before the guest-list section)
+Three checkboxes control what appears in the standard SVG diagram (when "הצג רשימת מוזמנים" is unchecked); hidden when guest-list mode is active:
 - `chkDiagramStdLabel` (checked by default) — show/hide table labels in SVG
 - `chkDiagramStdOccupancy` (checked by default) — show/hide occupancy (X/Y) text in SVG
 - `chkDiagramStdGuests` (unchecked by default) — show/hide guest names in SVG
@@ -912,6 +970,42 @@ When ≥2 tables are selected and the context menu opens, `ctxBulkEditSep` and `
 - **CSS cache busting**: When deploying CSS changes to GitHub Pages, bump the `?v=N` query string on the `<link>` tags in `index.html` (e.g. `style.css?v=3`). GitHub Pages CDN caches CSS files; the old version can be served while the new HTML is live, making elements with `display:none` (like `.dropdown-menu`) render as visible blocks.
 - **iOS Safari `position:fixed` in scroll containers**: Do NOT put `overflow-x: auto` / `overflow: scroll` on a parent of a `position:fixed` child. iOS Safari may treat the fixed child as `position:absolute` relative to the scrolling container. The `.header-actions` bar does not use `overflow-x: auto` for this reason; the button count is kept small enough to fit without scrolling.
 - **Canvas items block dropdown close**: Canvas items call `e.stopPropagation()` on click, preventing the document-level `closeAll()` from firing. Use a `{capture: true}` listener on `#canvasViewport` to close dropdowns before item handlers run.
+
+## Storage Warning & Getting Started
+
+### Storage warning (`UI.showStorageWarning(force)`)
+
+A fixed-position floating notification (`.storage-warning`) appended to `<body>`, warning users that all data is stored in localStorage and will be lost on cache clear.
+
+**Behavior:**
+- `force=true` — always shows (used on new event creation, first load)
+- `force=false` — respects two localStorage guards:
+  - `sp_storage_warn_dismissed = 'true'` → never show again
+  - `sp_storage_warn_last` (timestamp) → show only if 4+ hours have passed since last show
+- Updating `sp_storage_warn_last` on every show (even forced) prevents the periodic popup from firing again right after a forced show
+- "אל תציג הודעה זו שוב" checkbox — sets `sp_storage_warn_dismissed = 'true'` when closing
+
+**Trigger points:**
+- `app.js` DOMContentLoaded: `showStorageWarning(true)` if no data (first load), else `showStorageWarning(false)` (periodic)
+- `modals.js` `btnConfirmNewEvent` handler: `showStorageWarning(true)` after event creation (400ms delay)
+
+**CSS:** `.storage-warning`, `.sw-header`, `.sw-icon`, `.sw-title`, `.sw-close`, `.sw-body`, `.sw-no-more`, animations `sw-in`/`sw-out`, class `sw-hiding` triggers exit animation before removal.
+
+### Getting started tips (`UI.showGettingStarted(force)`)
+
+Opens `modalGettingStarted` — a styled modal with 5 numbered tips (set up event, add tables, add guests, assign, backup).
+
+**Behavior:**
+- `force=true` — always shows
+- `force=false` — shows only if `sp_gs_shown` is not `'true'` in localStorage
+- Always sets `sp_gs_shown = 'true'` after showing (so `force=false` shows at most once)
+- Opens with 500ms delay (allows page to settle)
+
+**Trigger points:**
+- `app.js` DOMContentLoaded: `showGettingStarted(true)` if no data (first load)
+- `modals.js` `btnConfirmNewEvent` handler: `showGettingStarted(true)` after event creation (400ms delay)
+
+**CSS:** `.gs-header`, `.gs-close`, `.gs-steps`, `.gs-step`, `.gs-num` — blue gradient header, numbered step circles.
 
 ## File Structure
 

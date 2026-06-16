@@ -891,6 +891,115 @@ ${buildGuestTableHTML(sorted)}`;
     return `<svg viewBox="0 0 ${NW} ${NH}" preserveAspectRatio="xMidYMid meet" width="100%" xmlns="http://www.w3.org/2000/svg">${shapes}${textGroup}${badges}</svg>`;
   }
 
+  /* ── Calculate SVG height required to show all content inside a table shape ── */
+  function _calcTableGuestInShapeHeight(item, guests, opts) {
+    const numFont = opts.numFont || 18;
+    const occFont = opts.occFont || 11;
+    const lblFont = opts.lblFont || 12;
+    const gstFont = opts.gstFont || 10;
+    let h = 10; // top pad
+    h += numFont + 4;
+    if (opts.showOcc)               h += occFont + 3;
+    if (opts.showLabel && item.label) h += lblFont + 3;
+    if (guests.length > 0)          h += 7; // divider
+    h += guests.length * (gstFont + 3);
+    h += 8; // bottom pad
+    return Math.ceil(h);
+  }
+
+  /* ── Build one table SVG with all guests rendered inside the shape ── */
+  function _buildTableGuestInShapeSVG(item, occ, guests, opts, forcedH) {
+    const NW = 150;
+    const numFont  = opts.numFont  || 18;
+    const occFont  = opts.occFont  || 11;
+    const lblFont  = opts.lblFont  || 12;
+    const gstFont  = opts.gstFont  || 10;
+    const numColor = opts.numColor || '#1a237e';
+    const occColor = opts.occColor || '#888888';
+    const lblColor = opts.lblColor || '#37474f';
+    const gstColor = opts.gstColor || '#333333';
+    const bg = item.color || Items.tableColor(occ, item.seats);
+
+    const contentH = _calcTableGuestInShapeHeight(item, guests, opts);
+    // Circles stay at least as wide as tall (square → circle), then can elongate as needed
+    const NH = forcedH !== undefined
+      ? (item.shape === 'circle' ? Math.max(NW, forcedH) : forcedH)
+      : (item.shape === 'circle' ? Math.max(NW, contentH) : contentH);
+
+    let shapes = '', texts = '';
+
+    if (item.shape === 'circle') {
+      const cx = NW / 2, cy = NH / 2;
+      shapes += `<ellipse cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" rx="${(NW/2 - 3).toFixed(1)}" ry="${(NH/2 - 3).toFixed(1)}" fill="${bg}" stroke="#888" stroke-width="1.5"/>`;
+    } else {
+      const rx = item.shape === 'square' ? 4 : 6;
+      shapes += `<rect x="3" y="3" width="${NW - 6}" height="${NH - 6}" rx="${rx}" fill="${bg}" stroke="#888" stroke-width="1.5"/>`;
+    }
+
+    const cx = NW / 2;
+    // Center content vertically when shape is taller than content (normalization)
+    const yOffset = Math.max(0, Math.floor((NH - contentH) / 2));
+    let y = 10 + yOffset;
+
+    texts += `<text x="${cx}" y="${(y + numFont * 0.75).toFixed(1)}" text-anchor="middle" font-size="${numFont}" font-weight="800" fill="${numColor}">${UI.escHtml(String(item.number ?? ''))}</text>`;
+    y += numFont + 4;
+
+    if (opts.showOcc) {
+      texts += `<text x="${cx}" y="${(y + occFont * 0.75).toFixed(1)}" text-anchor="middle" font-size="${occFont}" fill="${occColor}">${occ}/${item.seats}</text>`;
+      y += occFont + 3;
+    }
+
+    if (opts.showLabel && item.label) {
+      const lbl = item.label.length > 20 ? item.label.slice(0, 19) + '…' : item.label;
+      texts += `<text x="${cx}" y="${(y + lblFont * 0.75).toFixed(1)}" text-anchor="middle" font-size="${lblFont}" fill="${lblColor}">${UI.escHtml(lbl)}</text>`;
+      y += lblFont + 3;
+    }
+
+    if (guests.length > 0) {
+      texts += `<line x1="12" y1="${(y + 2).toFixed(1)}" x2="${NW - 12}" y2="${(y + 2).toFixed(1)}" stroke="#aaa" stroke-width="0.8"/>`;
+      y += 7;
+    }
+
+    guests.forEach(g => {
+      const countStr = (opts.showCounts && g.total > 1) ? ` (${g.total})` : '';
+      const maxLen = countStr ? 16 : 20;
+      const nm = (g.name || '').length > maxLen ? (g.name || '').slice(0, maxLen - 1) + '…' : (g.name || '');
+      texts += `<text x="${cx}" y="${(y + gstFont * 0.75).toFixed(1)}" text-anchor="middle" font-size="${gstFont}" fill="${gstColor}">${UI.escHtml(nm + countStr)}</text>`;
+      y += gstFont + 3;
+    });
+
+    return `<svg viewBox="0 0 ${NW} ${NH}" width="100%" xmlns="http://www.w3.org/2000/svg">${shapes}${texts}</svg>`;
+  }
+
+  /* ── Grid of table shapes (guest-in-shape mode): normalize sizes within (shape,seats) groups ── */
+  function _buildTablesGuestInShapeHTML(tables, cols, opts) {
+    const safeCols = Math.max(2, Math.min(6, parseInt(cols) || 4));
+    const NW = 150; // must match _buildTableGuestInShapeSVG
+
+    // First pass: find max effective height per (shape, seats) group.
+    // For circles, apply the same Math.max(NW, h) floor used by the SVG builder,
+    // so that all circles in a group get the same final NH.
+    const groupMaxH = new Map();
+    tables.forEach(t => {
+      const guests = State.getTableGuests(t.id);
+      const h = _calcTableGuestInShapeHeight(t, guests, opts);
+      const effectiveH = (t.shape === 'circle') ? Math.max(NW, h) : h;
+      const key = `${t.shape || 'rectangle'}_${t.seats}`;
+      groupMaxH.set(key, Math.max(groupMaxH.get(key) || 0, effectiveH));
+    });
+
+    // Second pass: render all with normalized height for their group
+    const blocks = tables.map(t => {
+      const occ    = State.getTableOccupancy(t.id);
+      const guests = State.getTableGuests(t.id);
+      const key    = `${t.shape || 'rectangle'}_${t.seats}`;
+      const svg    = _buildTableGuestInShapeSVG(t, occ, guests, opts, groupMaxH.get(key));
+      return `<div class="diag-block-shape">${svg}</div>`;
+    });
+
+    return `<div class="diag-blocks-wrap" style="grid-template-columns:repeat(${safeCols},1fr)">${blocks.join('')}</div>`;
+  }
+
   /* ── Grid of (mini SVG + guest-list table) blocks for diagram+guests mode ── */
   function _buildTablesWithGuestListsHTML(tables, guestFontSize, cols, showLabel, showOccupancy, svgNumFont, svgLblFont, svgOccFont) {
     const safeFontSize = Math.max(5, Math.min(12, parseInt(guestFontSize) || 8));
@@ -925,7 +1034,8 @@ ${buildGuestTableHTML(sorted)}`;
   function printTablesDiagram(opts) {
     const { showGuestList = false, guestFontSize = 8, cols = 4, showLabel = true, showOccupancy = true,
             fontMode = 'auto', svgNumFont = 14, svgLblFont = 9, svgGstFont = 8, svgOccFont = 7,
-            stdShowLabel = true, stdShowOccupancy = true, stdShowGuests = false } = opts || {};
+            stdShowLabel = true, stdShowOccupancy = true, stdShowGuests = false,
+            guestInShape = false, gisOpts = null } = opts || {};
     const tables = State.get().items.filter(i => i.type === 'table');
     if (!tables.length) { UI.toast('אין שולחנות לתצוגה', 'info', 1800); return; }
 
@@ -939,16 +1049,19 @@ ${buildGuestTableHTML(sorted)}`;
 
     if (showGuestList) {
       const sorted = [...tables].sort((a, b) => (a.number || 0) - (b.number || 0));
-      area.innerHTML = `
+      const header = `
 <div class="print-header" style="margin-bottom:6pt;padding-bottom:5pt">
   <h1 style="font-size:16pt;margin-bottom:2pt">${UI.escHtml(eventTitle)} — תרשים שולחנות ומוזמנים</h1>
   ${eventDate ? `<p class="print-meta">📅 ${UI.escHtml(eventDate)}</p>` : ''}
   ${buildStatsSummary()}
-</div>
-${_buildTablesWithGuestListsHTML(sorted, guestFontSize, cols, showLabel, showOccupancy,
-  fontMode === 'fixed' ? svgNumFont : 0,
-  fontMode === 'fixed' ? svgLblFont : 0,
-  fontMode === 'fixed' ? svgOccFont : 0)}`;
+</div>`;
+      const body = (guestInShape && gisOpts)
+        ? _buildTablesGuestInShapeHTML(sorted, cols, gisOpts)
+        : _buildTablesWithGuestListsHTML(sorted, guestFontSize, cols, showLabel, showOccupancy,
+            fontMode === 'fixed' ? svgNumFont : 0,
+            fontMode === 'fixed' ? svgLblFont : 0,
+            fontMode === 'fixed' ? svgOccFont : 0);
+      area.innerHTML = header + body;
     } else {
       const { svg } = buildRoomTablesOnlySVG(fontMode, svgNumFont, svgLblFont, svgGstFont, svgOccFont, stdShowLabel, stdShowOccupancy, stdShowGuests);
       area.innerHTML = `

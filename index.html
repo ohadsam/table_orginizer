@@ -831,6 +831,49 @@
             <span>הצג תפוסה (X/Y) על ציור השולחן</span>
           </label>
         </div>
+        <hr style="margin:8px 0;border:none;border-top:1px solid #e0e0e0">
+        <div class="form-group" style="margin-bottom:6px">
+          <label class="checkbox-label">
+            <input type="checkbox" id="chkDiagramGuestInShape">
+            <span>הצג שמות בתוך הצורה (מגדיל את ציור השולחן)</span>
+          </label>
+        </div>
+        <div id="diagramGuestInShapeOpts" style="display:none">
+          <table style="width:100%;font-size:12px;border-collapse:collapse">
+            <thead><tr style="color:#607d8b;font-weight:600">
+              <td style="padding:2px 4px"></td>
+              <td style="padding:2px 4px;text-align:center">גודל</td>
+              <td style="padding:2px 4px;text-align:center">צבע</td>
+              <td style="padding:2px 4px;text-align:center">הצג</td>
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td style="padding:2px 4px">מספר שולחן</td>
+                <td style="padding:2px 4px;text-align:center"><input type="number" id="inputGisNumFont" min="8" max="40" value="18" class="input" style="width:52px;text-align:center"></td>
+                <td style="padding:2px 4px;text-align:center"><input type="color" id="inputGisNumColor" value="#1a237e" style="width:28px;height:24px;padding:2px;border:1px solid #ccc;border-radius:3px;cursor:pointer"></td>
+                <td></td>
+              </tr>
+              <tr>
+                <td style="padding:2px 4px">תפוסה</td>
+                <td style="padding:2px 4px;text-align:center"><input type="number" id="inputGisOccFont" min="6" max="30" value="11" class="input" style="width:52px;text-align:center"></td>
+                <td style="padding:2px 4px;text-align:center"><input type="color" id="inputGisOccColor" value="#888888" style="width:28px;height:24px;padding:2px;border:1px solid #ccc;border-radius:3px;cursor:pointer"></td>
+                <td style="padding:2px 4px;text-align:center"><input type="checkbox" id="chkGisShowOcc" checked title="הצג תפוסה"></td>
+              </tr>
+              <tr>
+                <td style="padding:2px 4px">תווית</td>
+                <td style="padding:2px 4px;text-align:center"><input type="number" id="inputGisLblFont" min="6" max="30" value="12" class="input" style="width:52px;text-align:center"></td>
+                <td style="padding:2px 4px;text-align:center"><input type="color" id="inputGisLblColor" value="#37474f" style="width:28px;height:24px;padding:2px;border:1px solid #ccc;border-radius:3px;cursor:pointer"></td>
+                <td style="padding:2px 4px;text-align:center"><input type="checkbox" id="chkGisShowLabel" checked title="הצג תווית"></td>
+              </tr>
+              <tr>
+                <td style="padding:2px 4px">שמות מוזמנים</td>
+                <td style="padding:2px 4px;text-align:center"><input type="number" id="inputGisGstFont" min="6" max="30" value="10" class="input" style="width:52px;text-align:center"></td>
+                <td style="padding:2px 4px;text-align:center"><input type="color" id="inputGisGstColor" value="#333333" style="width:28px;height:24px;padding:2px;border:1px solid #ccc;border-radius:3px;cursor:pointer"></td>
+                <td style="padding:2px 4px;text-align:center"><label class="checkbox-label" title="הצג כמות אנשים ליד השם"><input type="checkbox" id="chkGisShowCounts"><span style="font-size:11px">כמות</span></label></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -1151,6 +1194,82 @@
     <div class="modal-footer">
       <button class="btn btn-primary"   id="btnConfirmNormalizeSizes">החל</button>
       <button class="btn btn-secondary" data-close-modal="modalNormalizeSizes">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ ADD GUEST TO TABLE MODAL ═══════════════════ -->
+<div class="modal-overlay" id="modalAddGuestToTable">
+  <div class="modal modal-md">
+    <div class="modal-header">
+      <h2 id="addGuestToTableTitle">הוסף מוזמנים לשולחן</h2>
+      <button class="modal-close" data-close-modal="modalAddGuestToTable">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="margin-bottom:10px">
+        <input type="text" id="addGuestToTableSearch" class="input" placeholder="חפש מוזמן..." autofocus style="width:100%">
+      </div>
+      <div id="addGuestToTableList" style="max-height:340px;overflow-y:auto;border:1px solid var(--border);border-radius:6px"></div>
+      <p id="addGuestToTableEmpty" style="display:none;text-align:center;color:#aaa;padding:24px;margin:0">
+        אין מוזמנים לא משובצים
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="btnConfirmAddGuestToTable">הוסף לשולחן</button>
+      <button class="btn btn-ghost" data-close-modal="modalAddGuestToTable">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ GETTING STARTED MODAL ═══════════════════ -->
+<div class="modal-overlay" id="modalGettingStarted">
+  <div class="modal modal-md">
+    <div class="modal-header gs-header">
+      <h2>🎉 ברוכים הבאים למתזמן המושבים!</h2>
+      <button class="modal-close gs-close" data-close-modal="modalGettingStarted">✕</button>
+    </div>
+    <div class="modal-body" style="padding-top:18px">
+      <p style="font-size:14px;color:#555;margin:0 0 18px">הנה כמה צעדים פשוטים לתחילת העבודה:</p>
+      <div class="gs-steps">
+        <div class="gs-step">
+          <span class="gs-num">1</span>
+          <div>
+            <strong>הגדר את האירוע</strong>
+            <p>לחץ על ⚙️ בכותרת כדי להזין שם אירוע, תאריך ופרטים</p>
+          </div>
+        </div>
+        <div class="gs-step">
+          <span class="gs-num">2</span>
+          <div>
+            <strong>הוסף שולחנות לאולם</strong>
+            <p>לחץ <strong>שולחן +</strong> (בסרגל הצד) כדי להוסיף שולחנות — גרור אותם ושנה גדלים בחופשיות</p>
+          </div>
+        </div>
+        <div class="gs-step">
+          <span class="gs-num">3</span>
+          <div>
+            <strong>הוסף מוזמנים</strong>
+            <p>לחץ <strong>הוסף מוזמן</strong> לרשימת המוזמנים, או ייבא רשימה מ-CSV / JSON</p>
+          </div>
+        </div>
+        <div class="gs-step">
+          <span class="gs-num">4</span>
+          <div>
+            <strong>שבץ מוזמנים לשולחנות</strong>
+            <p>גרור מוזמן לשולחן בלוח, או השתמש בשיבוץ אוטומטי 🤖</p>
+          </div>
+        </div>
+        <div class="gs-step">
+          <span class="gs-num">5</span>
+          <div>
+            <strong>שמור גיבוי חיצוני</strong>
+            <p>המערכת שומרת בדפדפן בלבד — יצא את הפרויקט (📦 ← ייצוא פרויקט) לגיבוי</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" data-close-modal="modalGettingStarted">הבנתי, בואו נתחיל! 🚀</button>
     </div>
   </div>
 </div>
