@@ -406,12 +406,12 @@ const AutoAssign = (() => {
     const tables = State.getTables();
     if (!tables.length && !opts.createTables) {
       UI.toast('אין שולחנות להגרלה', 'warning');
-      return { assigned: 0, failed: 0, splitsCreated: 0, tablesCreated: 0, runs: 0, rerolled: true };
+      return { assigned: 0, failed: 0, failedGuests: [], splitsCreated: 0, tablesCreated: 0, runs: 0, rerolled: true };
     }
     const allGuests = State.get().guests.filter(g => !g.splitOf);
     if (!allGuests.length) {
       UI.toast('אין מוזמנים לשיבוץ', 'info');
-      return { assigned: 0, failed: 0, splitsCreated: 0, tablesCreated: 0, runs: 0, rerolled: true };
+      return { assigned: 0, failed: 0, failedGuests: [], splitsCreated: 0, tablesCreated: 0, runs: 0, rerolled: true };
     }
 
     // Pre-create tables once (not per-iteration) to avoid accumulating N×tables in state.
@@ -434,7 +434,7 @@ const AutoAssign = (() => {
     for (let i = 0; i < runs; i++) {
       _restoreAssignments(snap0);          // clean slate before each attempt
       const alg    = algs[i % algs.length];
-      const result = _runCore({ ...opts, createTables: false, keepExisting: false, algorithm: alg });
+      const result = _runCore({ ...opts, createTables: false, algorithm: alg });
       if (!result) continue;
       const score = _scoreResult(result);
       if (score > bestScore) {
@@ -446,7 +446,7 @@ const AutoAssign = (() => {
 
     // Apply best
     if (bestSnap) _restoreAssignments(bestSnap);
-    return { ...(bestResult || { assigned: 0, failed: 0, splitsCreated: 0, tablesCreated: 0 }), runs, rerolled: true };
+    return { ...(bestResult || { assigned: 0, failed: 0, failedGuests: [], splitsCreated: 0, tablesCreated: 0 }), runs, rerolled: true };
   }
 
   /* ── main entry — returns summary { assigned, failed, splitsCreated, tablesCreated } ── */
@@ -455,24 +455,24 @@ const AutoAssign = (() => {
     const tables = State.getTables();
     if (!tables.length && !createTables) {
       UI.toast('אין שולחנות להושיב בהם', 'warning');
-      return { assigned: 0, failed: 0, splitsCreated: 0, tablesCreated: 0 };
+      return { assigned: 0, failed: 0, failedGuests: [], splitsCreated: 0, tablesCreated: 0, noAction: true };
     }
     const allGuests = State.get().guests.filter(g => !g.splitOf);
     if (!allGuests.length) {
       UI.toast('אין מוזמנים לשיבוץ', 'info');
-      return { assigned: 0, failed: 0, splitsCreated: 0, tablesCreated: 0 };
+      return { assigned: 0, failed: 0, failedGuests: [], splitsCreated: 0, tablesCreated: 0, noAction: true };
     }
     // If keepExisting, check if there's anyone left to assign
     const pending = allGuests.filter(g => !g.tableId);
     if (keepExisting && !pending.length) {
       UI.toast('כל המוזמנים כבר משובצים', 'info');
-      return { assigned: 0, failed: 0, splitsCreated: 0, tablesCreated: 0 };
+      return { assigned: 0, failed: 0, failedGuests: [], splitsCreated: 0, tablesCreated: 0, noAction: true };
     }
     const result = _runCore(opts);
     if (!result) {
       // _runCore returns null when pending is empty after locked-seat no-unassign (keepExisting:false, all at locked tables)
       UI.toast('כל המוזמנים כבר משובצים בשולחנות נעולים', 'info');
-      return { assigned: 0, failed: 0, splitsCreated: 0, tablesCreated: 0 };
+      return { assigned: 0, failed: 0, failedGuests: [], splitsCreated: 0, tablesCreated: 0, noAction: true };
     }
     return result;
   }

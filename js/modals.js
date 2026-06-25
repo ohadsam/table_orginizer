@@ -1187,20 +1187,22 @@ const Modals = (() => {
     if (!body) return;
     const { assigned, failed, failedGuests, splitsCreated, tablesCreated, rerolled, runs, layoutName } = result;
 
-    // Totals for percentage
-    const allGuests  = State.get().guests.filter(g => !g.splitOf);
-    const totalPeople = allGuests.reduce((s, g) => s + (g.total || 1), 0);
-    const pct = totalPeople > 0 ? Math.round(assigned / totalPeople * 100) : 0;
+    // Totals for percentage — use post-run state so keepExisting runs show accurate totals
+    const allGuests   = State.get().guests.filter(g => !g.splitOf);
+    const totalPeople = allGuests.reduce((s, g) => s + Math.max(1, g.total || 0), 0);
+    const nowAssigned = allGuests.filter(g => g.tableId).reduce((s, g) => s + Math.max(1, g.total || 0), 0);
+    const pct = totalPeople > 0 ? Math.round(nowAssigned / totalPeople * 100) : 0;
 
     const rows = [];
     if (rerolled && runs)   rows.push(`<div class="result-row result-info">הוגרל ${runs} פעמים — נבחרה התוצאה הטובה ביותר 🎲</div>`);
     if (layoutName)         rows.push(`<div class="result-row result-info">נשמר כפריסה: <strong>${UI.escHtml(layoutName)}</strong> 📐</div>`);
     if (tablesCreated > 0)  rows.push(`<div class="result-row result-info"><strong>${tablesCreated}</strong> שולחנות נוצרו אוטומטית 🪑</div>`);
 
-    if (assigned === 0 && failed === 0 && tablesCreated === 0) {
+    if (assigned === 0 && failed === 0 && tablesCreated === 0 && splitsCreated === 0) {
       rows.push(`<div class="result-row result-info">אין שינויים — כל המוזמנים כבר שובצו ✓</div>`);
     } else {
-      rows.push(`<div class="result-row result-success"><strong>${assigned}</strong> / ${totalPeople} מוזמנים שובצו (${pct}%) ✅</div>`);
+      const deltaNote = nowAssigned > assigned ? ` (${assigned} חדשים)` : '';
+      rows.push(`<div class="result-row result-success"><strong>${nowAssigned}</strong> / ${totalPeople} מוזמנים שובצו (${pct}%)${deltaNote} ✅</div>`);
     }
     if (splitsCreated > 0) rows.push(`<div class="result-row result-warning"><strong>${splitsCreated}</strong> קבוצות פוצלו ⛓ (מסומנות בכרטיסים ובהדפסה)</div>`);
     if (failed > 0) {
@@ -1241,6 +1243,12 @@ const Modals = (() => {
 
     // Run assign (createTables forced on so new tables are created as needed)
     const result = AutoAssign.run({ ...opts, keepExisting: false, createTables: true });
+
+    // Don't save an empty layout snapshot if no guests were placed (e.g. all at locked tables)
+    if (result.assigned === 0 && result.tablesCreated === 0) {
+      UI.toast('לא נוצרה פריסה — לא שובצו מוזמנים', 'info');
+      return;
+    }
 
     // saveLayoutOption emits layoutOptionsChanged synchronously, which calls renderLayoutDropdown()
     // before returning. Set _activeLayoutId AFTER that fires, then re-render explicitly — same
@@ -1480,6 +1488,7 @@ const Modals = (() => {
       const opts = _getAutoAssignOpts();
       UI.closeModal('modalAutoAssign');
       const result = AutoAssign.run(opts);
+      if (result.noAction) return;
       if (result.tablesCreated > 0) requestAnimationFrame(() => Canvas.fitAll());
       showAutoAssignResult(result);
     });
@@ -1487,6 +1496,7 @@ const Modals = (() => {
       const opts = _getAutoAssignOpts();
       UI.closeModal('modalAutoAssign');
       const result = AutoAssign.reroll(opts);
+      if (result.noAction) return;
       if (result.tablesCreated > 0) requestAnimationFrame(() => Canvas.fitAll());
       showAutoAssignResult(result);
     });
@@ -2316,6 +2326,7 @@ const Modals = (() => {
   let _depActiveTab     = 'graph';
   let _depGraphAddMode  = false;
   let _depGraphFirstId  = null;
+  let _newTypePositive  = true;   // persists between _renderDepTypesView calls
   let _pendingDepsFile  = null;
 
   function openGuestDependencies(focusGuestId) {
@@ -2409,7 +2420,7 @@ const Modals = (() => {
       const pB = positions[dep.guestB];
       if (!pA || !pB) return '';
       const color = def.color || '#90a4ae';
-      const dashArr = dep.strength === 'required' ? '' : dep.strength === 'forbidden' ? '6,3' : '3,3';
+      const dashArr = dep.strength === 'required' ? '' : dep.strength === 'forbidden' ? '6,3' : dep.strength === 'preferred' ? '4,2' : '2,3';
       return `<line x1="${pA.x.toFixed(1)}" y1="${pA.y.toFixed(1)}" x2="${pB.x.toFixed(1)}" y2="${pB.y.toFixed(1)}" stroke="${color}" stroke-width="2" ${dashArr ? `stroke-dasharray="${dashArr}"` : ''} opacity="0.7"/>
         <text x="${((pA.x+pB.x)/2).toFixed(1)}" y="${((pA.y+pB.y)/2 - 4).toFixed(1)}" text-anchor="middle" font-size="10" fill="${color}">${UI.escHtml(def.icon || '')} ${UI.escHtml(def.label || dep.type)}</text>`;
     }).join('');
@@ -2925,8 +2936,8 @@ const Modals = (() => {
           <div>
             <label class="form-label" style="font-size:11px">כיוון הקשר</label>
             <div style="display:flex;gap:6px">
-              <button class="btn dep-dir-btn btn-primary" data-positive="true" style="flex:1;font-size:12px">✅ ביחד</button>
-              <button class="btn dep-dir-btn btn-ghost"   data-positive="false" style="flex:1;font-size:12px">❌ בנפרד</button>
+              <button class="btn dep-dir-btn ${_newTypePositive ? 'btn-primary' : 'btn-ghost'}" data-positive="true" style="flex:1;font-size:12px">✅ ביחד</button>
+              <button class="btn dep-dir-btn ${_newTypePositive ? 'btn-ghost' : 'btn-primary'}" data-positive="false" style="flex:1;font-size:12px">❌ בנפרד</button>
             </div>
             <p style="font-size:10px;color:#90a4ae;margin:4px 0 0">האם לנסות לשבץ את שני המוזמנים לאותו שולחן</p>
           </div>
@@ -2946,8 +2957,7 @@ const Modals = (() => {
         <button class="btn btn-primary btn-sm" id="btnConfirmAddDepType">+ הוסף סוג קשר</button>
       </div>`;
 
-    // Wire direction toggle buttons
-    let _newTypePositive = true;
+    // Wire direction toggle buttons (state lives in module-level _newTypePositive)
     body.querySelectorAll('.dep-dir-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         _newTypePositive = btn.dataset.positive === 'true';
