@@ -576,6 +576,16 @@ const Modals = (() => {
   let _selectedTags     = new Set();
   let _selectedProx     = new Set();
 
+  function _syncChildrenWithParentsVisibility() {
+    const children = parseInt(document.getElementById('guestChildren').value) || 0;
+    const grp = document.getElementById('guestChildrenWithParentsGroup');
+    if (grp) grp.style.display = children > 0 ? '' : 'none';
+    if (children === 0) {
+      const cwp = document.getElementById('guestChildrenWithParents');
+      if (cwp) cwp.value = 0;
+    }
+  }
+
   function openAddGuest() {
     _editingGuestId = null;
     _selectedTags   = new Set();
@@ -584,7 +594,10 @@ const Modals = (() => {
     document.getElementById('guestName').value     = '';
     document.getElementById('guestAdults').value   = 2;
     document.getElementById('guestChildren').value = 0;
+    const cwpEl = document.getElementById('guestChildrenWithParents');
+    if (cwpEl) cwpEl.value = 0;
     document.getElementById('guestNotes').value    = '';
+    _syncChildrenWithParentsVisibility();
     const addBtn = document.getElementById('btnConfirmGuestAndAdd');
     if (addBtn) addBtn.style.display = '';
     renderGuestTagsSelector();
@@ -603,7 +616,10 @@ const Modals = (() => {
     document.getElementById('guestName').value     = g.name;
     document.getElementById('guestAdults').value   = g.adults;
     document.getElementById('guestChildren').value = g.children;
+    const cwpEl = document.getElementById('guestChildrenWithParents');
+    if (cwpEl) cwpEl.value = g.childrenWithParents || 0;
     document.getElementById('guestNotes').value    = g.notes || '';
+    _syncChildrenWithParentsVisibility();
     const addBtn = document.getElementById('btnConfirmGuestAndAdd');
     if (addBtn) addBtn.style.display = 'none';  // only for new guests
     renderGuestTagsSelector();
@@ -661,10 +677,13 @@ const Modals = (() => {
     if (adults + children === 0) { UI.toast('נא להזין לפחות אדם אחד', 'warning'); return false; }
     const tags      = [..._selectedTags];
     const proximity = [..._selectedProx];
+    const childrenWithParents = children > 0
+      ? Math.min(children, Math.max(0, parseInt(document.getElementById('guestChildrenWithParents')?.value) || 0))
+      : 0;
     if (_editingGuestId) {
-      State.updateGuest(_editingGuestId, { name, adults, children, tags, proximity, notes });
+      State.updateGuest(_editingGuestId, { name, adults, children, childrenWithParents, tags, proximity, notes });
     } else {
-      State.addGuest({ name, adults, children, tags, proximity, notes });
+      State.addGuest({ name, adults, children, childrenWithParents, tags, proximity, notes });
     }
     return true;
   }
@@ -1231,10 +1250,77 @@ const Modals = (() => {
     document.getElementById('btnConfirmGuest')?.addEventListener('click', confirmGuest);
     document.getElementById('btnConfirmGuestAndAdd')?.addEventListener('click', confirmGuestAndAdd);
     document.getElementById('guestName')?.addEventListener('keydown', e => { if (e.key === 'Enter') confirmGuest(); });
+    document.getElementById('guestChildren')?.addEventListener('input', _syncChildrenWithParentsVisibility);
     document.getElementById('btnAddNewTag')?.addEventListener('click', () => {
       const inp = document.getElementById('newTagInput');
       const val = inp.value.trim();
       if (val) { State.addTag(val); inp.value = ''; renderGuestTagsSelector(); }
+    });
+
+    // Guest dependencies modal
+    document.getElementById('btnGuestDependencies')?.addEventListener('click', () => openGuestDependencies(null));
+    document.getElementById('depTabGraph')?.addEventListener('click', () => _renderDepView('graph'));
+    document.getElementById('depTabTable')?.addEventListener('click', () => _renderDepView('table'));
+    document.getElementById('depTabSuggest')?.addEventListener('click', () => _renderDepView('suggest'));
+    document.getElementById('btnAddDependency')?.addEventListener('click', () => {
+      const form = document.getElementById('depAddForm');
+      if (!form) return;
+      const isHidden = form.style.display === 'none';
+      form.style.display = isHidden ? '' : 'none';
+      if (isHidden) _renderDepAddForm();
+    });
+
+    // Auto-assign settings modal
+    document.getElementById('btnOpenAutoAssignSettings')?.addEventListener('click', () => {
+      UI.closeModal('modalAutoAssign');
+      openAutoAssignSettings();
+    });
+    document.getElementById('btnSaveAutoAssignSettings')?.addEventListener('click', _saveAutoAssignSettings);
+    document.getElementById('btnAddTableType')?.addEventListener('click', () => {
+      const f = document.getElementById('aaAddTableTypeForm');
+      if (f) f.style.display = f.style.display === 'none' ? '' : 'none';
+    });
+    document.getElementById('btnConfirmAddTableType')?.addEventListener('click', () => {
+      const name = document.getElementById('aaTypeNameInput')?.value.trim();
+      if (!name) { UI.toast('נא להזין שם', 'warning'); return; }
+      const maxCount = parseInt(document.getElementById('aaTypeMaxCount')?.value) || null;
+      const maxSeats = parseInt(document.getElementById('aaTypeMaxSeats')?.value) || null;
+      const minOcc   = Math.max(0, Math.min(100, parseInt(document.getElementById('aaTypeMinOccupancy')?.value) || 0));
+      const s = State.get().settings;
+      if (!s.autoAssign.tableTypes) s.autoAssign.tableTypes = [];
+      s.autoAssign.tableTypes.push({ id: 'ttype_' + Date.now(), name, maxCount, maxSeats, minOccupancyBeforeSplit: minOcc });
+      State.setSetting('autoAssign', s.autoAssign);
+      document.getElementById('aaTypeNameInput').value = '';
+      document.getElementById('aaAddTableTypeForm').style.display = 'none';
+      _renderAATableTypesList();
+      UI.toast('סוג שולחן נוסף ✓', 'success', 1500);
+    });
+    document.getElementById('btnAddCustomDepType')?.addEventListener('click', () => {
+      const f = document.getElementById('aaAddCustomDepForm');
+      if (f) f.style.display = f.style.display === 'none' ? '' : 'none';
+    });
+    document.getElementById('btnConfirmAddCustomDep')?.addEventListener('click', () => {
+      const label  = document.getElementById('aaCustomDepLabel')?.value.trim();
+      if (!label) { UI.toast('נא להזין שם', 'warning'); return; }
+      const icon     = document.getElementById('aaCustomDepIcon')?.value.trim() || '🔗';
+      const strength = document.getElementById('aaCustomDepStrength')?.value || 'preferred';
+      const color    = document.getElementById('aaCustomDepColor')?.value || '#42A5F5';
+      const s = State.get().settings;
+      if (!s.autoAssign.customDependencyTypes) s.autoAssign.customDependencyTypes = [];
+      s.autoAssign.customDependencyTypes.push({ id: 'cdt_' + Date.now(), label, icon, strength, color });
+      State.setSetting('autoAssign', s.autoAssign);
+      document.getElementById('aaCustomDepLabel').value = '';
+      document.getElementById('aaAddCustomDepForm').style.display = 'none';
+      _renderAACustomDepTypesList();
+      UI.toast('סוג תלות נוסף ✓', 'success', 1500);
+    });
+
+    // Toggle extra venue items
+    document.getElementById('btnToggleVenueItems')?.addEventListener('click', function() {
+      const extra = document.getElementById('venueItemsExtra');
+      const isHidden = !extra || extra.style.display === 'none';
+      if (extra) extra.style.display = isHidden ? '' : 'none';
+      this.textContent = isHidden ? '▲ פחות' : '▼ עוד';
     });
 
     // Shape modal
@@ -2128,6 +2214,363 @@ const Modals = (() => {
   }
 
 
+  /* ═══════════════════ GUEST DEPENDENCIES ═══════════════════ */
+
+  function openGuestDependencies(focusGuestId) {
+    _renderDepView('graph');
+    if (focusGuestId) _depFocusGuest = focusGuestId;
+    UI.openModal('modalGuestDependencies');
+    _renderDepGraph();
+    _renderDepTable();
+    _renderDepSuggest();
+  }
+
+  let _depFocusGuest = null;
+  let _depActiveTab = 'graph';
+
+  function _renderDepView(tab) {
+    _depActiveTab = tab;
+    ['graph','table','suggest'].forEach(t => {
+      const view = document.getElementById('dep' + t.charAt(0).toUpperCase() + t.slice(1) + 'View');
+      const btn  = document.getElementById('depTab' + t.charAt(0).toUpperCase() + t.slice(1));
+      if (view) view.style.display = (t === tab) ? '' : 'none';
+      if (btn)  btn.classList.toggle('active', t === tab);
+    });
+    if (tab === 'graph')   _renderDepGraph();
+    if (tab === 'table')   _renderDepTable();
+    if (tab === 'suggest') _renderDepSuggest();
+  }
+
+  function _renderDepGraph() {
+    const wrap = document.getElementById('depGraphCanvas');
+    if (!wrap) return;
+    const state = State.get();
+    const deps  = state.guestDependencies || [];
+
+    if (!deps.length) {
+      wrap.innerHTML = '<div style="text-align:center;padding:40px;color:#90a4ae;font-size:14px">אין תלויות מוגדרות. עבור ללשונית "טבלה" להוספה.</div>';
+      return;
+    }
+
+    // Build adjacency info
+    const guestMap = {};
+    state.guests.forEach(g => { guestMap[g.id] = g; });
+
+    // Simple force-directed layout (spring-embedded approximation)
+    const guestIds = [...new Set(deps.flatMap(d => [d.guestA, d.guestB]))].filter(id => guestMap[id]);
+    const N = guestIds.length;
+    const W = 700, H = 420;
+    const positions = {};
+
+    // Initialize positions in circle
+    guestIds.forEach((id, i) => {
+      const angle = (2 * Math.PI * i) / N;
+      positions[id] = {
+        x: W/2 + (W * 0.38) * Math.cos(angle),
+        y: H/2 + (H * 0.38) * Math.sin(angle)
+      };
+    });
+
+    // Build SVG
+    const allDepTypes = { ...CONFIG.DEPENDENCY_TYPES, ..._getCustomDepTypesMap() };
+
+    let edges = deps.map(dep => {
+      const def = allDepTypes[dep.type] || { color: '#90a4ae', label: dep.type || 'קשר', strength: 'preferred', icon: '🔗' };
+      const pA = positions[dep.guestA];
+      const pB = positions[dep.guestB];
+      if (!pA || !pB) return '';
+      const color = def.color || '#90a4ae';
+      const dashArr = dep.strength === 'required' ? '' : dep.strength === 'forbidden' ? '6,3' : '3,3';
+      return `<line x1="${pA.x}" y1="${pA.y}" x2="${pB.x}" y2="${pB.y}" stroke="${color}" stroke-width="2" ${dashArr ? `stroke-dasharray="${dashArr}"` : ''} opacity="0.7"/>
+        <text x="${(pA.x+pB.x)/2}" y="${(pA.y+pB.y)/2 - 4}" text-anchor="middle" font-size="10" fill="${color}">${UI.escHtml(def.icon || '')} ${UI.escHtml(def.label || dep.type)}</text>`;
+    }).join('');
+
+    let nodes = guestIds.map(id => {
+      const g = guestMap[id];
+      const p = positions[id];
+      const isFocus = id === _depFocusGuest;
+      const r = isFocus ? 18 : 14;
+      const fill = isFocus ? '#1565c0' : '#42A5F5';
+      const name = (g.name || id).slice(0, 10);
+      return `<g class="dep-node" data-guest-id="${id}" style="cursor:pointer">
+        <circle cx="${p.x}" cy="${p.y}" r="${r}" fill="${fill}" stroke="#fff" stroke-width="2"/>
+        <text x="${p.x}" y="${p.y + r + 12}" text-anchor="middle" font-size="10" fill="#333">${UI.escHtml(name)}</text>
+      </g>`;
+    }).join('');
+
+    // Legend
+    const legendEl = document.getElementById('depGraphLegend');
+    if (legendEl) {
+      legendEl.innerHTML = Object.entries(allDepTypes).map(([k, v]) =>
+        `<span class="dep-legend-item"><span class="dep-legend-color" style="background:${v.color}"></span>${UI.escHtml(v.icon || '')} ${UI.escHtml(v.label)}</span>`
+      ).join('');
+    }
+
+    wrap.innerHTML = `<svg width="100%" viewBox="0 0 ${W} ${H}" style="max-height:420px">
+      ${edges}${nodes}
+    </svg>`;
+  }
+
+  function _renderDepTable() {
+    const body = document.getElementById('depTableBody');
+    if (!body) return;
+    const state = State.get();
+    const deps  = state.guestDependencies || [];
+    const guestMap = {};
+    state.guests.forEach(g => { guestMap[g.id] = g; });
+    const allDepTypes = { ...CONFIG.DEPENDENCY_TYPES, ..._getCustomDepTypesMap() };
+
+    if (!deps.length) {
+      body.innerHTML = '<p style="color:#90a4ae;font-size:13px;padding:8px 0">אין תלויות מוגדרות עדיין.</p>';
+      return;
+    }
+
+    body.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="background:#f5f5f5;font-weight:600">
+        <th style="padding:6px 8px;text-align:right">מוזמן א</th>
+        <th style="padding:6px 8px;text-align:right">מוזמן ב</th>
+        <th style="padding:6px 8px;text-align:right">סוג קשר</th>
+        <th style="padding:6px 8px"></th>
+      </tr></thead>
+      <tbody>
+        ${deps.map(dep => {
+          const gA = guestMap[dep.guestA];
+          const gB = guestMap[dep.guestB];
+          if (!gA || !gB) return '';
+          const def = allDepTypes[dep.type] || { label: dep.type || 'קשר', color: '#90a4ae', icon: '🔗' };
+          return `<tr style="border-bottom:1px solid #f0f0f0">
+            <td style="padding:6px 8px">${UI.escHtml(gA.name)}</td>
+            <td style="padding:6px 8px">${UI.escHtml(gB.name)}</td>
+            <td style="padding:6px 8px"><span style="color:${def.color}">${UI.escHtml(def.icon||'')} ${UI.escHtml(def.label)}</span></td>
+            <td style="padding:6px 8px;text-align:center">
+              <button class="btn btn-sm" style="padding:2px 8px;color:#e53935;border:1px solid #e53935" data-remove-dep="${dep.id}">✕</button>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+
+    body.querySelectorAll('[data-remove-dep]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (UI.confirmDialog('למחוק קשר זה?')) {
+          State.removeDependency(btn.dataset.removeDep);
+          _renderDepTable();
+          _renderDepGraph();
+        }
+      });
+    });
+  }
+
+  function _renderDepSuggest() {
+    const body = document.getElementById('depSuggestBody');
+    if (!body) return;
+    const state = State.get();
+    const guests = state.guests;
+    const existingPairs = new Set((state.guestDependencies || []).map(d => [d.guestA, d.guestB].sort().join('|')));
+
+    // Suggest pairs that share 2+ tags
+    const suggestions = [];
+    for (let i = 0; i < guests.length; i++) {
+      for (let j = i + 1; j < guests.length; j++) {
+        const gA = guests[i], gB = guests[j];
+        const pairKey = [gA.id, gB.id].sort().join('|');
+        if (existingPairs.has(pairKey)) continue;
+        const tagsA = new Set(gA.tags || []);
+        const common = (gB.tags || []).filter(t => tagsA.has(t));
+        if (common.length >= 1) {
+          suggestions.push({ gA, gB, common });
+        }
+      }
+    }
+
+    if (!suggestions.length) {
+      body.innerHTML = '<p style="color:#90a4ae;font-size:13px">אין הצעות חדשות — כל הזוגות עם תגיות משותפות כבר מוגדרים, או שאין מוזמנים עם תגיות משותפות.</p>';
+      return;
+    }
+
+    body.innerHTML = suggestions.slice(0, 30).map((s, idx) =>
+      `<div class="dep-suggest-row" data-idx="${idx}" style="display:flex;align-items:center;gap:10px;padding:8px;border-bottom:1px solid #f0f0f0">
+        <span style="flex:1;font-size:13px"><strong>${UI.escHtml(s.gA.name)}</strong> + <strong>${UI.escHtml(s.gB.name)}</strong>
+          <span style="font-size:11px;color:#90a4ae;margin-right:6px">תגיות משותפות: ${s.common.map(t => UI.escHtml(t)).join(', ')}</span>
+        </span>
+        <select class="input" style="width:130px;padding:3px 6px;font-size:12px" data-suggest-type="${idx}">
+          ${Object.entries({ ...CONFIG.DEPENDENCY_TYPES, ..._getCustomDepTypesMap() }).map(([k, v]) =>
+            `<option value="${k}" ${k === 'friends' ? 'selected' : ''}>${UI.escHtml(v.icon||'')} ${UI.escHtml(v.label)}</option>`
+          ).join('')}
+        </select>
+        <button class="btn btn-sm btn-primary" style="padding:3px 10px" data-suggest-accept="${idx}">✓</button>
+        <button class="btn btn-sm" style="padding:3px 8px;color:#90a4ae" data-suggest-reject="${idx}">✕</button>
+      </div>`
+    ).join('');
+
+    body.querySelectorAll('[data-suggest-accept]').forEach(btn => {
+      const idx = parseInt(btn.dataset.suggestAccept);
+      btn.addEventListener('click', () => {
+        const s = suggestions[idx];
+        const typeEl = body.querySelector(`[data-suggest-type="${idx}"]`);
+        const type = typeEl ? typeEl.value : 'friends';
+        const def = (CONFIG.DEPENDENCY_TYPES[type] || _getCustomDepTypesMap()[type] || {});
+        State.addDependency({ guestA: s.gA.id, guestB: s.gB.id, type, strength: def.strength || 'preferred' });
+        _renderDepSuggest();
+        if (_depActiveTab === 'table') _renderDepTable();
+        if (_depActiveTab === 'graph') _renderDepGraph();
+        UI.toast(`קשר נוסף: ${s.gA.name} ↔ ${s.gB.name}`, 'success', 1600);
+      });
+    });
+    body.querySelectorAll('[data-suggest-reject]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        btn.closest('.dep-suggest-row').style.display = 'none';
+      });
+    });
+  }
+
+  function _getCustomDepTypesMap() {
+    const custom = State.get().settings?.autoAssign?.customDependencyTypes || [];
+    const map = {};
+    custom.forEach(c => { map[c.id] = c; });
+    return map;
+  }
+
+  function _renderDepAddForm() {
+    const wrap = document.getElementById('depAddForm');
+    if (!wrap) return;
+    const guests = State.get().guests;
+    const allDepTypes = { ...CONFIG.DEPENDENCY_TYPES, ..._getCustomDepTypesMap() };
+    wrap.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end;padding:10px;background:#f9f9f9;border-radius:6px;margin-bottom:10px">
+        <div>
+          <label class="form-label" style="font-size:11px">מוזמן א</label>
+          <select id="depAddGuestA" class="input" style="width:100%">
+            ${guests.map(g => `<option value="${g.id}">${UI.escHtml(g.name)}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="form-label" style="font-size:11px">מוזמן ב</label>
+          <select id="depAddGuestB" class="input" style="width:100%">
+            ${guests.map(g => `<option value="${g.id}">${UI.escHtml(g.name)}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="form-label" style="font-size:11px">סוג קשר</label>
+          <select id="depAddType" class="input" style="width:100%">
+            ${Object.entries(allDepTypes).map(([k, v]) =>
+              `<option value="${k}">${UI.escHtml(v.icon||'')} ${UI.escHtml(v.label)}</option>`
+            ).join('')}
+          </select>
+        </div>
+        <div style="padding-bottom:2px">
+          <button class="btn btn-sm btn-primary" id="btnConfirmAddDep">הוסף</button>
+        </div>
+      </div>`;
+
+    document.getElementById('btnConfirmAddDep')?.addEventListener('click', () => {
+      const gA   = document.getElementById('depAddGuestA').value;
+      const gB   = document.getElementById('depAddGuestB').value;
+      const type = document.getElementById('depAddType').value;
+      if (!gA || !gB || gA === gB) { UI.toast('נא לבחור שני מוזמנים שונים', 'warning'); return; }
+      const def = (CONFIG.DEPENDENCY_TYPES[type] || _getCustomDepTypesMap()[type] || {});
+      State.addDependency({ guestA: gA, guestB: gB, type, strength: def.strength || 'preferred' });
+      wrap.style.display = 'none';
+      _renderDepTable();
+      _renderDepGraph();
+      UI.toast('קשר נוסף ✓', 'success', 1500);
+    });
+  }
+
+  /* ═══════════════════ AUTO-ASSIGN SETTINGS ═══════════════════ */
+
+  function openAutoAssignSettings() {
+    const s = State.get().settings.autoAssign || {};
+
+    const setChk = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
+    setChk('aaSettingRespectDeps',      s.respectDependencies !== false);
+    setChk('aaSettingAllowSplit',        s.allowSplit !== false);
+    setChk('aaSettingKeepExisting',      !!s.keepExisting);
+    setChk('aaSettingRespectProximity',  s.respectProximity !== false);
+    setChk('aaSettingCreateTables',      !!s.createTables);
+
+    _renderAATableTypesList();
+    _renderAACustomDepTypesList();
+    UI.openModal('modalAutoAssignSettings');
+  }
+
+  function _renderAATableTypesList() {
+    const el = document.getElementById('aaTableTypesList');
+    if (!el) return;
+    const types = State.get().settings?.autoAssign?.tableTypes || [];
+    if (!types.length) { el.innerHTML = '<p style="color:#90a4ae;font-size:12px">לא הוגדרו סוגי שולחנות.</p>'; return; }
+    el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:4px">
+      <thead><tr style="background:#f5f5f5">
+        <th style="padding:4px 6px;text-align:right">שם</th>
+        <th style="padding:4px 6px;text-align:center">מקס׳ שולחנות</th>
+        <th style="padding:4px 6px;text-align:center">מקס׳ מושבים</th>
+        <th style="padding:4px 6px;text-align:center">מינ׳ תפוסה לפני פיצול</th>
+        <th></th>
+      </tr></thead>
+      <tbody>${types.map((t, i) => `<tr style="border-bottom:1px solid #f0f0f0">
+        <td style="padding:4px 6px">${UI.escHtml(t.name)}</td>
+        <td style="padding:4px 6px;text-align:center">${t.maxCount || '—'}</td>
+        <td style="padding:4px 6px;text-align:center">${t.maxSeats || '—'}</td>
+        <td style="padding:4px 6px;text-align:center">${t.minOccupancyBeforeSplit || 0}%</td>
+        <td style="padding:4px 6px;text-align:center"><button class="btn btn-sm" style="color:#e53935;border:1px solid #e53935;padding:1px 6px" data-remove-ttype="${i}">✕</button></td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+    el.querySelectorAll('[data-remove-ttype]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.removeTtype);
+        const s = State.get().settings;
+        s.autoAssign.tableTypes.splice(idx, 1);
+        State.setSetting('autoAssign', s.autoAssign);
+        _renderAATableTypesList();
+      });
+    });
+  }
+
+  function _renderAACustomDepTypesList() {
+    const el = document.getElementById('aaCustomDepTypesList');
+    if (!el) return;
+    const types = State.get().settings?.autoAssign?.customDependencyTypes || [];
+    if (!types.length) { el.innerHTML = '<p style="color:#90a4ae;font-size:12px">לא הוגדרו סוגי תלויות מותאמים.</p>'; return; }
+    const STRENGTH_LABELS = { required: 'חובה', preferred: 'מועדף', avoid: 'הימנע', forbidden: 'אסור' };
+    el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:4px">
+      <thead><tr style="background:#f5f5f5">
+        <th style="padding:4px 6px;text-align:right">שם</th>
+        <th style="padding:4px 6px;text-align:center">אייקון</th>
+        <th style="padding:4px 6px;text-align:center">עוצמה</th>
+        <th style="padding:4px 6px;text-align:center">צבע</th>
+        <th></th>
+      </tr></thead>
+      <tbody>${types.map((t, i) => `<tr style="border-bottom:1px solid #f0f0f0">
+        <td style="padding:4px 6px">${UI.escHtml(t.label)}</td>
+        <td style="padding:4px 6px;text-align:center">${UI.escHtml(t.icon||'')}</td>
+        <td style="padding:4px 6px;text-align:center">${STRENGTH_LABELS[t.strength] || t.strength}</td>
+        <td style="padding:4px 6px;text-align:center"><span style="display:inline-block;width:18px;height:18px;background:${t.color};border-radius:3px"></span></td>
+        <td style="padding:4px 6px;text-align:center"><button class="btn btn-sm" style="color:#e53935;border:1px solid #e53935;padding:1px 6px" data-remove-cdt="${i}">✕</button></td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+    el.querySelectorAll('[data-remove-cdt]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.removeCdt);
+        const s = State.get().settings;
+        s.autoAssign.customDependencyTypes.splice(idx, 1);
+        State.setSetting('autoAssign', s.autoAssign);
+        _renderAACustomDepTypesList();
+      });
+    });
+  }
+
+  function _saveAutoAssignSettings() {
+    const s = State.get().settings.autoAssign || {};
+    s.respectDependencies = document.getElementById('aaSettingRespectDeps')?.checked !== false;
+    s.allowSplit          = document.getElementById('aaSettingAllowSplit')?.checked !== false;
+    s.keepExisting        = !!document.getElementById('aaSettingKeepExisting')?.checked;
+    s.respectProximity    = document.getElementById('aaSettingRespectProximity')?.checked !== false;
+    s.createTables        = !!document.getElementById('aaSettingCreateTables')?.checked;
+    State.setSetting('autoAssign', s);
+    UI.closeModal('modalAutoAssignSettings');
+    UI.toast('הגדרות שיבוץ נשמרו ✓', 'success', 1800);
+  }
+
   return {
     init,
     openAddTable, openEditTable,
@@ -2139,6 +2582,7 @@ const Modals = (() => {
     renderTagsManager, renderPresetManager, renderTablePresets,
     renderEventsManager, showAutoAssignResult,
     renderLayoutDropdown, openSaveLayout,
-    openNormalizeSizes
+    openNormalizeSizes,
+    openGuestDependencies, openAutoAssignSettings
   };
 })();

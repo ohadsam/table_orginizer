@@ -98,21 +98,28 @@ const Print = (() => {
         }
         const badgeHtml = item.locked ? `<text x="${W - 3}" y="14" text-anchor="end" font-size="11">🔒</text>` : '';
         const textGroup = textRot ? `<g transform="rotate(${textRot},${W/2},${H/2})">${itemTexts}</g>` : itemTexts;
-        body += `<g transform="translate(${lx.toFixed(1)},${ly.toFixed(1)})">${itemShapes}${textGroup}${badgeHtml}</g>`;
+        const itemRot = item.rotation || 0;
+        const cx = lx + W / 2, cy = ly + H / 2;
+        const rotAttr = itemRot ? ` transform="rotate(${itemRot},${cx.toFixed(1)},${cy.toFixed(1)})"` : '';
+        body += `<g${rotAttr}><g transform="translate(${lx.toFixed(1)},${ly.toFixed(1)})">${itemShapes}${textGroup}${badgeHtml}</g></g>`;
       } else {
         const bg      = item.color || CONFIG.COLORS[item.type] || CONFIG.COLORS.shape;
-        const icons   = { dancefloor: '🕺', dj: '🎵', door: '🚪' };
-        const icon    = icons[item.type] || '';
+        const SPECIAL_ICONS = { dancefloor: '🕺', dj: '🎵', door: '🚪', shape: '⬛', stairs: '🪜', elevator: '🛗', kitchen: '🍳', balcony: '🌿', pool: '🏊', waterfall: '💧', bar: '🍹', stage: '🎤', photo: '📸', buffet: '🍽️', bathroom: '🚻' };
+        const icon    = SPECIAL_ICONS[item.type] || '';
         const br      = item.shape === 'circle' ? Math.min(W, H) / 2 : 6;
-        const lbl     = item.label || { dancefloor: 'רחבת ריקודים', dj: 'עמדת DJ', door: 'כניסה' }[item.type] || '';
+        const SPECIAL_LABELS = { dancefloor: 'רחבת ריקודים', dj: 'עמדת DJ', door: 'כניסה', stairs: 'מדרגות', elevator: 'מעלית', kitchen: 'מטבח', balcony: 'מרפסת', pool: 'בריכה', waterfall: 'מפל', bar: 'בר', stage: 'במה', photo: 'פינת צילום', buffet: 'בופה', bathroom: 'שירותים' };
+        const lbl     = item.label || SPECIAL_LABELS[item.type] || '';
         const icoSize = item.iconSize || 14;
         const lblSize = item.fontSize || 9;
         const lblColor = /^#[0-9a-fA-F]{3,8}$/.test(item.fontColor || '') ? item.fontColor : '#333';
-        body += `<g transform="translate(${lx.toFixed(1)},${ly.toFixed(1)})">`;
+        const itemRot2 = item.rotation || 0;
+        const cx2 = lx + W / 2, cy2 = ly + H / 2;
+        const rotAttr2 = itemRot2 ? ` transform="rotate(${itemRot2},${cx2.toFixed(1)},${cy2.toFixed(1)})"` : '';
+        body += `<g${rotAttr2}><g transform="translate(${lx.toFixed(1)},${ly.toFixed(1)})">`;
         body += `<rect x="0" y="0" width="${W}" height="${H}" rx="${br}" fill="${bg}" stroke="#aaa" stroke-width="1.5"/>`;
         body += `<text x="${W / 2}" y="${H / 2 - 4}" text-anchor="middle" dominant-baseline="middle" font-size="${icoSize}">${icon}</text>`;
         body += `<text x="${W / 2}" y="${H / 2 + lblSize + 2}" text-anchor="middle" font-size="${lblSize}" fill="${lblColor}">${UI.escHtml(lbl)}</text>`;
-        body += '</g>';
+        body += '</g></g>';
       }
     });
 
@@ -831,7 +838,11 @@ ${buildGuestTableHTML(sorted)}`;
       if (item.locked)       itemBadges += `<text x="${W - 3}" y="14" text-anchor="end" font-size="11">🔒</text>`;
       if (item.numberLocked) itemBadges += `<text x="4" y="14" text-anchor="start" font-size="11" font-weight="700" fill="#7e57c2">#</text>`;
       const textGroup = textRot ? `<g transform="rotate(${textRot},${W/2},${H/2})">${itemTexts}</g>` : itemTexts;
-      body += `<g transform="translate(${lx.toFixed(1)},${ly.toFixed(1)})">${itemShapes}${textGroup}${itemBadges}</g>`;
+      const itemRot = item.rotation || 0;
+      const cxR = lx + W / 2, cyR = ly + H / 2;
+      const rotWrap = itemRot ? `<g transform="rotate(${itemRot},${cxR.toFixed(1)},${cyR.toFixed(1)})">` : '';
+      const rotWrapEnd = itemRot ? '</g>' : '';
+      body += `${rotWrap}<g transform="translate(${lx.toFixed(1)},${ly.toFixed(1)})">${itemShapes}${textGroup}${itemBadges}</g>${rotWrapEnd}`;
     });
 
     return {

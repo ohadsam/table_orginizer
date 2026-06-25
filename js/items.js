@@ -79,10 +79,21 @@ const Items = (() => {
   function addSpecialItem(type, opts = {}) {
     let sz, label, color;
     switch (type) {
-      case 'dancefloor': sz = CONFIG.DANCEFLOOR_SIZE; label = 'רחבת ריקודים'; color = CONFIG.COLORS.dancefloor; break;
-      case 'dj':         sz = CONFIG.DJ_SIZE;         label = 'עמדת DJ';       color = CONFIG.COLORS.dj;         break;
-      case 'door':       sz = CONFIG.DOOR_SIZE;       label = 'כניסה';         color = CONFIG.COLORS.door;       break;
-      case 'shape':      sz = CONFIG.SHAPE_SIZE;      label = opts.label || ''; color = opts.color || CONFIG.COLORS.shape; break;
+      case 'dancefloor': sz = CONFIG.DANCEFLOOR_SIZE;  label = 'רחבת ריקודים'; color = CONFIG.COLORS.dancefloor; break;
+      case 'dj':         sz = CONFIG.DJ_SIZE;           label = 'עמדת DJ';       color = CONFIG.COLORS.dj;         break;
+      case 'door':       sz = CONFIG.DOOR_SIZE;         label = 'כניסה';          color = CONFIG.COLORS.door;       break;
+      case 'shape':      sz = CONFIG.SHAPE_SIZE;        label = opts.label || ''; color = opts.color || CONFIG.COLORS.shape; break;
+      case 'stairs':     sz = CONFIG.STAIRS_SIZE;       label = 'מדרגות';         color = CONFIG.COLORS.stairs;     break;
+      case 'elevator':   sz = CONFIG.ELEVATOR_SIZE;     label = 'מעלית';          color = CONFIG.COLORS.elevator;   break;
+      case 'kitchen':    sz = CONFIG.KITCHEN_SIZE;      label = 'מטבח';           color = CONFIG.COLORS.kitchen;    break;
+      case 'balcony':    sz = CONFIG.BALCONY_SIZE;      label = 'מרפסת';          color = CONFIG.COLORS.balcony;    break;
+      case 'pool':       sz = CONFIG.POOL_SIZE;         label = 'בריכה';          color = CONFIG.COLORS.pool;       break;
+      case 'waterfall':  sz = CONFIG.WATERFALL_SIZE;    label = 'מפל';            color = CONFIG.COLORS.waterfall;  break;
+      case 'bar':        sz = CONFIG.BAR_SIZE;          label = 'בר';             color = CONFIG.COLORS.bar;        break;
+      case 'stage':      sz = CONFIG.STAGE_SIZE;        label = 'במה';            color = CONFIG.COLORS.stage;      break;
+      case 'photo':      sz = CONFIG.PHOTO_SIZE;        label = 'פינת צילום';     color = CONFIG.COLORS.photo;      break;
+      case 'buffet':     sz = CONFIG.BUFFET_SIZE;       label = 'בופה';           color = CONFIG.COLORS.buffet;     break;
+      case 'bathroom':   sz = CONFIG.BATHROOM_SIZE;     label = 'שירותים';        color = CONFIG.COLORS.bathroom;   break;
       default: return;
     }
     if (typeof sz === 'number') sz = { width: sz, height: sz };
@@ -430,7 +441,12 @@ const Items = (() => {
 
   /* ── Special items ── */
   function buildSpecialHTML(item) {
-    const icons = { dancefloor: '🕺', dj: '🎵', door: '🚪' };
+    const icons = {
+      dancefloor: '🕺', dj: '🎵', door: '🚪', shape: '⬛',
+      stairs: '🪜', elevator: '🛗', kitchen: '🍳', balcony: '🌿',
+      pool: '🏊', waterfall: '💧', bar: '🍹', stage: '🎤',
+      photo: '📸', buffet: '🍽️', bathroom: '🚻'
+    };
     const icon  = icons[item.type] || '⬛';
     const bg    = item.color || CONFIG.COLORS[item.type] || CONFIG.COLORS.shape;
     const br    = item.shape === 'circle' ? '50%' : '8px';

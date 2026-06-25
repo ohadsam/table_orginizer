@@ -20,6 +20,17 @@ const CONFIG = Object.freeze({
   DJ_SIZE:          { width: 160, height: 90  },
   DOOR_SIZE:        { width: 80,  height: 30  },
   SHAPE_SIZE:       { width: 110, height: 110 },
+  STAIRS_SIZE:      { width: 90,  height: 60  },
+  ELEVATOR_SIZE:    { width: 60,  height: 60  },
+  KITCHEN_SIZE:     { width: 120, height: 80  },
+  BALCONY_SIZE:     { width: 160, height: 100 },
+  POOL_SIZE:        { width: 200, height: 120 },
+  WATERFALL_SIZE:   { width: 80,  height: 120 },
+  BAR_SIZE:         { width: 160, height: 80  },
+  STAGE_SIZE:       { width: 200, height: 100 },
+  PHOTO_SIZE:       { width: 100, height: 80  },
+  BUFFET_SIZE:      { width: 160, height: 80  },
+  BATHROOM_SIZE:    { width: 60,  height: 50  },
 
   SEAT_RADIUS: 9,
   TABLE_PADDING: 16,
@@ -35,7 +46,18 @@ const CONFIG = Object.freeze({
     dancefloor:    '#f3e5f5',
     dj:            '#e8eaf6',
     door:          '#e8f5e9',
-    shape:         '#fafafa'
+    shape:         '#fafafa',
+    stairs:        '#eceff1',
+    elevator:      '#e8eaf6',
+    kitchen:       '#fff3e0',
+    balcony:       '#e8f5e9',
+    pool:          '#e3f2fd',
+    waterfall:     '#e1f5fe',
+    bar:           '#fce4ec',
+    stage:         '#f3e5f5',
+    photo:         '#fff8e1',
+    buffet:        '#fff3e0',
+    bathroom:      '#f9fbe7'
   },
 
   TAG_PALETTE: [
@@ -53,6 +75,18 @@ const CONFIG = Object.freeze({
     nearEntrance: { label: 'קרוב לכניסה', icon: '🚪', target: 'door',       want: 'near' }
   },
 
+  // Guest dependency/relationship types for the dependency diagram
+  DEPENDENCY_TYPES: {
+    spouses:    { label: 'בני זוג',          strength: 'required',  color: '#EC407A', icon: '💑' },
+    parents:    { label: 'הורים/ילדים',       strength: 'required',  color: '#AB47BC', icon: '👨‍👩‍👧' },
+    family:     { label: 'משפחה',             strength: 'preferred', color: '#66BB6A', icon: '👪' },
+    friends:    { label: 'חברים',             strength: 'preferred', color: '#42A5F5', icon: '👫' },
+    colleagues: { label: 'עמיתים',            strength: 'preferred', color: '#26A69A', icon: '💼' },
+    divorced:   { label: 'גרושים',            strength: 'avoid',     color: '#FFA726', icon: '💔' },
+    conflict:   { label: 'לא מסתדרים',       strength: 'avoid',     color: '#FF7043', icon: '⚡' },
+    prohibited: { label: 'אסור להושיב יחד', strength: 'forbidden', color: '#EF5350', icon: '🚫' }
+  },
+
   LOCK_COLOR: '#ff8f00',
 
   EVENT_TYPES: {
@@ -63,3 +97,4 @@ const CONFIG = Object.freeze({
     other:       'אחר'
   }
 });
+

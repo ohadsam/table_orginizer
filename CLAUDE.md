@@ -1008,6 +1008,147 @@ Opens `modalGettingStarted` — a styled modal with 5 numbered tips (set up even
 
 **CSS:** `.gs-header`, `.gs-close`, `.gs-steps`, `.gs-step`, `.gs-num` — blue gradient header, numbered step circles.
 
+## Guest Dependencies
+
+Each event stores a `guestDependencies` array: `[{id, guestA, guestB, type, strength, notes}]`. Dependency types are defined in `CONFIG.DEPENDENCY_TYPES` (8 types: spouses, parents, family, friends, colleagues, divorced, conflict, prohibited). The `strength` field drives auto-assign behavior: `required` (must sit together), `preferred` (+score), `avoid` (-score), `forbidden` (hard constraint — can never share a table).
+
+### State API
+```javascript
+State.addDependency({guestA, guestB, type, strength, notes})  // returns dep; guards guestA !== guestB
+State.removeDependency(id)
+State.updateDependency(id, updates)
+State.getGuestDependencies(guestId)  // deps involving that guest
+```
+
+All mutators emit `dependenciesChanged`. `resetBoard()` clears `guestDependencies`. `resetBoardKeepGuests()` filters out deps referencing dropped split-artifact guests.
+
+### Dependency Diagram Modal (`modalGuestDependencies`)
+Opened from the 🔗 panel-header button or from individual guest card 🔗 buttons. Three tabs:
+- **Graph** — `<canvas>` network view (circles = guests, colored edges = dep types)
+- **Table** — sortable table of all deps with edit/delete
+- **Suggest** — auto-suggestions based on shared tags
+
+### `_nextDepId` recovery
+`deserialize()` derives `_nextDepId` from `max(depId numeric suffix) + 1`, not from array length, to handle saves with deleted deps.
+
+## Auto-Assign Algorithm (Hybrid CSP-Greedy)
+
+`AutoAssign.run(opts)` — reads `state.settings.autoAssign`:
+
+```javascript
+{
+  allowSplit: bool,
+  keepExisting: bool,
+  respectProximity: bool,
+  createTables: bool,
+  respectDependencies: bool,    // enables hard forbidden + soft scoring
+  tableTypes: [],               // per-type config (future)
+  customDepTypes: []            // user-defined dependency type names
+}
+```
+
+**Phase 1 — Dependency maps** (if `respectDependencies`):
+`buildDepMaps(guestDependencies)` → `{ forbidden, required, preferred, avoid }` maps (guestId → Set of co-guestIds).
+
+**Phase 2 — Sort most-constrained first**: `sortByConstraints(guests, depMaps)` — guests with the most required+forbidden relationships are processed first.
+
+**Phase 3 — Greedy assignment per affinity group**: For each group, `findBestTable()` filters out tables containing forbidden co-guests (`hasForbidden()`), then ranks by `proximityScore + depScore()` (required +500, preferred +200, avoid -300).
+
+**`placeWithSplit()`** accepts `depMaps` and `tableGuests` as parameters; checks `hasForbidden()` before each split placement and updates `tableGuests` after each sub-placement so later iterations see correct state.
+
+## New Venue Elements (Special Items)
+
+11 new item types added to `addSpecialItem()`, `buildSpecialHTML()`, `config.js` SIZES/COLORS, and `index.html` sidebar:
+
+| Type | Icon | Size (w×h) |
+|------|------|------------|
+| `stairs` | 🪜 | 90×60 |
+| `elevator` | 🛗 | 60×60 |
+| `kitchen` | 🍳 | 120×80 |
+| `balcony` | 🌿 | 160×100 |
+| `pool` | 🏊 | 200×120 |
+| `waterfall` | 💧 | 80×120 |
+| `bar` | 🍹 | 160×80 |
+| `stage` | 🎤 | 200×100 |
+| `photo` | 📸 | 100×80 |
+| `buffet` | 🍽️ | 160×80 |
+| `bathroom` | 🚻 | 60×50 |
+
+All new types are handled in `print.js` `SPECIAL_ICONS` map and receive correct `item.rotation` wrapping in all print SVGs.
+
+The extra venue items are grouped in a collapsible section in the sidebar (toggle via `btnToggleVenueItems`), wired in `modals.js init()`.
+
+## Children with Parents
+
+Guests have a `childrenWithParents` field (integer, 0–N) indicating how many of their children must be seated with a parent (not split to a different table). Set via the guest add/edit modal — the field is shown/hidden based on whether `guestChildren > 0`.
+
+`State.addGuest()` initializes `childrenWithParents: 0`. Serialized and exported automatically.
+
+## CSV / Excel Guest Import
+
+`Storage.importGuestsCsv(file, merge)` — parses CSV with full quote/escape handling.
+`Storage.importGuestsExcel(file, merge)` — uses SheetJS (`window.XLSX`) loaded from CDN. Checks `typeof XLSX === 'undefined'` and shows error toast if not loaded.
+`Storage.downloadGuestTemplate()` — downloads a BOM-prefixed UTF-8 CSV with Hebrew headers and 4 example rows.
+
+### Column headers recognized (Hebrew and English aliases)
+| Column | Aliases |
+|--------|---------|
+| שם | name |
+| מבוגרים | adults |
+| ילדים | children |
+| ילדים עם הורים | childrenWithParents |
+| תגיות | tags (semicolon-separated) |
+| הערות | notes |
+| העדפת מיקום | proximity (nearDance/farDance/nearEntrance) |
+
+### UI buttons (Export/Import dropdown)
+- `btnDownloadGuestTemplate` — download template CSV
+- `btnImportGuestsCsv` — trigger CSV file picker
+- `btnImportGuestsExcel` — trigger Excel file picker
+- `importGuestsCsvInput` (hidden file input) — shared for both
+- `modalImportGuestsCsv` — merge/replace choice modal
+
+SheetJS CDN: `https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js` (no SRI hash — known limitation).
+
+## Demo Project
+
+`Storage.loadDemoProject()` — injects a hardcoded demo event (חתונת כהן) with 12 guests, 7 items (3 tables + dancefloor + door + stage + 1 empty table), 3 guest dependencies, and 4 tags. Saves to localStorage under key `demo_${Date.now()}` and switches to it.
+
+`Storage.removeDemoProject()` — deletes the demo event; guards against deleting it when it's the only event.
+
+`Storage.isDemoLoaded()` — returns true if the demo event ID is still in the meta events list.
+
+The demo event ID is tracked in localStorage key `sp_demo_event_id`. Buttons `btnLoadDemo` and `btnRemoveDemo` are in the Export/Import dropdown section "פרויקט דוגמא".
+
+## Hints System
+
+`UI.initHints()` — called from `app.js DOMContentLoaded`. Shows one random non-dismissed hint card in `#hintsContainer`. Dismissed hint IDs stored in localStorage key `sp_hints_hidden` (JSON array).
+
+8 built-in hints covering: drag-to-assign, Ctrl+click multi-select, right-click context menu, guest dependencies, layout options, backup export, zoom/fit, CSV import.
+
+Each hint card has:
+- **✕** (dismiss-one) — adds hint ID to localStorage, hides card with animation
+- **הסתר הכל** (dismiss-all) — adds all hint IDs, clears container
+
+`_HINTS_KEY = 'sp_hints_hidden'`. Hints become visible after a 2-second delay via `.hint-visible` CSS class.
+
+## Auto-Assign Settings Modal (`modalAutoAssignSettings`)
+
+Opened from `btnOpenAutoAssignSettings` in the auto-assign modal footer.
+
+Saves to `state.settings.autoAssign`:
+- `respectDependencies` — checkbox
+- `tableTypes` — array of per-type configs (name, quantity, seats, minOccupancyBeforeSplit)
+- `customDepTypes` — array of user-defined dependency type names
+
+## Print: Item Rotation
+
+`item.rotation` (whole-item rotation, integer degrees) is now applied in all print SVG outputs:
+- `buildRoomDiagramSVG`: tables and special items wrapped in `<g transform="rotate(deg,cx,cy)"><g transform="translate(lx,ly)">...</g></g>`
+- `buildRoomTablesOnlySVG`: same wrapping pattern
+
+`item.textRotation` (text-only rotation) is handled separately by wrapping only text elements in an inner `<g transform="rotate(textRot,W/2,H/2)">`.
+
 ## File Structure
 
 ```

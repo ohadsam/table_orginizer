@@ -130,6 +130,59 @@ const UI = (() => {
     setTimeout(() => openModal('modalGettingStarted'), 500);
   }
 
+  /* ── Hints system ── */
+  const _HINTS_KEY = 'sp_hints_hidden';
+
+  const _HINTS = [
+    { id: 'hint_drag',       text: 'גרור מוזמן מהסרגל הצד ישירות לשולחן באולם לשיבוץ מהיר.' },
+    { id: 'hint_ctrlclick',  text: 'Ctrl+לחיצה על שולחנות מרובים → ערוך אותם יחד בכפתור ✏️ בכותרת.' },
+    { id: 'hint_rightclick', text: 'לחץ עם הכפתור הימני על כל פריט באולם לתפריט אפשרויות — שינוי צבע, סיבוב, שכפול ועוד.' },
+    { id: 'hint_deps',       text: 'הגדר קשרים בין מוזמנים (🔗 בסרגל המוזמנים) — הזוגות והקונפליקטים מובאים בחשבון בשיבוץ האוטומטי.' },
+    { id: 'hint_layout',     text: 'שמור מספר פריסות הושבה שונות (💾 בכותרת) כדי להשוות בין אפשרויות.' },
+    { id: 'hint_backup',     text: 'כל הנתונים נשמרים בדפדפן בלבד — צא לגיבוי (📦 → ייצוא פרויקט) לפני ניקיון הדפדפן.' },
+    { id: 'hint_zoom',       text: 'השתמש בגלגלת העכבר לזום על האולם, ולחץ "⊞ התאם" להצגת כל הפריטים.' },
+    { id: 'hint_template',   text: 'הורד תבנית CSV (📦 → הורד תבנית CSV) ומלא ייבוא מוזמנים בבת אחת מאקסל.' }
+  ];
+
+  function initHints() {
+    const hidden = new Set(JSON.parse(localStorage.getItem(_HINTS_KEY) || '[]'));
+    const container = document.getElementById('hintsContainer');
+    if (!container) return;
+    container.innerHTML = '';
+
+    // Show one random non-dismissed hint
+    const visible = _HINTS.filter(h => !hidden.has(h.id));
+    if (!visible.length) return;
+    const hint = visible[Math.floor(Math.random() * visible.length)];
+
+    const el = document.createElement('div');
+    el.className = 'hint-card';
+    el.dataset.hintId = hint.id;
+    el.innerHTML = `<span class="hint-icon">💡</span>
+      <span class="hint-text">${hint.text}</span>
+      <div class="hint-actions">
+        <button class="hint-btn hint-dismiss-one" title="הסתר רמז זה">✕</button>
+        <button class="hint-btn hint-dismiss-all" title="הסתר את כל הרמזים">הסתר הכל</button>
+      </div>`;
+
+    el.querySelector('.hint-dismiss-one').addEventListener('click', () => {
+      hidden.add(hint.id);
+      localStorage.setItem(_HINTS_KEY, JSON.stringify([...hidden]));
+      el.classList.add('hint-hiding');
+      setTimeout(() => el.remove(), 350);
+    });
+    el.querySelector('.hint-dismiss-all').addEventListener('click', () => {
+      _HINTS.forEach(h => hidden.add(h.id));
+      localStorage.setItem(_HINTS_KEY, JSON.stringify([...hidden]));
+      container.innerHTML = '';
+    });
+
+    container.appendChild(el);
+
+    // Show the hint after a short delay
+    setTimeout(() => el.classList.add('hint-visible'), 2000);
+  }
+
   /* ── Mobile sidebar toggle ── */
   function initMobileSidebar() {
     const toggle = document.getElementById('btnMobileSidebar');
@@ -149,5 +202,5 @@ const UI = (() => {
     });
   }
 
-  return { toast, openModal, closeModal, closeAllModals, updateStats, tagColor, tagBadge, escHtml, confirmDialog, initModals, initMobileSidebar, showStorageWarning, showGettingStarted };
+  return { toast, openModal, closeModal, closeAllModals, updateStats, tagColor, tagBadge, escHtml, confirmDialog, initModals, initMobileSidebar, showStorageWarning, showGettingStarted, initHints };
 })();

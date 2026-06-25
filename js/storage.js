@@ -420,6 +420,226 @@ const Storage = (() => {
     });
   }
 
+  /* ── Guest CSV import ── */
+  // Expected columns (BOM-tolerant): שם, מבוגרים, ילדים, ילדים עם הורים, תגיות, הערות, העדפת מיקום
+  function _parseCsvGuestRow(headers, cells) {
+    const get = (variants) => {
+      for (const v of variants) {
+        const idx = headers.findIndex(h => h.replace(/^﻿/, '').trim() === v);
+        if (idx >= 0) return (cells[idx] || '').trim();
+      }
+      return '';
+    };
+    const name     = get(['שם', 'Name', 'name']);
+    if (!name) return null;
+    const adults   = Math.max(0, parseInt(get(['מבוגרים', 'Adults', 'adults'])) || 0);
+    const children = Math.max(0, parseInt(get(['ילדים', 'Children', 'children'])) || 0);
+    const cwp      = Math.min(children, Math.max(0, parseInt(get(['ילדים עם הורים', 'childrenWithParents'])) || 0));
+    const tagsRaw  = get(['תגיות', 'Tags', 'tags']);
+    const tags     = tagsRaw ? tagsRaw.split(/[;,]/).map(t => t.trim()).filter(Boolean) : [];
+    const notes    = get(['הערות', 'Notes', 'notes']);
+    const proxRaw  = get(['העדפת מיקום', 'Proximity', 'proximity']);
+    const proximity = proxRaw ? proxRaw.split(/[;,]/).map(p => p.trim()).filter(p => CONFIG.PROXIMITY[p]) : [];
+    if (adults + children === 0) return null;
+    return { name, adults, children, childrenWithParents: cwp, tags, notes, proximity };
+  }
+
+  function _parseCsv(text) {
+    const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+    const parseLine = line => {
+      const res = []; let cur = ''; let inQ = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
+        else if (ch === ',' && !inQ) { res.push(cur); cur = ''; }
+        else cur += ch;
+      }
+      res.push(cur);
+      return res;
+    };
+    const rows = lines.map(parseLine);
+    if (rows.length < 2) return [];
+    const headers = rows[0];
+    return rows.slice(1).map(cells => _parseCsvGuestRow(headers, cells)).filter(Boolean);
+  }
+
+  function importGuestsCsv(file, merge) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const text   = e.target.result;
+          const guests = _parseCsv(text);
+          if (!guests.length) { UI.toast('לא נמצאו מוזמנים בקובץ. בדוק את הפורמט.', 'warning'); resolve(null); return; }
+          if (!merge && State.get().guests.length > 0 &&
+              !window.confirm(`ייבוא זה ימחק את ${State.get().guests.length} המוזמנים הקיימים. להמשיך?`)) {
+            resolve(null); return;
+          }
+          State.importGuests(guests, null, merge);
+          saveNow();
+          UI.toast(`יובאו ${guests.length} מוזמנים מ-CSV ✓`, 'success');
+          resolve(guests);
+        } catch(err) { UI.toast('שגיאה בקריאת קובץ CSV', 'error'); reject(err); }
+      };
+      reader.onerror = () => { UI.toast('שגיאה בפתיחת הקובץ', 'error'); reject(reader.error); };
+      reader.readAsText(file, 'UTF-8');
+    });
+  }
+
+  /* ── Guest Excel import (uses SheetJS) ── */
+  function importGuestsExcel(file, merge) {
+    return new Promise((resolve, reject) => {
+      if (typeof XLSX === 'undefined') {
+        UI.toast('ספריית Excel לא נטענה — אנא רענן את הדף', 'error');
+        reject(new Error('XLSX not loaded'));
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const wb     = XLSX.read(e.target.result, { type: 'array' });
+          const ws     = wb.Sheets[wb.SheetNames[0]];
+          const rows   = XLSX.utils.sheet_to_json(ws, { header: 1 });
+          if (rows.length < 2) { UI.toast('הקובץ ריק', 'warning'); resolve(null); return; }
+          const headers = rows[0].map(h => String(h || '').trim());
+          const guests  = rows.slice(1).map(cells => {
+            const strCells = cells.map(c => String(c ?? '').trim());
+            return _parseCsvGuestRow(headers, strCells);
+          }).filter(Boolean);
+          if (!guests.length) { UI.toast('לא נמצאו מוזמנים. בדוק את הפורמט.', 'warning'); resolve(null); return; }
+          if (!merge && State.get().guests.length > 0 &&
+              !window.confirm(`ייבוא זה ימחק את ${State.get().guests.length} המוזמנים הקיימים. להמשיך?`)) {
+            resolve(null); return;
+          }
+          State.importGuests(guests, null, merge);
+          saveNow();
+          UI.toast(`יובאו ${guests.length} מוזמנים מ-Excel ✓`, 'success');
+          resolve(guests);
+        } catch(err) { UI.toast('שגיאה בקריאת קובץ Excel', 'error'); reject(err); }
+      };
+      reader.onerror = () => { UI.toast('שגיאה בפתיחת הקובץ', 'error'); reject(reader.error); };
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  /* ── Guest template CSV download ── */
+  function downloadGuestTemplate() {
+    const header = 'שם,מבוגרים,ילדים,ילדים עם הורים,תגיות,הערות,העדפת מיקום';
+    const examples = [
+      'משפחת כהן,2,0,0,משפחה,,',
+      'משפחת לוי,2,2,1,"משפחה;חברים",ילדים אלרגיים,',
+      'דוד ורחל ישראלי,2,0,0,VIP,,nearEntrance',
+      'חברים מהצבא,4,0,0,חברים,,nearDance'
+    ];
+    const csv  = '﻿' + [header, ...examples].join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = 'תבנית_ייבוא_מוזמנים.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    UI.toast('תבנית ייבוא הורדה ✓', 'success', 1800);
+  }
+
+  /* ── Demo Project ── */
+  const _DEMO_ID_KEY = 'sp_demo_event_id';
+
+  function _buildDemoState() {
+    const now = new Date().toISOString();
+    return {
+      event: { name: 'חתונת כהן — פרויקט דוגמא', date: '2026-12-20', notes: 'פרויקט דוגמא — ניתן למחוק בכל עת' },
+      settings: {
+        defaultShape: 'circle', defaultFriendsShape: 'circle', defaultParentsShape: 'rectangle',
+        defaultFriendsSeats: 8, defaultParentsSeats: 10,
+        fontNumberSize: null, fontLabelSize: null, fontGuestSize: null, fontOccupancySize: null,
+        fontNumberColor: '#1a237e', fontLabelColor: '#37474f', fontGuestColor: '#546e7a', fontOccupancyColor: '#888888',
+        autoAssign: { allowSplit: false, keepExisting: false, respectProximity: true, createTables: false, respectDependencies: true, tableTypes: [], customDepTypes: [] }
+      },
+      tags: ['משפחה', 'חברים', 'עבודה', 'VIP'],
+      tablePresets: [{ name: 'שולחן עגול 8', shape: 'circle', seats: 8, width: 130, height: 130 }],
+      guests: [
+        { id: 'g1',  name: 'דוד ורחל כהן',     adults: 2, children: 0, childrenWithParents: 0, tags: ['משפחה', 'VIP'], notes: 'הורי החתן', proximity: ['nearEntrance'], tableId: 'i1', splitOf: null },
+        { id: 'g2',  name: 'יוסף ומרים לוי',   adults: 2, children: 2, childrenWithParents: 1, tags: ['משפחה'],       notes: '',                proximity: [],              tableId: 'i1', splitOf: null },
+        { id: 'g3',  name: 'שרה אברהם',         adults: 1, children: 0, childrenWithParents: 0, tags: ['משפחה'],       notes: 'סבתא של החתן',   proximity: ['nearEntrance'], tableId: 'i1', splitOf: null },
+        { id: 'g4',  name: 'איתי ונועה ישראלי', adults: 2, children: 1, childrenWithParents: 1, tags: ['חברים'],       notes: '',                proximity: ['nearDance'],    tableId: 'i2', splitOf: null },
+        { id: 'g5',  name: 'רונית מזרחי',       adults: 1, children: 0, childrenWithParents: 0, tags: ['חברים'],       notes: '',                proximity: ['nearDance'],    tableId: 'i2', splitOf: null },
+        { id: 'g6',  name: 'גיל ורינת שמעון',   adults: 2, children: 0, childrenWithParents: 0, tags: ['חברים'],       notes: '',                proximity: [],              tableId: 'i2', splitOf: null },
+        { id: 'g7',  name: 'אריאל ושני פרידמן', adults: 2, children: 3, childrenWithParents: 2, tags: ['חברים'],       notes: 'ילדים קטנים',    proximity: [],              tableId: 'i2', splitOf: null },
+        { id: 'g8',  name: 'נעמי כץ',           adults: 1, children: 0, childrenWithParents: 0, tags: ['עבודה'],       notes: '',                proximity: [],              tableId: 'i3', splitOf: null },
+        { id: 'g9',  name: 'עמית ודנה הרצוג',   adults: 2, children: 0, childrenWithParents: 0, tags: ['עבודה'],       notes: '',                proximity: [],              tableId: 'i3', splitOf: null },
+        { id: 'g10', name: 'אורן ביטון',         adults: 1, children: 0, childrenWithParents: 0, tags: ['עבודה'],       notes: '',                proximity: [],              tableId: 'i3', splitOf: null },
+        { id: 'g11', name: 'מיכל שוורץ',        adults: 1, children: 0, childrenWithParents: 0, tags: ['חברים', 'VIP'],notes: '',                proximity: [],              tableId: null, splitOf: null },
+        { id: 'g12', name: 'יניב ואורית גולן',  adults: 2, children: 1, childrenWithParents: 1, tags: ['משפחה'],       notes: '',                proximity: [],              tableId: null, splitOf: null }
+      ],
+      items: [
+        { id: 'i1', type: 'table', number: 1, label: 'שולחן כבוד', shape: 'rectangle', seats: 10, width: 200, height: 100, x: 300, y: 200, color: '#e8d5b7', locked: false, rotation: null, textRotation: null, numberLocked: false, fontSize: null, fontLabelSize: null, fontGuestSize: null, fontOccupancySize: null },
+        { id: 'i2', type: 'table', number: 2, label: 'חברים',       shape: 'circle',    seats: 8,  width: 130, height: 130, x: 550, y: 200, color: null,      locked: false, rotation: null, textRotation: null, numberLocked: false, fontSize: null, fontLabelSize: null, fontGuestSize: null, fontOccupancySize: null },
+        { id: 'i3', type: 'table', number: 3, label: 'עבודה',       shape: 'circle',    seats: 8,  width: 130, height: 130, x: 700, y: 200, color: null,      locked: false, rotation: null, textRotation: null, numberLocked: false, fontSize: null, fontLabelSize: null, fontGuestSize: null, fontOccupancySize: null },
+        { id: 'i4', type: 'table', number: 4, label: '',            shape: 'circle',    seats: 8,  width: 130, height: 130, x: 550, y: 360, color: null,      locked: false, rotation: null, textRotation: null, numberLocked: false, fontSize: null, fontLabelSize: null, fontGuestSize: null, fontOccupancySize: null },
+        { id: 'i5', type: 'dancefloor', label: 'רחבת ריקודים', width: 220, height: 150, x: 160, y: 340, color: '#c8e6c9', rotation: null, textRotation: null },
+        { id: 'i6', type: 'door',       label: 'כניסה',        width: 70,  height: 40,  x: 160, y: 150, color: null,      rotation: null, textRotation: null },
+        { id: 'i7', type: 'stage',      label: 'במה',          width: 180, height: 80,  x: 160, y: 490, color: '#fff9c4', rotation: null, textRotation: null }
+      ],
+      canvas: { zoom: 1, panX: 60, panY: 40 },
+      guestDependencies: [
+        { id: 'dep1', guestA: 'g1', guestB: 'g3', type: 'family',   strength: 'preferred', notes: 'סבתא עם הורי החתן' },
+        { id: 'dep2', guestA: 'g4', guestB: 'g5', type: 'friends',  strength: 'preferred', notes: '' },
+        { id: 'dep3', guestA: 'g8', guestB: 'g9', type: 'friends',  strength: 'preferred', notes: 'עמיתים לעבודה' }
+      ],
+      _nextDepId: 4,
+      layoutOptions: []
+    };
+  }
+
+  function loadDemoProject() {
+    if (!UI.confirmDialog('לטעון את פרויקט הדוגמא? פעולה זו תוסיף אירוע חדש לרשימת האירועים.')) return;
+    const demoState = _buildDemoState();
+    const id = 'demo_' + Date.now();
+    try {
+      localStorage.setItem(evtKey(id), JSON.stringify(demoState));
+      const m = readMeta() || { currentId: null, events: [] };
+      m.events.push({ id, name: demoState.event.name, date: demoState.event.date, updated: new Date().toISOString() });
+      writeMeta(m);
+      localStorage.setItem(_DEMO_ID_KEY, id);
+      // Set currentId and persist meta BEFORE emitting eventSwitched
+      _currentId = id;
+      m.currentId = id;
+      writeMeta(m);
+      State.deserialize(demoState);
+      State.emit('eventSwitched');
+      UI.toast('פרויקט הדוגמא נטען ✓', 'success', 2500);
+    } catch(e) {
+      console.warn('loadDemoProject failed:', e);
+      UI.toast('שגיאה בטעינת פרויקט הדוגמא', 'error', 3000);
+    }
+  }
+
+  function removeDemoProject() {
+    const id = localStorage.getItem(_DEMO_ID_KEY);
+    if (!id) { UI.toast('לא נמצא פרויקט דוגמא', 'info', 2000); return; }
+    const m = readMeta();
+    const events = m?.events || [];
+    if (events.length <= 1) {
+      UI.toast('לא ניתן למחוק את האירוע היחיד. צור אירוע חדש תחילה.', 'warning', 3000);
+      return;
+    }
+    if (!UI.confirmDialog('למחוק את פרויקט הדוגמא? הנתונים יאבדו לצמיתות.')) return;
+    try {
+      deleteEvent(id);
+      localStorage.removeItem(_DEMO_ID_KEY);
+      UI.toast('פרויקט הדוגמא הוסר ✓', 'success', 2000);
+    } catch(e) {
+      UI.toast('שגיאה בהסרת פרויקט הדוגמא', 'error', 3000);
+    }
+  }
+
+  function isDemoLoaded() {
+    const id = localStorage.getItem(_DEMO_ID_KEY);
+    if (!id) return false;
+    const m = readMeta();
+    return !!(m?.events?.find(e => e.id === id));
+  }
+
   // Auto-save on every state change
   State.on('change', save);
 
@@ -428,8 +648,10 @@ const Storage = (() => {
     exportJSON, exportProjectJSON, exportCSV,
     importJSON, importProjectJSON,
     exportGuestsJSON, importGuestsJSON,
+    importGuestsCsv, importGuestsExcel, downloadGuestTemplate,
     exportLayoutOptions, importLayoutOptions,
     createEvent, switchEvent, deleteEvent,
-    getEventsList, updateCurrentMeta
+    getEventsList, updateCurrentMeta,
+    loadDemoProject, removeDemoProject, isDemoLoaded
   };
 })();

@@ -21,11 +21,21 @@ const State = (() => {
         fontNumberColor: '#1a237e',
         fontLabelColor: '#37474f',
         fontGuestColor: '#546e7a',
-        fontOccupancyColor: '#888888'
+        fontOccupancyColor: '#888888',
+        autoAssign: {
+          allowSplit: true,
+          keepExisting: false,
+          respectProximity: true,
+          createTables: false,
+          respectDependencies: true,
+          tableTypes: [],           // [{id, name, maxCount, maxSeats, minOccupancyBeforeSplit}]
+          customDependencyTypes: [] // [{id, label, strength, color, icon}]
+        }
       },
       canvas: { zoom: 0.6, panX: 40, panY: 40 },
       items: [],
       guests: [],
+      guestDependencies: [],        // [{id, guestA, guestB, type, strength, label?}]
       tags: [...CONFIG.DEFAULT_TAGS],
       tablePresets: [
         { name: 'שולחן עגול',   shape: 'circle',    seats: 10, width: 130, height: 130 },
@@ -36,6 +46,7 @@ const State = (() => {
       _nextItemId: 1,
       _nextGuestId: 1,
       _nextTableNum: 1,
+      _nextDepId: 1,
       layoutOptions: []
     };
   }
@@ -111,6 +122,7 @@ const State = (() => {
   function addGuest(guest) {
     guest.id = 'guest_' + (_state._nextGuestId++);
     guest.tableId = null;
+    if (guest.childrenWithParents === undefined) guest.childrenWithParents = 0;
     guest.total = (guest.adults || 0) + (guest.children || 0);
     _state.guests.push(guest);
     emit('guestAdded', guest);
@@ -138,6 +150,36 @@ const State = (() => {
     guest.tableId = tableId;
     emit('guestAssigned', { guestId, tableId, prevTableId: prev });
     return true;
+  }
+
+  /* ── guest dependencies ── */
+  function addDependency(dep) {
+    if (!dep.guestA || !dep.guestB || dep.guestA === dep.guestB) return null;
+    dep.id = 'dep_' + (_state._nextDepId++);
+    if (!dep.strength && dep.type && CONFIG.DEPENDENCY_TYPES[dep.type])
+      dep.strength = CONFIG.DEPENDENCY_TYPES[dep.type].strength;
+    _state.guestDependencies.push(dep);
+    emit('dependenciesChanged');
+    return dep;
+  }
+  function removeDependency(id) {
+    const idx = _state.guestDependencies.findIndex(d => d.id === id);
+    if (idx < 0) return false;
+    _state.guestDependencies.splice(idx, 1);
+    emit('dependenciesChanged');
+    return true;
+  }
+  function updateDependency(id, updates) {
+    const dep = _state.guestDependencies.find(d => d.id === id);
+    if (!dep) return null;
+    Object.assign(dep, updates);
+    if (updates.type && CONFIG.DEPENDENCY_TYPES[updates.type] && !updates.strength)
+      dep.strength = CONFIG.DEPENDENCY_TYPES[updates.type].strength;
+    emit('dependenciesChanged');
+    return dep;
+  }
+  function getGuestDependencies(guestId) {
+    return _state.guestDependencies.filter(d => d.guestA === guestId || d.guestB === guestId);
   }
 
   /* ── table numbering ── */
@@ -185,15 +227,31 @@ const State = (() => {
       ...def,
       ...data,
       event:    { ...def.event,    ...(data.event    || {}) },
-      settings: { ...def.settings, ...(data.settings || {}) },
+      settings: {
+        ...def.settings,
+        ...(data.settings || {}),
+        autoAssign: { ...def.settings.autoAssign, ...((data.settings || {}).autoAssign || {}) }
+      },
       canvas:   { ...def.canvas,   ...(data.canvas   || {}) },
-      items:         Array.isArray(data.items)         ? data.items         : def.items,
-      guests:        Array.isArray(data.guests)        ? data.guests        : def.guests,
-      tags:          Array.isArray(data.tags)          ? data.tags          : def.tags,
-      tablePresets:  Array.isArray(data.tablePresets)  ? data.tablePresets  : def.tablePresets,
-      layoutOptions: Array.isArray(data.layoutOptions) ? data.layoutOptions : def.layoutOptions
+      items:              Array.isArray(data.items)              ? data.items              : def.items,
+      guests:             Array.isArray(data.guests)             ? data.guests             : def.guests,
+      guestDependencies:  Array.isArray(data.guestDependencies)  ? data.guestDependencies  : def.guestDependencies,
+      tags:               Array.isArray(data.tags)               ? data.tags               : def.tags,
+      tablePresets:       Array.isArray(data.tablePresets)       ? data.tablePresets       : def.tablePresets,
+      layoutOptions:      Array.isArray(data.layoutOptions)      ? data.layoutOptions      : def.layoutOptions
     };
-    _state.guests.forEach(g => { g.total = (g.adults || 0) + (g.children || 0); });
+    _state.guests.forEach(g => {
+      g.total = (g.adults || 0) + (g.children || 0);
+      if (g.childrenWithParents === undefined) g.childrenWithParents = 0;
+    });
+    // Derive _nextDepId from max existing ID suffix to handle deleted deps correctly
+    if (!_state._nextDepId) {
+      const maxId = _state.guestDependencies.reduce((mx, d) => {
+        const n = parseInt((d.id || '').replace(/^dep_/, ''), 10);
+        return isNaN(n) ? mx : Math.max(mx, n);
+      }, 0);
+      _state._nextDepId = maxId + 1;
+    }
     emit('dataLoaded');
   }
 
@@ -216,20 +274,27 @@ const State = (() => {
   function resetBoard() {
     _state.items  = [];
     _state.guests = [];
+    _state.guestDependencies = [];
     _state._nextItemId  = 1;
     _state._nextGuestId = 1;
     _state._nextTableNum = 1;
+    _state._nextDepId = 1;
     _state.event = { ...createDefaultState().event }; // clear event name/date for new event
     emit('dataLoaded');   // triggers full re-render
   }
 
   /* ── reset board keeping guests (wipes items/assignments only) ── */
   function resetBoardKeepGuests() {
+    const keptGuestIds = new Set();
     _state.guests = _state.guests.filter(g => !g.splitOf); // drop split artefacts to avoid double-counting
-    _state.guests.forEach(g => { g.tableId = null; });
+    _state.guests.forEach(g => { g.tableId = null; keptGuestIds.add(g.id); });
     _state.items = [];
     _state._nextItemId = 1;
     _state._nextTableNum = 1;
+    // Remove deps referencing dropped split-artifact guests
+    _state.guestDependencies = _state.guestDependencies.filter(
+      d => keptGuestIds.has(d.guestA) && keptGuestIds.has(d.guestB)
+    );
     emit('dataLoaded');
   }
 
@@ -299,6 +364,7 @@ const State = (() => {
         name: g.name || '',
         adults: g.adults || 0,
         children: g.children || 0,
+        childrenWithParents: g.childrenWithParents || 0,
         tags: Array.isArray(g.tags) ? [...g.tags] : [],
         proximity: Array.isArray(g.proximity) ? [...g.proximity] : [],
         notes: g.notes || '',
@@ -316,6 +382,7 @@ const State = (() => {
     getTableGuests, getTableOccupancy, getStats,
     addItem, updateItem, removeItem, duplicateItem,
     addGuest, updateGuest, removeGuest, assignGuest,
+    addDependency, removeDependency, updateDependency, getGuestDependencies,
     nextTableNumber,
     addTablePreset, removeTablePreset,
     addTag, removeTag,

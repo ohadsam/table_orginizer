@@ -256,6 +256,9 @@ const Guests = (() => {
         el.querySelector('.btn-find-table')?.addEventListener('click', e => {
           e.stopPropagation(); Modals.openFindTable(g.id);
         });
+        el.querySelector('.btn-dep-guest')?.addEventListener('click', e => {
+          e.stopPropagation(); Modals.openGuestDependencies(g.id);
+        });
 
         // Drag reorder: draggable is off by default; handle pointerdown enables it
         const handle = el.querySelector('.guest-reorder-handle');
@@ -333,6 +336,7 @@ const Guests = (() => {
     <div class="guest-actions">
       ${unassignBtn}
       <button class="btn-icon-xs btn-find-table"   title="מצא שולחן פנוי עבור מוזמן זה">🔍</button>
+      <button class="btn-icon-xs btn-dep-guest"    title="קשרים ותלויות של המוזמן">🔗</button>
       <button class="btn-icon-xs btn-edit-guest"   title="עריכת פרטי המוזמן">✏️</button>
       <button class="btn-icon-xs btn-remove-guest" title="מחיקת המוזמן מהרשימה">🗑</button>
     </div>

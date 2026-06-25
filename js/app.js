@@ -133,6 +133,10 @@ document.addEventListener('DOMContentLoaded', () => {
     finally { _pendingLayoutsFile = null; UI.closeModal('modalImportLayouts'); }
   });
 
+  /* ── Demo project ── */
+  document.getElementById('btnLoadDemo')?.addEventListener('click', () => Storage.loadDemoProject());
+  document.getElementById('btnRemoveDemo')?.addEventListener('click', () => Storage.removeDemoProject());
+
   /* ── Guest export / import ── */
   document.getElementById('btnExportGuests')?.addEventListener('click', () => Storage.exportGuestsJSON());
   document.getElementById('btnImportGuests')?.addEventListener('click', () => document.getElementById('importGuestsInput')?.click());
@@ -150,6 +154,58 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnImportGuestsReplace')?.addEventListener('click', async () => {
     try { if (_pendingGuestsFile) await Storage.importGuestsJSON(_pendingGuestsFile, false); }
     finally { _pendingGuestsFile = null; UI.closeModal('modalImportGuests'); }
+  });
+
+  /* ── CSV/Excel guest import ── */
+  document.getElementById('btnDownloadGuestTemplate')?.addEventListener('click', () => Storage.downloadGuestTemplate());
+  let _pendingCsvFile = null;
+  let _csvFileType = 'csv';
+
+  function _openCsvImportModal(file, type) {
+    _pendingCsvFile  = file;
+    _csvFileType     = type;
+    const titleEl = document.getElementById('importGuestsCsvTitle');
+    if (titleEl) titleEl.textContent = type === 'excel' ? '📥 ייבוא מוזמנים (Excel)' : '📥 ייבוא מוזמנים (CSV)';
+    UI.openModal('modalImportGuestsCsv');
+  }
+
+  document.getElementById('btnImportGuestsCsv')?.addEventListener('click', () => {
+    const inp = document.getElementById('importGuestsCsvInput');
+    if (!inp) return;
+    inp.accept = '.csv';
+    inp.click();
+  });
+  document.getElementById('btnImportGuestsExcel')?.addEventListener('click', () => {
+    const inp = document.getElementById('importGuestsCsvInput');
+    if (!inp) return;
+    inp.accept = '.xlsx,.xls';
+    inp.click();
+  });
+  document.getElementById('importGuestsCsvInput')?.addEventListener('change', e => {
+    const file = e.target.files[0]; if (!file) return;
+    const isExcel = /\.(xlsx|xls)$/i.test(file.name);
+    _openCsvImportModal(file, isExcel ? 'excel' : 'csv');
+    e.target.value = '';
+  });
+  document.getElementById('btnImportCsvMerge')?.addEventListener('click', async () => {
+    try {
+      if (_pendingCsvFile) {
+        if (_csvFileType === 'excel') await Storage.importGuestsExcel(_pendingCsvFile, true);
+        else await Storage.importGuestsCsv(_pendingCsvFile, true);
+      }
+    } finally { _pendingCsvFile = null; UI.closeModal('modalImportGuestsCsv'); }
+  });
+  document.getElementById('btnImportCsvReplace')?.addEventListener('click', async () => {
+    try {
+      if (_pendingCsvFile) {
+        if (_csvFileType === 'excel') await Storage.importGuestsExcel(_pendingCsvFile, false);
+        else await Storage.importGuestsCsv(_pendingCsvFile, false);
+      }
+    } finally { _pendingCsvFile = null; UI.closeModal('modalImportGuestsCsv'); }
+  });
+  document.getElementById('btnDownloadTemplateCsvLink')?.addEventListener('click', e => {
+    e.preventDefault();
+    Storage.downloadGuestTemplate();
   });
 
   /* ── Sidebar: add items ── */
@@ -205,6 +261,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Returning user: show storage warning periodically (every 4h unless dismissed)
     UI.showStorageWarning(false);
   }
+
+  /* ── Hints system ── */
+  UI.initHints();
 
   console.log('🎉 Seating Planner loaded');
 });

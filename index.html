@@ -43,9 +43,18 @@
         <button class="dropdown-item" id="btnImport"    title="ייבוא פרויקט מקובץ JSON — תומך בקבצי פרויקט מלא (כל האירועים) וגם בקובץ אירוע בודד">📥 ייבוא פרויקט (JSON)</button>
         <button class="dropdown-item" id="btnExportCsv" title="ייצוא רשימת מוזמנים האירוע הנוכחי לקובץ CSV לפתיחה באקסל">📊 ייצוא מוזמנים (CSV)</button>
         <hr class="dropdown-sep">
+        <div class="dropdown-section-label">ייבוא מוזמנים</div>
+        <button class="dropdown-item" id="btnDownloadGuestTemplate" title="הורד קובץ CSV לדוגמה לייבוא מוזמנים — פתח באקסל, מלא ושמור">📋 הורד תבנית CSV לייבוא</button>
+        <button class="dropdown-item" id="btnImportGuestsCsv" title="ייבוא מוזמנים מקובץ CSV (ניתן לייצא מאקסל)">📥 ייבוא מוזמנים (CSV)</button>
+        <button class="dropdown-item" id="btnImportGuestsExcel" title="ייבוא מוזמנים מקובץ אקסל (.xlsx)">📥 ייבוא מוזמנים (Excel)</button>
+        <hr class="dropdown-sep">
         <div class="dropdown-section-label">פריסות הושבה</div>
         <button class="dropdown-item" id="btnExportLayouts" title="ייצוא כל פריסות ההושבה השמורות לקובץ JSON לגיבוי או שיתוף">📐 ייצוא פריסות הושבה (JSON)</button>
         <button class="dropdown-item" id="btnImportLayouts" title="ייבוא פריסות הושבה מקובץ JSON — אפשרות מיזוג עם הקיימות או החלפה">📐 ייבוא פריסות הושבה (JSON)</button>
+        <hr class="dropdown-sep">
+        <div class="dropdown-section-label">פרויקט דוגמא</div>
+        <button class="dropdown-item" id="btnLoadDemo"   title="טען פרויקט דוגמא עם שולחנות ומוזמנים לצורך הכרת המערכת">🎓 טען פרויקט דוגמא</button>
+        <button class="dropdown-item" id="btnRemoveDemo" title="הסר את פרויקט הדוגמא מרשימת האירועים">🗑 הסר פרויקט דוגמא</button>
       </div>
     </div>
 
@@ -102,7 +111,10 @@
 
     <!-- Add to hall -->
     <div class="panel">
-      <div class="panel-header">הוסף לאולם</div>
+      <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between">
+        <span>הוסף לאולם</span>
+        <button class="btn-toggle-filters" id="btnToggleVenueItems" title="הצג/הסתר פריטי אולם נוספים" style="font-size:12px;padding:2px 6px">▼ עוד</button>
+      </div>
       <div class="add-items-grid">
         <button class="btn-add-item" data-add-item="table"      title="הוסף שולחן">
           <span class="item-icon">⬭</span><span>שולחן</span>
@@ -120,6 +132,42 @@
           <span class="item-icon">⬛</span><span>צורה</span>
         </button>
       </div>
+      <!-- Extra venue items (collapsed by default) -->
+      <div class="add-items-grid" id="venueItemsExtra" style="display:none;border-top:1px dashed #e0e0e0;margin-top:4px;padding-top:4px">
+        <button class="btn-add-item" data-add-item="stage"    title="במה">
+          <span class="item-icon">🎤</span><span>במה</span>
+        </button>
+        <button class="btn-add-item" data-add-item="bar"      title="בר">
+          <span class="item-icon">🍹</span><span>בר</span>
+        </button>
+        <button class="btn-add-item" data-add-item="buffet"   title="בופה">
+          <span class="item-icon">🍽️</span><span>בופה</span>
+        </button>
+        <button class="btn-add-item" data-add-item="kitchen"  title="מטבח">
+          <span class="item-icon">🍳</span><span>מטבח</span>
+        </button>
+        <button class="btn-add-item" data-add-item="photo"    title="פינת צילום">
+          <span class="item-icon">📸</span><span>צילום</span>
+        </button>
+        <button class="btn-add-item" data-add-item="pool"     title="בריכה">
+          <span class="item-icon">🏊</span><span>בריכה</span>
+        </button>
+        <button class="btn-add-item" data-add-item="waterfall" title="מפל מים">
+          <span class="item-icon">💧</span><span>מפל</span>
+        </button>
+        <button class="btn-add-item" data-add-item="balcony"  title="מרפסת">
+          <span class="item-icon">🌿</span><span>מרפסת</span>
+        </button>
+        <button class="btn-add-item" data-add-item="stairs"   title="מדרגות">
+          <span class="item-icon">🪜</span><span>מדרגות</span>
+        </button>
+        <button class="btn-add-item" data-add-item="elevator" title="מעלית">
+          <span class="item-icon">🛗</span><span>מעלית</span>
+        </button>
+        <button class="btn-add-item" data-add-item="bathroom" title="שירותים">
+          <span class="item-icon">🚻</span><span>שירותים</span>
+        </button>
+      </div>
     </div>
 
     <!-- Guests -->
@@ -127,8 +175,9 @@
       <div class="panel-header">
         <span>מוזמנים</span>
         <div class="panel-actions">
-          <button class="btn btn-sm btn-secondary" id="btnImportGuests" title="ייבוא מוזמנים מקובץ">⬇️</button>
+          <button class="btn btn-sm btn-secondary" id="btnImportGuests" title="ייבוא מוזמנים מקובץ JSON, CSV או אקסל">⬇️</button>
           <button class="btn btn-sm btn-secondary" id="btnExportGuests" title="ייצוא מוזמנים לקובץ">⬆️</button>
+          <button class="btn btn-sm btn-secondary" id="btnGuestDependencies" title="פתח תרשים תלויות בין מוזמנים — הגדר קשרים: זוגות, משפחה, קונפליקטים">🔗</button>
           <button class="btn btn-sm btn-primary"   id="btnAddGuest" title="הוסף מוזמן חדש לרשימה">+ הוסף</button>
           <button class="btn btn-sm btn-secondary" id="btnAutoAssign" title="פתח חלון שיבוץ אוטומטי — שיבוץ מוזמנים לשולחנות לפי תגיות">⚡ שיבוץ</button>
         </div>
@@ -345,6 +394,10 @@
         <label>ילדים</label>
         <input type="number" id="guestChildren" class="input" value="0" min="0">
       </div>
+      <div class="form-group" id="guestChildrenWithParentsGroup" style="display:none">
+        <label>מתוכם — ילדים חייבים לשבת עם הורה <small style="font-weight:400;color:#90a4ae">(לשיבוץ אוטומטי)</small></label>
+        <input type="number" id="guestChildrenWithParents" class="input" value="0" min="0">
+      </div>
       <div class="form-group">
         <label>תגיות</label>
         <div class="tags-selector" id="guestTagsSelector"></div>
@@ -550,6 +603,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-primary" id="btnConfirmAutoAssign">⚡ שבץ!</button>
+      <button class="btn btn-secondary" id="btnOpenAutoAssignSettings" title="פתח הגדרות מתקדמות לשיבוץ אוטומטי — סוגי שולחנות, מגבלות ותלויות">⚙️ הגדרות מתקדמות</button>
       <button class="btn btn-ghost"   data-close-modal="modalAutoAssign">ביטול</button>
     </div>
   </div>
@@ -652,8 +706,11 @@
 
 <!-- ═══════════════════ UTILITIES ═══════════════════ -->
 <div class="toast-container" id="toastContainer"></div>
-<input type="file" id="importFileInput"  accept=".json" style="display:none">
-<input type="file" id="importGuestsInput" accept=".json" style="display:none">
+<div id="hintsContainer" class="hints-container"></div>
+<input type="file" id="importFileInput"     accept=".json" style="display:none">
+<input type="file" id="importGuestsInput"  accept=".json" style="display:none">
+<input type="file" id="importGuestsCsvInput" accept=".csv,.xlsx,.xls" style="display:none">
+<input type="file" id="importGuestsExcelInput" accept=".xlsx,.xls" style="display:none">
 <input type="file" id="cardBgInput" accept="image/*" style="display:none">
 
 <!-- Hidden print areas -->
@@ -1282,8 +1339,180 @@
   </div>
 </div>
 
+<!-- ═══════════════════ GUEST DEPENDENCIES MODAL ═══════════════════ -->
+<div class="modal-overlay" id="modalGuestDependencies">
+  <div class="modal modal-xl" style="max-width:900px">
+    <div class="modal-header">
+      <h2>🔗 תרשים תלויות בין מוזמנים</h2>
+      <button class="modal-close" data-close-modal="modalGuestDependencies">✕</button>
+    </div>
+    <div class="modal-body" style="padding:0">
+      <!-- Tab bar -->
+      <div class="dep-tabs">
+        <button class="dep-tab active" id="depTabGraph" data-tab="graph">🕸 תרשים</button>
+        <button class="dep-tab" id="depTabTable" data-tab="table">📋 טבלה</button>
+        <button class="dep-tab" id="depTabSuggest" data-tab="suggest">✨ הצעות אוטומטיות</button>
+      </div>
+      <!-- Graph view -->
+      <div id="depGraphView" class="dep-view">
+        <div id="depGraphLegend" class="dep-legend"></div>
+        <div id="depGraphCanvas" class="dep-graph-canvas"></div>
+      </div>
+      <!-- Table view -->
+      <div id="depTableView" class="dep-view" style="display:none">
+        <div style="padding:12px">
+          <button class="btn btn-sm btn-primary" id="btnAddDependency" style="margin-bottom:10px">+ הוסף קשר</button>
+          <div id="depAddForm" class="dep-add-form" style="display:none"></div>
+          <div id="depTableBody"></div>
+        </div>
+      </div>
+      <!-- Auto-suggest view -->
+      <div id="depSuggestView" class="dep-view" style="display:none">
+        <div style="padding:12px">
+          <p style="font-size:13px;color:#607d8b;margin-bottom:12px">המערכת מציעה קשרים אוטומטיים בין מוזמנים שיש להם תגיות משותפות. לחץ ✓ לאישור או ✕ לדחייה.</p>
+          <div id="depSuggestBody"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close-modal="modalGuestDependencies">סגור</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ AUTO-ASSIGN SETTINGS MODAL ═══════════════════ -->
+<div class="modal-overlay" id="modalAutoAssignSettings">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>⚙️ הגדרות שיבוץ אוטומטי</h2>
+      <button class="modal-close" data-close-modal="modalAutoAssignSettings">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="settings-section-title">הגדרות בסיסיות</div>
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="aaSettingRespectDeps">
+          <span>התחשב בתלויות בין מוזמנים (זוגות, קונפליקטים, וכדומה)</span>
+        </label>
+      </div>
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="aaSettingAllowSplit" checked>
+          <span>אפשר פיצול קבוצות גדולות בין שולחנות</span>
+        </label>
+      </div>
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="aaSettingKeepExisting">
+          <span>שמור שיבוצים קיימים</span>
+        </label>
+      </div>
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="aaSettingRespectProximity" checked>
+          <span>התחשב בהעדפות מיקום (קרבה לרחבה/כניסה)</span>
+        </label>
+      </div>
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="aaSettingCreateTables">
+          <span>צור שולחנות חדשים אוטומטית אם אין מספיק מקום</span>
+        </label>
+      </div>
+      <hr class="settings-divider">
+      <div class="settings-section-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>סוגי שולחנות להגבלה</span>
+        <button class="btn btn-sm btn-primary" id="btnAddTableType">+ הוסף סוג</button>
+      </div>
+      <p style="font-size:12px;color:#607d8b;margin-bottom:8px">הגדר סוגי שולחנות לשיבוץ אוטומטי — מגבלה כמות שולחנות מהסוג ומינימום תפוסה לפני פיצול.</p>
+      <div id="aaTableTypesList" style="margin-bottom:8px"></div>
+      <div id="aaAddTableTypeForm" class="dep-add-form" style="display:none;margin-bottom:8px">
+        <div style="display:grid;grid-template-columns:1fr 80px 80px 120px auto;gap:8px;align-items:end">
+          <div>
+            <label class="form-label" style="font-size:11px">שם הסוג</label>
+            <input type="text" id="aaTypeNameInput" class="input" placeholder="לדוגמה: VIP">
+          </div>
+          <div>
+            <label class="form-label" style="font-size:11px">מקסימום שולחנות</label>
+            <input type="number" id="aaTypeMaxCount" class="input" min="0" placeholder="ללא הגבלה">
+          </div>
+          <div>
+            <label class="form-label" style="font-size:11px">מקסימום מושבים</label>
+            <input type="number" id="aaTypeMaxSeats" class="input" min="1" placeholder="כולם">
+          </div>
+          <div>
+            <label class="form-label" style="font-size:11px">מינימום תפוסה לפני פיצול</label>
+            <input type="number" id="aaTypeMinOccupancy" class="input" min="0" max="100" placeholder="0">
+          </div>
+          <div style="padding-bottom:2px">
+            <button class="btn btn-sm btn-primary" id="btnConfirmAddTableType">הוסף</button>
+          </div>
+        </div>
+      </div>
+      <hr class="settings-divider">
+      <div class="settings-section-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>סוגי תלויות מותאמים</span>
+        <button class="btn btn-sm btn-primary" id="btnAddCustomDepType">+ הוסף</button>
+      </div>
+      <p style="font-size:12px;color:#607d8b;margin-bottom:8px">הוסף סוגי קשר מותאמים אישית מעבר לקשרים המובנים.</p>
+      <div id="aaCustomDepTypesList" style="margin-bottom:8px"></div>
+      <div id="aaAddCustomDepForm" class="dep-add-form" style="display:none;margin-bottom:8px">
+        <div style="display:grid;grid-template-columns:1fr 80px 120px 40px auto;gap:8px;align-items:end">
+          <div>
+            <label class="form-label" style="font-size:11px">שם הקשר</label>
+            <input type="text" id="aaCustomDepLabel" class="input" placeholder="לדוגמה: שותפים">
+          </div>
+          <div>
+            <label class="form-label" style="font-size:11px">אייקון</label>
+            <input type="text" id="aaCustomDepIcon" class="input" placeholder="💼" style="width:60px;text-align:center">
+          </div>
+          <div>
+            <label class="form-label" style="font-size:11px">עוצמה</label>
+            <select id="aaCustomDepStrength" class="input">
+              <option value="required">חובה — חייבים יחד</option>
+              <option value="preferred" selected>מועדף — עדיף יחד</option>
+              <option value="avoid">הימנע — עדיף בנפרד</option>
+              <option value="forbidden">אסור — חייבים בנפרד</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label" style="font-size:11px">צבע</label>
+            <input type="color" id="aaCustomDepColor" value="#42A5F5" style="width:40px;height:34px;padding:2px;border:1px solid #ccc;border-radius:4px;cursor:pointer">
+          </div>
+          <div style="padding-bottom:2px">
+            <button class="btn btn-sm btn-primary" id="btnConfirmAddCustomDep">הוסף</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="btnSaveAutoAssignSettings">שמור הגדרות</button>
+      <button class="btn btn-ghost"   data-close-modal="modalAutoAssignSettings">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ IMPORT GUESTS CSV/EXCEL MODAL ═══════════════════ -->
+<div class="modal-overlay" id="modalImportGuestsCsv">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h2 id="importGuestsCsvTitle">📥 ייבוא מוזמנים</h2>
+      <button class="modal-close" data-close-modal="modalImportGuestsCsv">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;margin-bottom:10px">כיצד לייבא?</p>
+      <p style="font-size:12px;color:#607d8b"><strong>מיזוג</strong> — ישמור את המוזמנים הקיימים ויוסיף את החדשים.<br><strong>החלפה</strong> — ימחק את כל המוזמנים הנוכחיים וייבא את הקובץ.</p>
+      <p style="font-size:12px;color:#607d8b;margin-top:8px">📋 לא בטוח בפורמט? <a id="btnDownloadTemplateCsvLink" href="#" style="color:#1565c0;cursor:pointer">הורד תבנית CSV</a></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary"   id="btnImportCsvMerge">מיזוג</button>
+      <button class="btn btn-secondary" id="btnImportCsvReplace">החלפה</button>
+      <button class="btn btn-ghost"     data-close-modal="modalImportGuestsCsv">ביטול</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════════ ITEM NAV PANEL ═══════════════════ -->
-<div id="itemNavPanel">
   <button id="itemNavToggleBtn" class="item-nav-toggle-btn" title="פתח תפריט פריטים">▶</button>
   <div id="itemNavContent" class="item-nav-content">
     <div class="item-nav-header">פריטי האולם</div>
@@ -1294,6 +1523,7 @@
 <input type="file" id="importLayoutsInput" accept=".json" style="display:none">
 
 <!-- ═══════════════════ SCRIPTS ═══════════════════ -->
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/state.js"></script>
 <script src="js/ui.js"></script>

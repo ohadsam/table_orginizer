@@ -137,10 +137,55 @@ const AutoAssign = (() => {
     return created;
   }
 
+  /* ── build dependency maps for constraint checking ── */
+  function buildDepMaps(guestDependencies) {
+    const forbidden  = {};  // guestId → Set of forbidden co-table guestIds
+    const required   = {};  // guestId → Set of required co-table guestIds
+    const preferred  = {};  // guestId → Set of preferred co-table guestIds
+    const avoid      = {};  // guestId → Set of avoid co-table guestIds
+
+    function add(map, a, b) {
+      if (!map[a]) map[a] = new Set();
+      if (!map[b]) map[b] = new Set();
+      map[a].add(b); map[b].add(a);
+    }
+
+    (guestDependencies || []).forEach(dep => {
+      const s = dep.strength;
+      if (s === 'forbidden') { add(forbidden, dep.guestA, dep.guestB); }
+      else if (s === 'required') { add(required, dep.guestA, dep.guestB); }
+      else if (s === 'preferred') { add(preferred, dep.guestA, dep.guestB); }
+      else if (s === 'avoid') { add(avoid, dep.guestA, dep.guestB); }
+    });
+
+    return { forbidden, required, preferred, avoid };
+  }
+
+  /* ── constraint score for placing guest at a specific table ── */
+  function depScore(guestId, tableId, depMaps, tableGuests) {
+    const occupants = new Set((tableGuests[tableId] || []).map(g => g.id));
+    let score = 0;
+    if (depMaps.preferred[guestId]) depMaps.preferred[guestId].forEach(id => { if (occupants.has(id)) score += 200; });
+    if (depMaps.required[guestId])  depMaps.required[guestId].forEach(id =>  { if (occupants.has(id)) score += 500; });
+    if (depMaps.avoid[guestId])     depMaps.avoid[guestId].forEach(id =>     { if (occupants.has(id)) score -= 300; });
+    return score;
+  }
+
+  /* ── check hard constraints: forbidden pair at same table ── */
+  function hasForbidden(guestId, tableId, depMaps, tableGuests) {
+    if (!depMaps.forbidden[guestId]) return false;
+    const occupants = new Set((tableGuests[tableId] || []).map(g => g.id));
+    return [...depMaps.forbidden[guestId]].some(id => occupants.has(id));
+  }
+
   /* ── main entry — returns summary { assigned, failed, splitsCreated, tablesCreated } ── */
   function run({ allowSplit = true, keepExisting = false, respectProximity = true, createTables = false }) {
-    const guests = State.get().guests.slice();
+    const state  = State.get();
+    const guests = state.guests.slice();
     let   tables = State.getTables().slice();
+
+    const aaSettings = state.settings?.autoAssign || {};
+    const respectDeps = aaSettings.respectDependencies !== false;
 
     if (!tables.length && !createTables) {
       UI.toast('אין שולחנות להושיב בהם', 'warning');
@@ -156,7 +201,7 @@ const AutoAssign = (() => {
       });
     }
 
-    const pending = guests.filter(g => !g.tableId);
+    const pending = State.get().guests.filter(g => !g.tableId && !g.splitOf);
     if (!pending.length) {
       UI.toast('כל המוזמנים כבר משובצים', 'info');
       return { assigned: 0, failed: 0, splitsCreated: 0, tablesCreated: 0 };
@@ -183,13 +228,23 @@ const AutoAssign = (() => {
       door:       respectProximity ? landmarkCenters('door')       : []
     };
 
-    const grouped = groupByAffinity(pending);
+    // Build live "who's already at each table" snapshot for constraint checking
+    const tableGuests = {};
+    tables.forEach(t => { tableGuests[t.id] = State.getTableGuests(t.id); });
+
+    const depMaps = respectDeps ? buildDepMaps(state.guestDependencies) : { forbidden: {}, required: {}, preferred: {}, avoid: {} };
+
+    // CSP-Greedy: sort by most-constrained first
+    // required/forbidden deps make a guest harder to place → sort first
+    const sorted = sortByConstraints(pending, depMaps);
+    const grouped = groupByAffinity(sorted);
+
     let assigned = 0, failed = 0, splitsCreated = 0;
 
     Guests.startBatch(); // suppress per-assignment re-renders (O(n²) → O(1))
     try {
       for (const group of grouped) {
-        const res = assignGroup(group, tables, capacity, allowSplit, landmarks, respectProximity);
+        const res = assignGroup(group, tables, capacity, allowSplit, landmarks, respectProximity, depMaps, tableGuests);
         assigned      += res.assigned;
         failed        += res.failed;
         splitsCreated += res.splitsCreated;
@@ -199,6 +254,16 @@ const AutoAssign = (() => {
     }
 
     return { assigned, failed, splitsCreated, tablesCreated };
+  }
+
+  /* ── sort most-constrained guests first (required/forbidden deps → more constrained) ── */
+  function sortByConstraints(guests, depMaps) {
+    return [...guests].sort((a, b) => {
+      const cA = ((depMaps.required[a.id] || new Set()).size + (depMaps.forbidden[a.id] || new Set()).size);
+      const cB = ((depMaps.required[b.id] || new Set()).size + (depMaps.forbidden[b.id] || new Set()).size);
+      if (cB !== cA) return cB - cA;  // more constrained first
+      return b.total - a.total;        // then larger groups first
+    });
   }
 
   /* ── group guests sharing the same tag-set, biggest groups first ── */
@@ -213,34 +278,40 @@ const AutoAssign = (() => {
   const sumTotal = arr => arr.reduce((s, g) => s + g.total, 0);
 
   /* ── place every guest in a group ── */
-  function assignGroup(group, tables, capacity, allowSplit, landmarks, respectProximity) {
+  function assignGroup(group, tables, capacity, allowSplit, landmarks, respectProximity, depMaps, tableGuests) {
     let assigned = 0, failed = 0, splitsCreated = 0;
     group.sort((a, b) => b.total - a.total);
 
     for (const guest of group) {
       if (guest.tableId) continue;
-      const scorer = respectProximity
-        ? makeScorer(guest.proximity, landmarks)
-        : () => 0;
+      const scorer = g => {
+        const proxScore = respectProximity ? makeScorer(guest.proximity, landmarks)(g) : 0;
+        const dScore    = depScore(guest.id, g.id, depMaps, tableGuests);
+        return proxScore + dScore;
+      };
 
-      const fit = findBestTable(guest.total, tables, capacity, scorer);
+      const fit = findBestTable(guest.total, tables, capacity, scorer, guest.id, depMaps, tableGuests);
       if (fit) {
         State.assignGuest(guest.id, fit.id);
         capacity[fit.id] -= guest.total;
+        if (!tableGuests[fit.id]) tableGuests[fit.id] = [];
+        tableGuests[fit.id].push(guest);
         assigned += guest.total;
         continue;
       }
 
       if (allowSplit) {
-        const r = placeWithSplit(guest, tables, capacity, scorer);
+        const r = placeWithSplit(guest, tables, capacity, scorer, depMaps, tableGuests);
         assigned      += r.placed;
         failed        += r.leftover;
         splitsCreated += r.splitsCreated;
       } else {
-        const best = mostSpacious(tables, capacity);
+        const best = mostSpacious(tables, capacity, guest.id, depMaps, tableGuests);
         if (best && capacity[best.id] >= guest.total) {
           State.assignGuest(guest.id, best.id);
           capacity[best.id] -= guest.total;
+          if (!tableGuests[best.id]) tableGuests[best.id] = [];
+          tableGuests[best.id].push(guest);
           assigned += guest.total;
         } else {
           failed += guest.total;
@@ -250,24 +321,28 @@ const AutoAssign = (() => {
     return { assigned, failed, splitsCreated };
   }
 
-  function findBestTable(size, tables, capacity, scorer) {
-    const candidates = tables.filter(t => capacity[t.id] >= size);
+  function findBestTable(size, tables, capacity, scorer, guestId, depMaps, tableGuests) {
+    // Filter: enough capacity AND no forbidden constraint
+    const candidates = tables.filter(t =>
+      capacity[t.id] >= size &&
+      !hasForbidden(guestId, t.id, depMaps, tableGuests)
+    );
     if (!candidates.length) return null;
     return candidates.sort((a, b) => {
       const sd = scorer(b) - scorer(a);
       if (Math.abs(sd) > 1e-6) return sd;
-      return capacity[a.id] - capacity[b.id];   // tightest fit
+      return capacity[a.id] - capacity[b.id];   // tightest fit (prefer less waste)
     })[0];
   }
 
-  function mostSpacious(tables, capacity) {
+  function mostSpacious(tables, capacity, guestId, depMaps, tableGuests) {
     return tables
-      .filter(t => capacity[t.id] > 0)
+      .filter(t => capacity[t.id] > 0 && !hasForbidden(guestId, t.id, depMaps, tableGuests))
       .sort((a, b) => capacity[b.id] - capacity[a.id])[0] || null;
   }
 
   /* ── true split: distribute one family across several tables, creating sibling cards ── */
-  function placeWithSplit(guest, tables, capacity, scorer) {
+  function placeWithSplit(guest, tables, capacity, scorer, depMaps, tableGuests) {
     const origTotal = guest.total;
     let remaining  = guest.total;
     let remAdults  = guest.adults;
@@ -276,7 +351,7 @@ const AutoAssign = (() => {
 
     while (remaining > 0) {
       const cand = tables
-        .filter(t => capacity[t.id] > 0)
+        .filter(t => capacity[t.id] > 0 && !hasForbidden(guest.id, t.id, depMaps, tableGuests))
         .sort((a, b) => {
           const sd = scorer(b) - scorer(a);
           if (Math.abs(sd) > 1e-6) return sd;
@@ -291,6 +366,8 @@ const AutoAssign = (() => {
       if (first) {
         State.updateGuest(guest.id, { adults: aTake, children: cTake });
         State.assignGuest(guest.id, cand.id);
+        if (!tableGuests[cand.id]) tableGuests[cand.id] = [];
+        tableGuests[cand.id].push(guest);
         first = false;
       } else {
         splitsCreated++;
@@ -304,6 +381,8 @@ const AutoAssign = (() => {
           splitOf:   guest.id
         });
         State.assignGuest(child.id, cand.id);
+        if (!tableGuests[cand.id]) tableGuests[cand.id] = [];
+        tableGuests[cand.id].push(child);
       }
 
       capacity[cand.id] -= take;
