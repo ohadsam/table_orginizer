@@ -640,6 +640,78 @@ const Storage = (() => {
     return !!(m?.events?.find(e => e.id === id));
   }
 
+  function exportDependencies() {
+    const state = State.get();
+    const deps  = state.guestDependencies || [];
+    if (!deps.length) { UI.toast('אין תלויות לייצוא', 'info', 2000); return; }
+    const data = {
+      version:    1,
+      exportedAt: new Date().toISOString(),
+      dependencies: deps
+    };
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const name = (state.event.name || 'תלויות').replace(/\s+/g, '_');
+    const date = new Date().toISOString().slice(0, 10);
+    a.href = url; a.download = `${name}_תלויות_${date}.json`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    UI.toast('התלויות יוצאו ✓', 'success');
+  }
+
+  function importDependencies(file, merge) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (!Array.isArray(data.dependencies)) throw new Error('Invalid dependencies file');
+          const guestIds   = new Set(State.get().guests.map(g => g.id));
+          const allImported = data.dependencies;
+          const incoming   = allImported.filter(d => guestIds.has(d.guestA) && guestIds.has(d.guestB));
+          if (incoming.length < allImported.length) {
+            UI.toast(`${allImported.length - incoming.length} קשרים הושמטו — מוזמנים לא נמצאו`, 'warning', 3500);
+          }
+          const existing = State.get().guestDependencies || [];
+
+          if (!merge) {
+            existing.forEach(d => State.removeDependency(d.id));
+          }
+
+          const existingPairs = new Set(
+            State.get().guestDependencies.map(d => [d.guestA, d.guestB].sort().join('|'))
+          );
+
+          let added = 0;
+          incoming.forEach(dep => {
+            const key = [dep.guestA, dep.guestB].sort().join('|');
+            if (merge && existingPairs.has(key)) return;
+            State.addDependency({
+              guestA:   dep.guestA,
+              guestB:   dep.guestB,
+              type:     dep.type     || 'friends',
+              strength: dep.strength || 'preferred',
+              notes:    dep.notes    || ''
+            });
+            existingPairs.add(key);
+            added++;
+          });
+
+          saveNow();
+          UI.toast(added + ' תלויות יובאו ✓', 'success', 2000);
+          resolve(added);
+        } catch(err) {
+          UI.toast('שגיאה בייבוא קובץ תלויות', 'error');
+          reject(err);
+        }
+      };
+      reader.onerror = () => { UI.toast('שגיאה בפתיחת הקובץ', 'error'); reject(reader.error); };
+      reader.readAsText(file);
+    });
+  }
+
   // Auto-save on every state change
   State.on('change', save);
 
@@ -650,6 +722,7 @@ const Storage = (() => {
     exportGuestsJSON, importGuestsJSON,
     importGuestsCsv, importGuestsExcel, downloadGuestTemplate,
     exportLayoutOptions, importLayoutOptions,
+    exportDependencies, importDependencies,
     createEvent, switchEvent, deleteEvent,
     getEventsList, updateCurrentMeta,
     loadDemoProject, removeDemoProject, isDemoLoaded

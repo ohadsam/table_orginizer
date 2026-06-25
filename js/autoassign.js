@@ -179,8 +179,20 @@ const AutoAssign = (() => {
     return [...depMaps.forbidden[guestId]].some(id => occupants.has(id));
   }
 
-  /* ── main entry — returns summary { assigned, failed, splitsCreated, tablesCreated } ── */
-  function run({ allowSplit = true, keepExisting = false, respectProximity = true, createTables = false }) {
+  /* ── Fisher-Yates shuffle (in-place) ── */
+  function _shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  // (compact algorithm uses findBestTable with its own scorer)
+
+  /* ── internal run core — shared by all algorithms ── */
+  function _runCore(opts) {
+    const { allowSplit, keepExisting, respectProximity, createTables, algorithm } = opts;
     const state  = State.get();
     const guests = state.guests.slice();
     let   tables = State.getTables().slice();
@@ -189,11 +201,9 @@ const AutoAssign = (() => {
     const respectDeps = aaSettings.respectDependencies !== false;
 
     if (!tables.length && !createTables) {
-      UI.toast('אין שולחנות להושיב בהם', 'warning');
-      return { assigned: 0, failed: 0, splitsCreated: 0, tablesCreated: 0 };
+      return null; // caller shows toast
     }
 
-    // Unassign non-locked guests when starting fresh
     if (!keepExisting) {
       guests.forEach(g => {
         if (!g.tableId) return;
@@ -203,21 +213,15 @@ const AutoAssign = (() => {
     }
 
     const pending = State.get().guests.filter(g => !g.tableId && !g.splitOf);
-    if (!pending.length) {
-      UI.toast('כל המוזמנים כבר משובצים', 'info');
-      return { assigned: 0, failed: 0, splitsCreated: 0, tablesCreated: 0 };
-    }
+    if (!pending.length) return null;
 
     let tablesCreated = 0;
     if (createTables) {
       tablesCreated = autoCreateTables(pending);
-      tables = State.getTables().slice(); // refresh after creation
+      tables = State.getTables().slice();
     }
 
-    if (!tables.length) {
-      UI.toast('אין שולחנות להושיב בהם', 'warning');
-      return { assigned: 0, failed: 0, splitsCreated: 0, tablesCreated };
-    }
+    if (!tables.length) return null;
 
     const capacity = {};
     tables.forEach(t => {
@@ -229,32 +233,199 @@ const AutoAssign = (() => {
       door:       respectProximity ? landmarkCenters('door')       : []
     };
 
-    // Build live "who's already at each table" snapshot for constraint checking
     const tableGuests = {};
     tables.forEach(t => { tableGuests[t.id] = State.getTableGuests(t.id); });
 
-    const depMaps = respectDeps ? buildDepMaps(state.guestDependencies) : { forbidden: {}, required: {}, preferred: {}, avoid: {} };
+    const depMaps = respectDeps
+      ? buildDepMaps(state.guestDependencies)
+      : { forbidden: {}, required: {}, preferred: {}, avoid: {} };
 
-    // CSP-Greedy: sort by most-constrained first
-    // required/forbidden deps make a guest harder to place → sort first
-    const sorted = sortByConstraints(pending, depMaps);
-    const grouped = groupByAffinity(sorted);
+    let ordered;
+    if (algorithm === 'random-greedy') {
+      ordered = _shuffle([...pending]);
+    } else if (algorithm === 'compact') {
+      ordered = [...pending].sort((a, b) => b.total - a.total);
+    } else if (algorithm === 'round-robin') {
+      ordered = _shuffle([...pending]);
+    } else {
+      // csp-greedy (default)
+      ordered = sortByConstraints(pending, depMaps);
+    }
 
     let assigned = 0, failed = 0, splitsCreated = 0;
 
-    Guests.startBatch(); // suppress per-assignment re-renders (O(n²) → O(1))
+    Guests.startBatch();
     try {
-      for (const group of grouped) {
-        const res = assignGroup(group, tables, capacity, allowSplit, landmarks, respectProximity, depMaps, tableGuests);
-        assigned      += res.assigned;
-        failed        += res.failed;
-        splitsCreated += res.splitsCreated;
+      if (algorithm === 'round-robin') {
+        const result = _assignRoundRobin(ordered, tables, capacity, allowSplit, landmarks, respectProximity, depMaps, tableGuests);
+        assigned      = result.assigned;
+        failed        = result.failed;
+        splitsCreated = result.splitsCreated;
+      } else if (algorithm === 'compact') {
+        for (const guest of ordered) {
+          if (guest.tableId) continue;
+          // Compact: prefer tables that are most occupied (fewest free seats after placing)
+          // Score = depScore MINUS free space (so less free = higher score)
+          const maxCap = Math.max(...tables.map(t => t.seats), 1);
+          const scorer = g => depScore(guest.id, g.id, depMaps, tableGuests) + (maxCap - capacity[g.id]);
+          const fit = findBestTable(guest.total, tables, capacity, scorer, guest.id, depMaps, tableGuests);
+          if (fit) {
+            State.assignGuest(guest.id, fit.id);
+            capacity[fit.id] -= guest.total;
+            if (!tableGuests[fit.id]) tableGuests[fit.id] = [];
+            tableGuests[fit.id].push(guest);
+            assigned += guest.total;
+          } else if (allowSplit) {
+            const r = placeWithSplit(guest, tables, capacity, scorer, depMaps, tableGuests);
+            assigned      += r.placed;
+            failed        += r.leftover;
+            splitsCreated += r.splitsCreated;
+          } else {
+            failed += guest.total;
+          }
+        }
+      } else {
+        const grouped = groupByAffinity(ordered);
+        for (const group of grouped) {
+          const res = assignGroup(group, tables, capacity, allowSplit, landmarks, respectProximity, depMaps, tableGuests);
+          assigned      += res.assigned;
+          failed        += res.failed;
+          splitsCreated += res.splitsCreated;
+        }
       }
     } finally {
-      Guests.endBatch(); // single re-render after all assignments are done
+      Guests.endBatch();
     }
 
     return { assigned, failed, splitsCreated, tablesCreated };
+  }
+
+  function _assignRoundRobin(guests, tables, capacity, allowSplit, landmarks, respectProximity, depMaps, tableGuests) {
+    // Distribute one guest at a time across tables in round-robin order
+    const eligible = tables.filter(t => capacity[t.id] > 0);
+    let tIdx = 0;
+    let assigned = 0, failed = 0, splitsCreated = 0;
+
+    for (const guest of guests) {
+      if (guest.tableId) continue;
+      // Find next table with enough space (wrapping around)
+      let placed = false;
+      for (let attempt = 0; attempt < eligible.length; attempt++) {
+        const t = eligible[(tIdx + attempt) % eligible.length];
+        if (capacity[t.id] >= guest.total && !hasForbidden(guest.id, t.id, depMaps, tableGuests)) {
+          State.assignGuest(guest.id, t.id);
+          capacity[t.id] -= guest.total;
+          if (!tableGuests[t.id]) tableGuests[t.id] = [];
+          tableGuests[t.id].push(guest);
+          assigned += guest.total;
+          tIdx = (tIdx + attempt + 1) % eligible.length;
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) {
+        if (allowSplit) {
+          const scorer = () => 0;
+          const r = placeWithSplit(guest, tables, capacity, scorer, depMaps, tableGuests);
+          assigned      += r.placed;
+          failed        += r.leftover;
+          splitsCreated += r.splitsCreated;
+        } else {
+          failed += guest.total;
+        }
+      }
+    }
+    return { assigned, failed, splitsCreated };
+  }
+
+  /* ── score a complete assignment: fewer unplaced = better; fewer splits = better ── */
+  function _scoreResult(result) {
+    if (!result) return -Infinity;
+    return result.assigned - result.failed * 10 - result.splitsCreated * 2;
+  }
+
+  /* ── serialize current assignment for snapshot (includes split guest IDs) ── */
+  function _snapshotAssignments() {
+    return State.get().guests.map(g => ({ id: g.id, tableId: g.tableId || null, splitOf: g.splitOf || null }));
+  }
+
+  /* ── restore assignment snapshot: remove splits created since snap, restore tableIds ── */
+  function _restoreAssignments(snap) {
+    const snapIds = new Set(snap.map(s => s.id));
+    Guests.startBatch();
+    try {
+      // Remove any split guests added after the snapshot
+      State.get().guests.filter(g => g.splitOf && !snapIds.has(g.id))
+        .forEach(g => State.removeGuest ? State.removeGuest(g.id) : State.assignGuest(g.id, null));
+      // Unassign all remaining
+      State.get().guests.forEach(g => { if (g.tableId) State.assignGuest(g.id, null); });
+      // Restore original assignments
+      snap.forEach(s => { if (s.tableId) State.assignGuest(s.id, s.tableId); });
+    } finally {
+      Guests.endBatch();
+    }
+  }
+
+  /* ── reroll: run N iterations and keep best result ── */
+  function reroll(opts, runs) {
+    runs = Math.max(2, Math.min(10, runs || 5));
+    const algs = ['csp-greedy', 'random-greedy', 'compact', 'round-robin'];
+
+    // Pre-create tables once (not per-iteration) to avoid accumulating N×tables in state.
+    // Unassign everyone first so autoCreateTables sees full free capacity.
+    let tablesCreated = 0;
+    if (opts.createTables) {
+      Guests.startBatch();
+      try { State.get().guests.forEach(g => { if (g.tableId) State.assignGuest(g.id, null); }); }
+      finally { Guests.endBatch(); }
+      const pending = State.get().guests.filter(g => !g.splitOf);
+      if (pending.length) tablesCreated = autoCreateTables(pending);
+    }
+
+    // Snapshot with all guests unassigned — restored at the start of every iteration
+    const snap0    = _snapshotAssignments();
+    let bestResult = null;
+    let bestScore  = -Infinity;
+    let bestSnap   = null;
+
+    for (let i = 0; i < runs; i++) {
+      _restoreAssignments(snap0);          // clean slate before each attempt
+      const alg    = algs[i % algs.length];
+      const result = _runCore({ ...opts, createTables: false, keepExisting: false, algorithm: alg });
+      if (!result) continue;
+      const score = _scoreResult(result);
+      if (score > bestScore) {
+        bestScore  = score;
+        bestResult = { ...result, tablesCreated, algorithm: alg };
+        bestSnap   = _snapshotAssignments();
+      }
+    }
+
+    // Apply best
+    if (bestSnap) _restoreAssignments(bestSnap);
+    return { ...(bestResult || { assigned: 0, failed: 0, splitsCreated: 0, tablesCreated: 0 }), runs, rerolled: true };
+  }
+
+  /* ── main entry — returns summary { assigned, failed, splitsCreated, tablesCreated } ── */
+  function run(opts) {
+    const { createTables, keepExisting } = opts;
+    const tables = State.getTables();
+    if (!tables.length && !createTables) {
+      UI.toast('אין שולחנות להושיב בהם', 'warning');
+      return { assigned: 0, failed: 0, splitsCreated: 0, tablesCreated: 0 };
+    }
+    const allGuests = State.get().guests.filter(g => !g.splitOf);
+    if (!allGuests.length) {
+      UI.toast('אין מוזמנים לשיבוץ', 'info');
+      return { assigned: 0, failed: 0, splitsCreated: 0, tablesCreated: 0 };
+    }
+    // If keepExisting, check if there's anyone left to assign
+    const pending = allGuests.filter(g => !g.tableId);
+    if (keepExisting && !pending.length) {
+      UI.toast('כל המוזמנים כבר משובצים', 'info');
+      return { assigned: 0, failed: 0, splitsCreated: 0, tablesCreated: 0 };
+    }
+    return _runCore(opts) || { assigned: 0, failed: 0, splitsCreated: 0, tablesCreated: 0 };
   }
 
   /* ── sort most-constrained guests first (required/forbidden deps → more constrained) ── */
@@ -394,5 +565,5 @@ const AutoAssign = (() => {
     return { placed: origTotal - remaining, leftover: remaining, splitsCreated };
   }
 
-  return { run };
+  return { run, reroll };
 })();

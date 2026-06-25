@@ -601,10 +601,21 @@
           <span>צור שולחנות חדשים אוטומטית אם אין מספיק מקום (לפי תבנית ראשונה)</span>
         </label>
       </div>
+      <div class="form-group" style="margin-top:12px">
+        <label class="form-label" style="font-size:12px;color:#607d8b">אלגוריתם שיבוץ</label>
+        <select id="autoAssignAlgorithm" class="input" style="width:100%;font-size:13px">
+          <option value="csp-greedy">CSP-Greedy (ברירת מחדל) — מוגבלים ביותר ראשונים</option>
+          <option value="random-greedy">אקראי-חמדני — ערבוב אקראי של המוזמנים</option>
+          <option value="compact">קומפקטי — מלא שולחנות פחות אך מלאים יותר</option>
+          <option value="round-robin">Round-Robin — חלוקה אחידה בין שולחנות</option>
+        </select>
+      </div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer" style="flex-wrap:wrap;gap:6px">
       <button class="btn btn-primary" id="btnConfirmAutoAssign">⚡ שבץ!</button>
-      <button class="btn btn-secondary" id="btnOpenAutoAssignSettings" title="פתח הגדרות מתקדמות לשיבוץ אוטומטי — סוגי שולחנות, מגבלות ותלויות">⚙️ הגדרות מתקדמות</button>
+      <button class="btn btn-secondary" id="btnAutoAssignReroll" title="הרץ 5 פעמים עם גרסאות שונות ושמור את התוצאה הטובה ביותר">🎲 הגרל מחדש</button>
+      <button class="btn btn-secondary" id="btnAutoAssignAsLayout" title="שבץ כפריסה חדשה — שמור כאפשרות פריסה ושמור פריטי האולם הנוכחיים">📐 שבץ כפריסה</button>
+      <button class="btn btn-secondary" id="btnOpenAutoAssignSettings" title="פתח הגדרות מתקדמות לשיבוץ אוטומטי">⚙️ הגדרות</button>
       <button class="btn btn-ghost"   data-close-modal="modalAutoAssign">ביטול</button>
     </div>
   </div>
@@ -1398,41 +1409,77 @@
 
 <!-- ═══════════════════ GUEST DEPENDENCIES MODAL ═══════════════════ -->
 <div class="modal-overlay" id="modalGuestDependencies">
-  <div class="modal modal-xl" style="max-width:900px">
+  <div class="modal modal-xl" style="max-width:960px">
     <div class="modal-header">
-      <h2>🔗 תרשים תלויות בין מוזמנים</h2>
+      <h2>🔗 תלויות בין מוזמנים</h2>
       <button class="modal-close" data-close-modal="modalGuestDependencies">✕</button>
     </div>
     <div class="modal-body" style="padding:0">
       <!-- Tab bar -->
       <div class="dep-tabs">
         <button class="dep-tab active" id="depTabGraph" data-tab="graph">🕸 תרשים</button>
-        <button class="dep-tab" id="depTabTable" data-tab="table">📋 טבלה</button>
-        <button class="dep-tab" id="depTabSuggest" data-tab="suggest">✨ הצעות אוטומטיות</button>
+        <button class="dep-tab" id="depTabAdd" data-tab="add">➕ הוסף קשר</button>
+        <button class="dep-tab" id="depTabTable" data-tab="table">📋 רשימה</button>
+        <button class="dep-tab" id="depTabTypes" data-tab="types">🏷 סוגי קשרים</button>
+        <button class="dep-tab" id="depTabSuggest" data-tab="suggest">✨ הצעות</button>
       </div>
       <!-- Graph view -->
       <div id="depGraphView" class="dep-view">
+        <div class="dep-graph-toolbar">
+          <button class="btn btn-sm" id="btnDepGraphAddMode" title="לחץ על שני מוזמנים בתרשים להוספת קשר">➕ הוסף קשר בתרשים</button>
+          <span id="depGraphAddStatus" class="dep-graph-add-status"></span>
+        </div>
         <div id="depGraphLegend" class="dep-legend"></div>
         <div id="depGraphCanvas" class="dep-graph-canvas"></div>
       </div>
-      <!-- Table view -->
+      <!-- Add dependency view -->
+      <div id="depAddView" class="dep-view" style="display:none">
+        <div style="padding:14px" id="depAddViewBody"></div>
+      </div>
+      <!-- Table/list view -->
       <div id="depTableView" class="dep-view" style="display:none">
         <div style="padding:12px">
-          <button class="btn btn-sm btn-primary" id="btnAddDependency" style="margin-bottom:10px">+ הוסף קשר</button>
-          <div id="depAddForm" class="dep-add-form" style="display:none"></div>
           <div id="depTableBody"></div>
         </div>
+      </div>
+      <!-- Custom types view -->
+      <div id="depTypesView" class="dep-view" style="display:none">
+        <div style="padding:12px" id="depTypesBody"></div>
       </div>
       <!-- Auto-suggest view -->
       <div id="depSuggestView" class="dep-view" style="display:none">
         <div style="padding:12px">
-          <p style="font-size:13px;color:#607d8b;margin-bottom:12px">המערכת מציעה קשרים אוטומטיים בין מוזמנים שיש להם תגיות משותפות. לחץ ✓ לאישור או ✕ לדחייה.</p>
+          <p style="font-size:13px;color:#607d8b;margin-bottom:12px">המערכת מציעה קשרים בין מוזמנים בעלי תגיות משותפות. לחץ ✓ לאישור או ✕ לדחייה.</p>
           <div id="depSuggestBody"></div>
         </div>
       </div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer" style="justify-content:space-between">
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-sm" id="btnPrintDependencies" title="הדפס תרשים תלויות">🖨️ הדפס</button>
+        <button class="btn btn-sm" id="btnExportDependencies" title="ייצא תלויות ל-JSON">📤 ייצוא</button>
+        <button class="btn btn-sm" id="btnImportDependencies" title="ייבא תלויות מ-JSON">📥 ייבוא</button>
+        <input type="file" id="importDepsInput" accept=".json" style="display:none">
+      </div>
       <button class="btn btn-ghost" data-close-modal="modalGuestDependencies">סגור</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import dependencies choice modal -->
+<div class="modal-overlay" id="modalImportDeps">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <h2>📥 ייבוא תלויות</h2>
+      <button class="modal-close" data-close-modal="modalImportDeps">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;margin-bottom:8px">כיצד לייבא את התלויות?</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="btnImportDepsMerge">מזג (הוסף לקיימות)</button>
+      <button class="btn btn-secondary" id="btnImportDepsReplace">החלף הכל</button>
+      <button class="btn btn-ghost" data-close-modal="modalImportDeps">ביטול</button>
     </div>
   </div>
 </div>

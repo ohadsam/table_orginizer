@@ -1185,14 +1185,46 @@ const Modals = (() => {
   function showAutoAssignResult(result) {
     const body = document.getElementById('autoAssignResultBody');
     if (!body) return;
-    const { assigned, failed, splitsCreated, tablesCreated } = result;
+    const { assigned, failed, splitsCreated, tablesCreated, rerolled, runs, algorithm, layoutName } = result;
     const rows = [];
+    if (rerolled && runs)   rows.push(`<div class="result-row result-info">הוגרל ${runs} פעמים — נבחרה התוצאה הטובה ביותר 🎲</div>`);
+    if (layoutName)         rows.push(`<div class="result-row result-info">נשמר כפריסה: <strong>${UI.escHtml(layoutName)}</strong> 📐</div>`);
     if (tablesCreated > 0)  rows.push(`<div class="result-row result-info"><strong>${tablesCreated}</strong> שולחנות נוצרו אוטומטית 🪑</div>`);
     rows.push(`<div class="result-row result-success"><strong>${assigned}</strong> מוזמנים שובצו ✅</div>`);
     if (splitsCreated > 0) rows.push(`<div class="result-row result-warning"><strong>${splitsCreated}</strong> קבוצות פוצלו ⛓ (מסומנות בכרטיסים ובהדפסה)</div>`);
     if (failed > 0)        rows.push(`<div class="result-row result-danger"><strong>${failed}</strong> מוזמנים לא שובצו ⚠️</div>`);
     body.innerHTML = `<div class="assign-result-grid">${rows.join('')}</div>`;
     UI.openModal('modalAutoAssignResult');
+  }
+
+  /* ═══════════════════ AUTO-ASSIGN AS LAYOUT ═══════════════════ */
+  function openAutoAssignAsLayout(opts) {
+    // Save non-table items; delete all tables; run assign; save as new layout
+    const state = State.get();
+    const nonTableItems = state.items.filter(i => i.type !== 'table');
+    const tableItems    = state.items.filter(i => i.type === 'table' && !i.locked);
+    const lockedTables  = state.items.filter(i => i.type === 'table' && i.locked);
+
+    const eventName = state.event?.name || 'אירוע';
+    const layoutNum = (State.getLayoutOptions().length + 1);
+    const layoutName = eventName + ' — שיבוץ ' + layoutNum;
+
+    Guests.startBatch();
+    try {
+      // Remove unlocked tables (assignments cleared automatically)
+      tableItems.forEach(t => State.removeItem(t.id));
+    } finally {
+      Guests.endBatch();
+    }
+
+    // Run assign (createTables forced on)
+    const runOpts = { ...opts, keepExisting: false, createTables: true };
+    const result = AutoAssign.run(runOpts);
+
+    // Save as named layout and activate it
+    _activeLayoutId = State.saveLayoutOption(layoutName);
+    requestAnimationFrame(() => Canvas.fitAll());
+    showAutoAssignResult({ ...result, layoutName });
   }
 
   /* ═══════════════════ AUTO-ASSIGN ═══════════════════ */
@@ -1259,15 +1291,36 @@ const Modals = (() => {
 
     // Guest dependencies modal
     document.getElementById('btnGuestDependencies')?.addEventListener('click', () => openGuestDependencies(null));
-    document.getElementById('depTabGraph')?.addEventListener('click', () => _renderDepView('graph'));
-    document.getElementById('depTabTable')?.addEventListener('click', () => _renderDepView('table'));
+    document.getElementById('depTabGraph')?.addEventListener('click',   () => _renderDepView('graph'));
+    document.getElementById('depTabAdd')?.addEventListener('click',     () => _renderDepView('add'));
+    document.getElementById('depTabTable')?.addEventListener('click',   () => _renderDepView('table'));
+    document.getElementById('depTabTypes')?.addEventListener('click',   () => _renderDepView('types'));
     document.getElementById('depTabSuggest')?.addEventListener('click', () => _renderDepView('suggest'));
-    document.getElementById('btnAddDependency')?.addEventListener('click', () => {
-      const form = document.getElementById('depAddForm');
-      if (!form) return;
-      const isHidden = form.style.display === 'none';
-      form.style.display = isHidden ? '' : 'none';
-      if (isHidden) _renderDepAddForm();
+    document.getElementById('btnDepGraphAddMode')?.addEventListener('click', _toggleDepGraphAddMode);
+    document.getElementById('btnPrintDependencies')?.addEventListener('click', _printDependencies);
+    document.getElementById('btnExportDependencies')?.addEventListener('click', () => Storage.exportDependencies());
+    document.getElementById('btnImportDependencies')?.addEventListener('click', () => document.getElementById('importDepsInput')?.click());
+    document.getElementById('importDepsInput')?.addEventListener('change', e => {
+      const file = e.target.files[0]; if (!file) return;
+      _pendingDepsFile = file;
+      UI.openModal('modalImportDeps');
+      e.target.value = '';
+    });
+    document.getElementById('btnImportDepsMerge')?.addEventListener('click', async () => {
+      try { if (_pendingDepsFile) await Storage.importDependencies(_pendingDepsFile, true); }
+      finally { _pendingDepsFile = null; UI.closeModal('modalImportDeps'); }
+    });
+    document.getElementById('btnImportDepsReplace')?.addEventListener('click', async () => {
+      try { if (_pendingDepsFile) await Storage.importDependencies(_pendingDepsFile, false); }
+      finally { _pendingDepsFile = null; UI.closeModal('modalImportDeps'); }
+    });
+    // Cleanup type-picker dialog when dep modal closes
+    document.querySelectorAll('[data-close-modal="modalGuestDependencies"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.getElementById('_depTypePicker')?.remove();
+        _depGraphAddMode = false;
+        _depGraphFirstId = null;
+      });
     });
 
     // Auto-assign settings modal
@@ -1388,16 +1441,35 @@ const Modals = (() => {
     });
 
     // Auto-assign
+    function _getAutoAssignOpts() {
+      return {
+        allowSplit:      document.getElementById('autoAssignSplit')?.checked !== false,
+        keepExisting:    !!document.getElementById('autoAssignKeepExisting')?.checked,
+        respectProximity: document.getElementById('autoAssignProximity')?.checked !== false,
+        createTables:    !!document.getElementById('autoAssignCreateTables')?.checked,
+        algorithm:       document.getElementById('autoAssignAlgorithm')?.value || 'csp-greedy'
+      };
+    }
     document.getElementById('btnConfirmAutoAssign')?.addEventListener('click', () => {
-      const split  = document.getElementById('autoAssignSplit').checked;
-      const keep   = document.getElementById('autoAssignKeepExisting').checked;
-      const prox   = document.getElementById('autoAssignProximity').checked;
-      const create = document.getElementById('autoAssignCreateTables')?.checked || false;
+      const opts = _getAutoAssignOpts();
       UI.closeModal('modalAutoAssign');
-      const result = AutoAssign.run({ allowSplit: split, keepExisting: keep, respectProximity: prox, createTables: create });
+      const result = AutoAssign.run(opts);
       if (result.assigned + result.failed + result.splitsCreated + result.tablesCreated === 0) return;
       if (result.tablesCreated > 0) requestAnimationFrame(() => Canvas.fitAll());
       showAutoAssignResult(result);
+    });
+    document.getElementById('btnAutoAssignReroll')?.addEventListener('click', () => {
+      const opts = _getAutoAssignOpts();
+      UI.closeModal('modalAutoAssign');
+      const result = AutoAssign.reroll(opts);
+      if (result.assigned + result.failed + result.splitsCreated + result.tablesCreated === 0) return;
+      if (result.tablesCreated > 0) requestAnimationFrame(() => Canvas.fitAll());
+      showAutoAssignResult({ ...result, rerolled: true });
+    });
+    document.getElementById('btnAutoAssignAsLayout')?.addEventListener('click', () => {
+      const opts = _getAutoAssignOpts();
+      UI.closeModal('modalAutoAssign');
+      openAutoAssignAsLayout(opts);
     });
 
     // New event modal
@@ -2216,29 +2288,51 @@ const Modals = (() => {
 
   /* ═══════════════════ GUEST DEPENDENCIES ═══════════════════ */
 
-  function openGuestDependencies(focusGuestId) {
-    _renderDepView('graph');
-    if (focusGuestId) _depFocusGuest = focusGuestId;
-    UI.openModal('modalGuestDependencies');
-    _renderDepGraph();
-    _renderDepTable();
-    _renderDepSuggest();
-  }
+  let _depFocusGuest    = null;
+  let _depActiveTab     = 'graph';
+  let _depGraphAddMode  = false;
+  let _depGraphFirstId  = null;
+  let _pendingDepsFile  = null;
 
-  let _depFocusGuest = null;
-  let _depActiveTab = 'graph';
+  function openGuestDependencies(focusGuestId) {
+    if (focusGuestId) _depFocusGuest = focusGuestId;
+    _depGraphAddMode = false;
+    _depGraphFirstId = null;
+    // Clean up any stale type-picker dialog from a previous session
+    document.getElementById('_depTypePicker')?.remove();
+    UI.openModal('modalGuestDependencies');
+    _renderDepView('graph');
+  }
 
   function _renderDepView(tab) {
     _depActiveTab = tab;
-    ['graph','table','suggest'].forEach(t => {
-      const view = document.getElementById('dep' + t.charAt(0).toUpperCase() + t.slice(1) + 'View');
-      const btn  = document.getElementById('depTab' + t.charAt(0).toUpperCase() + t.slice(1));
+    const ALL_TABS = ['graph','add','table','types','suggest'];
+    ALL_TABS.forEach(t => {
+      const viewId = 'dep' + t.charAt(0).toUpperCase() + t.slice(1) + 'View';
+      const btnId  = 'depTab' + t.charAt(0).toUpperCase() + t.slice(1);
+      const view = document.getElementById(viewId);
+      const btn  = document.getElementById(btnId);
       if (view) view.style.display = (t === tab) ? '' : 'none';
       if (btn)  btn.classList.toggle('active', t === tab);
     });
     if (tab === 'graph')   _renderDepGraph();
+    if (tab === 'add')     _renderDepAddView();
     if (tab === 'table')   _renderDepTable();
+    if (tab === 'types')   _renderDepTypesView();
     if (tab === 'suggest') _renderDepSuggest();
+  }
+
+  function _toggleDepGraphAddMode() {
+    _depGraphAddMode = !_depGraphAddMode;
+    _depGraphFirstId = null;
+    const btn = document.getElementById('btnDepGraphAddMode');
+    const status = document.getElementById('depGraphAddStatus');
+    if (btn) btn.classList.toggle('btn-primary', _depGraphAddMode);
+    if (status) {
+      status.textContent = _depGraphAddMode ? 'לחץ על מוזמן ראשון בתרשים' : '';
+      status.style.display = _depGraphAddMode ? 'inline' : 'none';
+    }
+    _renderDepGraph();
   }
 
   function _renderDepGraph() {
@@ -2246,33 +2340,44 @@ const Modals = (() => {
     if (!wrap) return;
     const state = State.get();
     const deps  = state.guestDependencies || [];
+    const allDepTypes = { ...CONFIG.DEPENDENCY_TYPES, ..._getCustomDepTypesMap() };
 
-    if (!deps.length) {
-      wrap.innerHTML = '<div style="text-align:center;padding:40px;color:#90a4ae;font-size:14px">אין תלויות מוגדרות. עבור ללשונית "טבלה" להוספה.</div>';
-      return;
-    }
+    // Update graph-add-mode button state
+    const addModeBtn = document.getElementById('btnDepGraphAddMode');
+    if (addModeBtn) addModeBtn.classList.toggle('btn-primary', _depGraphAddMode);
 
-    // Build adjacency info
     const guestMap = {};
     state.guests.forEach(g => { guestMap[g.id] = g; });
 
-    // Simple force-directed layout (spring-embedded approximation)
-    const guestIds = [...new Set(deps.flatMap(d => [d.guestA, d.guestB]))].filter(id => guestMap[id]);
-    const N = guestIds.length;
-    const W = 700, H = 420;
-    const positions = {};
+    // Collect all guest IDs: those in deps + all guests in add mode so every guest is clickable
+    const depGuestIds = new Set(deps.flatMap(d => [d.guestA, d.guestB]).filter(id => guestMap[id]));
+    const allGuestIds = state.guests.map(g => g.id);
+    const guestIds = _depGraphAddMode
+      ? allGuestIds
+      : [...depGuestIds];
 
-    // Initialize positions in circle
+    if (!guestIds.length) {
+      const msg = _depGraphAddMode
+        ? 'אין מוזמנים ברשימה. הוסף מוזמנים תחילה.'
+        : 'אין תלויות מוגדרות. עבור ללשונית "הוסף קשר" להוספה.';
+      wrap.innerHTML = `<div style="text-align:center;padding:40px;color:#90a4ae;font-size:14px">${msg}</div>`;
+      return;
+    }
+
+    const N = guestIds.length;
+    const W = 700, H = _depGraphAddMode ? 480 : 420;
+
+    // Initialize positions in circle(s)
+    const positions = {};
     guestIds.forEach((id, i) => {
       const angle = (2 * Math.PI * i) / N;
+      const rx = W * (N > 20 ? 0.44 : 0.38);
+      const ry = H * (N > 20 ? 0.44 : 0.38);
       positions[id] = {
-        x: W/2 + (W * 0.38) * Math.cos(angle),
-        y: H/2 + (H * 0.38) * Math.sin(angle)
+        x: W/2 + rx * Math.cos(angle - Math.PI / 2),
+        y: H/2 + ry * Math.sin(angle - Math.PI / 2)
       };
     });
-
-    // Build SVG
-    const allDepTypes = { ...CONFIG.DEPENDENCY_TYPES, ..._getCustomDepTypesMap() };
 
     let edges = deps.map(dep => {
       const def = allDepTypes[dep.type] || { color: '#90a4ae', label: dep.type || 'קשר', strength: 'preferred', icon: '🔗' };
@@ -2281,20 +2386,28 @@ const Modals = (() => {
       if (!pA || !pB) return '';
       const color = def.color || '#90a4ae';
       const dashArr = dep.strength === 'required' ? '' : dep.strength === 'forbidden' ? '6,3' : '3,3';
-      return `<line x1="${pA.x}" y1="${pA.y}" x2="${pB.x}" y2="${pB.y}" stroke="${color}" stroke-width="2" ${dashArr ? `stroke-dasharray="${dashArr}"` : ''} opacity="0.7"/>
-        <text x="${(pA.x+pB.x)/2}" y="${(pA.y+pB.y)/2 - 4}" text-anchor="middle" font-size="10" fill="${color}">${UI.escHtml(def.icon || '')} ${UI.escHtml(def.label || dep.type)}</text>`;
+      return `<line x1="${pA.x.toFixed(1)}" y1="${pA.y.toFixed(1)}" x2="${pB.x.toFixed(1)}" y2="${pB.y.toFixed(1)}" stroke="${color}" stroke-width="2" ${dashArr ? `stroke-dasharray="${dashArr}"` : ''} opacity="0.7"/>
+        <text x="${((pA.x+pB.x)/2).toFixed(1)}" y="${((pA.y+pB.y)/2 - 4).toFixed(1)}" text-anchor="middle" font-size="10" fill="${color}">${UI.escHtml(def.icon || '')} ${UI.escHtml(def.label || dep.type)}</text>`;
     }).join('');
 
     let nodes = guestIds.map(id => {
       const g = guestMap[id];
       const p = positions[id];
-      const isFocus = id === _depFocusGuest;
-      const r = isFocus ? 18 : 14;
-      const fill = isFocus ? '#1565c0' : '#42A5F5';
-      const name = (g.name || id).slice(0, 10);
-      return `<g class="dep-node" data-guest-id="${id}" style="cursor:pointer">
-        <circle cx="${p.x}" cy="${p.y}" r="${r}" fill="${fill}" stroke="#fff" stroke-width="2"/>
-        <text x="${p.x}" y="${p.y + r + 12}" text-anchor="middle" font-size="10" fill="#333">${UI.escHtml(name)}</text>
+      const isFocus    = id === _depFocusGuest;
+      const isSelected = id === _depGraphFirstId;
+      const inDep      = depGuestIds.has(id);
+      const r = isFocus ? 18 : (inDep ? 14 : 10);
+      const fill = isSelected ? '#e53935'
+                 : isFocus    ? '#1565c0'
+                 : inDep      ? '#42A5F5'
+                 : '#b0bec5';
+      const stroke = isSelected ? '#fff' : '#fff';
+      const strokeW = isSelected ? 3 : 2;
+      const nameSlice = (_depGraphAddMode && N > 15) ? 8 : 10;
+      const name = (g.name || id).slice(0, nameSlice);
+      return `<g class="dep-node${_depGraphAddMode ? ' dep-node-clickable' : ''}" data-guest-id="${id}" style="cursor:${_depGraphAddMode ? 'pointer' : 'default'}">
+        <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="${strokeW}"/>
+        <text x="${p.x.toFixed(1)}" y="${(p.y + r + 12).toFixed(1)}" text-anchor="middle" font-size="${N > 20 ? 9 : 10}" fill="#333">${UI.escHtml(name)}</text>
       </g>`;
     }).join('');
 
@@ -2306,9 +2419,104 @@ const Modals = (() => {
       ).join('');
     }
 
-    wrap.innerHTML = `<svg width="100%" viewBox="0 0 ${W} ${H}" style="max-height:420px">
+    wrap.innerHTML = `<svg width="100%" viewBox="0 0 ${W} ${H}" style="max-height:${H}px">
       ${edges}${nodes}
     </svg>`;
+
+    // Wire click handlers for add-mode node selection
+    if (_depGraphAddMode) {
+      wrap.querySelectorAll('.dep-node-clickable').forEach(node => {
+        node.addEventListener('click', () => {
+          const gid = node.dataset.guestId;
+          if (!_depGraphFirstId) {
+            _depGraphFirstId = gid;
+            const status = document.getElementById('depGraphAddStatus');
+            const gName = guestMap[gid]?.name || gid;
+            if (status) status.textContent = 'נבחר: ' + gName + ' — כעת לחץ על מוזמן שני';
+            _renderDepGraph();
+          } else {
+            if (gid === _depGraphFirstId) {
+              _depGraphFirstId = null;
+              const status = document.getElementById('depGraphAddStatus');
+              if (status) status.textContent = 'לחץ על מוזמן ראשון בתרשים';
+              _renderDepGraph();
+              return;
+            }
+            // Show type-picker dialog
+            _depGraphPickType(_depGraphFirstId, gid);
+          }
+        });
+      });
+    }
+  }
+
+  function _depGraphPickType(gidA, gidB) {
+    const allDepTypes = { ...CONFIG.DEPENDENCY_TYPES, ..._getCustomDepTypesMap() };
+    const guestMap = {};
+    State.get().guests.forEach(g => { guestMap[g.id] = g; });
+    const nameA = guestMap[gidA]?.name || gidA;
+    const nameB = guestMap[gidB]?.name || gidB;
+
+    // Build a simple inline dialog overlay
+    const existing = document.getElementById('_depTypePicker');
+    if (existing) existing.remove();
+
+    const opts = Object.entries(allDepTypes).map(([k, v]) =>
+      `<option value="${k}">${v.icon || ''} ${v.label}</option>`
+    ).join('');
+
+    const div = document.createElement('div');
+    div.id = '_depTypePicker';
+    div.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10000;display:flex;align-items:center;justify-content:center';
+    div.innerHTML = `<div style="background:#fff;border-radius:10px;padding:20px 24px;max-width:360px;width:92%;box-shadow:0 8px 32px rgba(0,0,0,.3)">
+      <h3 style="margin:0 0 12px;font-size:15px">הוסף קשר: ${UI.escHtml(nameA)} ↔ ${UI.escHtml(nameB)}</h3>
+      <label style="font-size:12px;color:#607d8b;display:block;margin-bottom:4px">סוג קשר</label>
+      <select id="_depTypePickerSelect" class="input" style="width:100%;margin-bottom:14px">${opts}</select>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-ghost" id="_depTypePickerCancel">ביטול</button>
+        <button class="btn btn-primary" id="_depTypePickerConfirm">הוסף</button>
+      </div>
+    </div>`;
+    document.body.appendChild(div);
+
+    // Auto-remove picker if the parent modal closes via any mechanism (ESC, backdrop, etc.)
+    const _depModal = document.getElementById('modalGuestDependencies');
+    let _pickObs = null;
+    if (_depModal) {
+      _pickObs = new MutationObserver(() => {
+        if (!_depModal.classList.contains('active')) {
+          div.remove(); _pickObs.disconnect();
+          _depGraphFirstId = null;
+        }
+      });
+      _pickObs.observe(_depModal, { attributes: true, attributeFilter: ['class'] });
+    }
+
+    const _closePicker = () => { if (_pickObs) _pickObs.disconnect(); div.remove(); };
+
+    document.getElementById('_depTypePickerConfirm').onclick = () => {
+      const type = document.getElementById('_depTypePickerSelect').value;
+      const def  = allDepTypes[type] || {};
+      State.addDependency({ guestA: gidA, guestB: gidB, type, strength: def.strength || 'preferred' });
+      _closePicker();
+      _depGraphAddMode = false;
+      _depGraphFirstId = null;
+      const btn = document.getElementById('btnDepGraphAddMode');
+      const status = document.getElementById('depGraphAddStatus');
+      if (btn) btn.classList.remove('btn-primary');
+      if (status) { status.textContent = ''; status.style.display = 'none'; }
+      _renderDepGraph();
+      _renderDepTable();
+      UI.toast('קשר נוסף ✓', 'success', 1500);
+    };
+    document.getElementById('_depTypePickerCancel').onclick = () => {
+      _closePicker();
+      _depGraphFirstId = null;
+      const status = document.getElementById('depGraphAddStatus');
+      if (status) status.textContent = 'לחץ על מוזמן ראשון בתרשים';
+      _renderDepGraph();
+    };
+    div.addEventListener('click', e => { if (e.target === div) document.getElementById('_depTypePickerCancel').click(); });
   }
 
   function _renderDepTable() {
@@ -2321,9 +2529,13 @@ const Modals = (() => {
     const allDepTypes = { ...CONFIG.DEPENDENCY_TYPES, ..._getCustomDepTypesMap() };
 
     if (!deps.length) {
-      body.innerHTML = '<p style="color:#90a4ae;font-size:13px;padding:8px 0">אין תלויות מוגדרות עדיין.</p>';
+      body.innerHTML = '<p style="color:#90a4ae;font-size:13px;padding:8px 0">אין תלויות מוגדרות עדיין. השתמש בלשונית "הוסף קשר".</p>';
       return;
     }
+
+    const depTypeOpts = Object.entries(allDepTypes).map(([k, v]) =>
+      `<option value="${k}">${v.icon || ''} ${v.label}</option>`
+    ).join('');
 
     body.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px">
       <thead><tr style="background:#f5f5f5;font-weight:600">
@@ -2338,17 +2550,51 @@ const Modals = (() => {
           const gB = guestMap[dep.guestB];
           if (!gA || !gB) return '';
           const def = allDepTypes[dep.type] || { label: dep.type || 'קשר', color: '#90a4ae', icon: '🔗' };
-          return `<tr style="border-bottom:1px solid #f0f0f0">
+          return `<tr style="border-bottom:1px solid #f0f0f0" data-dep-row="${dep.id}">
             <td style="padding:6px 8px">${UI.escHtml(gA.name)}</td>
             <td style="padding:6px 8px">${UI.escHtml(gB.name)}</td>
-            <td style="padding:6px 8px"><span style="color:${def.color}">${UI.escHtml(def.icon||'')} ${UI.escHtml(def.label)}</span></td>
-            <td style="padding:6px 8px;text-align:center">
-              <button class="btn btn-sm" style="padding:2px 8px;color:#e53935;border:1px solid #e53935" data-remove-dep="${dep.id}">✕</button>
+            <td style="padding:6px 8px">
+              <span class="dep-type-display" data-dep-id="${dep.id}" style="color:${def.color};cursor:pointer" title="לחץ לעריכת סוג">${UI.escHtml(def.icon||'')} ${UI.escHtml(def.label)}</span>
+              <select class="dep-type-edit input" data-dep-id="${dep.id}" style="display:none;width:120px;font-size:12px;padding:2px 4px">
+                ${depTypeOpts}
+              </select>
+            </td>
+            <td style="padding:6px 8px;text-align:center;white-space:nowrap">
+              <button class="btn btn-sm" style="padding:2px 6px;color:#e53935;border:1px solid #e53935" data-remove-dep="${dep.id}" title="מחק קשר זה">✕</button>
             </td>
           </tr>`;
         }).join('')}
       </tbody>
     </table>`;
+
+    // Wire inline type editing
+    body.querySelectorAll('.dep-type-display').forEach(span => {
+      span.addEventListener('click', () => {
+        const depId = span.dataset.depId;
+        const sel = body.querySelector(`.dep-type-edit[data-dep-id="${depId}"]`);
+        if (!sel) return;
+        const dep = (State.get().guestDependencies || []).find(d => d.id === depId);
+        if (dep) sel.value = dep.type;
+        span.style.display = 'none';
+        sel.style.display = '';
+        sel.focus();
+      });
+    });
+    body.querySelectorAll('.dep-type-edit').forEach(sel => {
+      sel.addEventListener('change', () => {
+        const depId = sel.dataset.depId;
+        const type  = sel.value;
+        const def   = allDepTypes[type] || {};
+        State.updateDependency(depId, { type, strength: def.strength || 'preferred' });
+        _renderDepTable();
+        _renderDepGraph();
+      });
+      sel.addEventListener('blur', () => {
+        const span = body.querySelector(`.dep-type-display[data-dep-id="${sel.dataset.depId}"]`);
+        if (span) span.style.display = '';
+        sel.style.display = 'none';
+      });
+    });
 
     body.querySelectorAll('[data-remove-dep]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -2431,50 +2677,284 @@ const Modals = (() => {
     return map;
   }
 
-  function _renderDepAddForm() {
-    const wrap = document.getElementById('depAddForm');
+  // Keep _renderDepAddForm as a no-op (it was wired to the old "btnAddDependency" which is gone)
+  function _renderDepAddForm() {}
+
+  function _renderDepAddView() {
+    const wrap = document.getElementById('depAddViewBody');
     if (!wrap) return;
-    const guests = State.get().guests;
+    const guests = State.get().guests.filter(g => !g.splitOf);
     const allDepTypes = { ...CONFIG.DEPENDENCY_TYPES, ..._getCustomDepTypesMap() };
+
+    const typeOpts = Object.entries(allDepTypes).map(([k, v]) =>
+      `<option value="${k}">${v.icon || ''} ${v.label}</option>`
+    ).join('');
+
+    const guestOpts = guests.map(g =>
+      `<option value="${g.id}">${UI.escHtml(g.name)}</option>`
+    ).join('');
+
     wrap.innerHTML = `
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end;padding:10px;background:#f9f9f9;border-radius:6px;margin-bottom:10px">
+      <p style="font-size:12px;color:#607d8b;margin-bottom:12px">בחר מוזמן א׳, לאחר מכן סמן מוזמנים ב׳ (אפשר מרובים) וקבע סוג קשר לכל אחד.</p>
+      <!-- Guest A selector with search -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
         <div>
-          <label class="form-label" style="font-size:11px">מוזמן א</label>
-          <select id="depAddGuestA" class="input" style="width:100%">
-            ${guests.map(g => `<option value="${g.id}">${UI.escHtml(g.name)}</option>`).join('')}
+          <label class="form-label" style="font-size:12px">מוזמן א׳ (מקור)</label>
+          <input type="text" id="depAddSearchA" class="input" placeholder="חפש מוזמן..." style="width:100%;margin-bottom:4px" autocomplete="off">
+          <select id="depAddGuestA" class="input" style="width:100%;height:120px" size="6">
+            ${guestOpts}
           </select>
         </div>
         <div>
-          <label class="form-label" style="font-size:11px">מוזמן ב</label>
-          <select id="depAddGuestB" class="input" style="width:100%">
-            ${guests.map(g => `<option value="${g.id}">${UI.escHtml(g.name)}</option>`).join('')}
-          </select>
+          <label class="form-label" style="font-size:12px">סוג קשר ברירת מחדל</label>
+          <select id="depAddTypeDefault" class="input" style="width:100%;margin-bottom:4px">${typeOpts}</select>
+          <p style="font-size:11px;color:#90a4ae;margin:4px 0">ניתן לשנות סוג לכל מוזמן ב׳ בנפרד למטה.</p>
         </div>
-        <div>
-          <label class="form-label" style="font-size:11px">סוג קשר</label>
-          <select id="depAddType" class="input" style="width:100%">
-            ${Object.entries(allDepTypes).map(([k, v]) =>
-              `<option value="${k}">${UI.escHtml(v.icon||'')} ${UI.escHtml(v.label)}</option>`
-            ).join('')}
-          </select>
-        </div>
-        <div style="padding-bottom:2px">
-          <button class="btn btn-sm btn-primary" id="btnConfirmAddDep">הוסף</button>
+      </div>
+      <!-- Guest B multi-select with search -->
+      <div style="margin-bottom:10px">
+        <label class="form-label" style="font-size:12px">מוזמנים ב׳ (ניתן לבחור מרובים)</label>
+        <input type="text" id="depAddSearchB" class="input" placeholder="חפש מוזמן..." style="width:100%;margin-bottom:4px" autocomplete="off">
+        <div id="depAddGuestBList" class="dep-multi-list"></div>
+      </div>
+      <!-- Selected pairs preview -->
+      <div id="depAddPairsPreview" style="margin-bottom:10px;display:none">
+        <label class="form-label" style="font-size:12px">תצוגה מקדימה של הקשרים להוספה</label>
+        <div id="depAddPairsBody" style="max-height:150px;overflow-y:auto;border:1px solid #e0e0e0;border-radius:6px;padding:6px"></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" id="btnConfirmAddDepBulk">הוסף קשרים</button>
+        <button class="btn btn-ghost" id="btnClearDepAddForm">נקה</button>
+      </div>`;
+
+    // Build multi-select guest B list
+    function _rebuildGuestBList(filter) {
+      const listEl = document.getElementById('depAddGuestBList');
+      if (!listEl) return;
+      const selA = document.getElementById('depAddGuestA')?.value;
+      const typeOpts2 = Object.entries(allDepTypes).map(([k, v]) =>
+        `<option value="${k}">${v.icon || ''} ${v.label}</option>`
+      ).join('');
+      const filtered = filter
+        ? guests.filter(g => g.id !== selA && g.name.includes(filter))
+        : guests.filter(g => g.id !== selA);
+      if (!filtered.length) { listEl.innerHTML = '<p style="color:#90a4ae;font-size:12px;padding:4px">אין תוצאות</p>'; return; }
+      listEl.innerHTML = filtered.map(g =>
+        `<label class="dep-multi-row" style="display:flex;align-items:center;gap:8px;padding:5px 6px;border-bottom:1px solid #f0f0f0;cursor:pointer">
+          <input type="checkbox" class="dep-b-check" value="${g.id}" style="flex-shrink:0">
+          <span style="flex:1;font-size:13px">${UI.escHtml(g.name)}</span>
+          <select class="dep-b-type input" data-guest-id="${g.id}" style="width:110px;font-size:11px;padding:2px 4px">${typeOpts2}</select>
+        </label>`
+      ).join('');
+      // Set default type on each row
+      listEl.querySelectorAll('.dep-b-type').forEach(sel => {
+        const defType = document.getElementById('depAddTypeDefault')?.value || 'friends';
+        sel.value = defType;
+      });
+    }
+    _rebuildGuestBList('');
+
+    // Sync default type to all rows
+    document.getElementById('depAddTypeDefault')?.addEventListener('change', () => {
+      const defType = document.getElementById('depAddTypeDefault')?.value || 'friends';
+      wrap.querySelectorAll('.dep-b-type').forEach(sel => { sel.value = defType; });
+    });
+
+    // Search A
+    document.getElementById('depAddSearchA')?.addEventListener('input', e => {
+      const q = e.target.value.trim().toLowerCase();
+      const selA = document.getElementById('depAddGuestA');
+      if (!selA) return;
+      Array.from(selA.options).forEach(opt => {
+        opt.style.display = !q || opt.text.toLowerCase().includes(q) ? '' : 'none';
+      });
+    });
+
+    // Search B
+    document.getElementById('depAddSearchB')?.addEventListener('input', e => {
+      _rebuildGuestBList(e.target.value.trim());
+    });
+
+    // When guest A changes, rebuild B list to exclude A
+    document.getElementById('depAddGuestA')?.addEventListener('change', () => {
+      _rebuildGuestBList(document.getElementById('depAddSearchB')?.value.trim() || '');
+    });
+
+    // Confirm bulk add
+    document.getElementById('btnConfirmAddDepBulk')?.addEventListener('click', () => {
+      const gA = document.getElementById('depAddGuestA')?.value;
+      if (!gA) { UI.toast('נא לבחור מוזמן א׳', 'warning'); return; }
+      const checked = [...wrap.querySelectorAll('.dep-b-check:checked')];
+      if (!checked.length) { UI.toast('נא לסמן לפחות מוזמן ב׳ אחד', 'warning'); return; }
+      let added = 0;
+      const existingPairs = new Set(
+        (State.get().guestDependencies || []).map(d => [d.guestA, d.guestB].sort().join('|'))
+      );
+      checked.forEach(chk => {
+        const gB   = chk.value;
+        const type = wrap.querySelector(`.dep-b-type[data-guest-id="${gB}"]`)?.value || 'friends';
+        const def  = allDepTypes[type] || {};
+        const key  = [gA, gB].sort().join('|');
+        if (gA === gB || existingPairs.has(key)) return;
+        State.addDependency({ guestA: gA, guestB: gB, type, strength: def.strength || 'preferred' });
+        existingPairs.add(key);
+        added++;
+      });
+      if (added) {
+        UI.toast(added + ' קשרים נוספו ✓', 'success', 1800);
+        _renderDepTable();
+        _renderDepGraph();
+        // Uncheck all
+        wrap.querySelectorAll('.dep-b-check:checked').forEach(c => { c.checked = false; });
+      } else {
+        UI.toast('לא נוספו קשרים חדשים (כבר קיימים?)', 'info', 2000);
+      }
+    });
+
+    // Clear form
+    document.getElementById('btnClearDepAddForm')?.addEventListener('click', () => {
+      const selA = document.getElementById('depAddGuestA');
+      if (selA) selA.selectedIndex = 0;
+      wrap.querySelectorAll('.dep-b-check:checked').forEach(c => { c.checked = false; });
+      const sA = document.getElementById('depAddSearchA');
+      const sB = document.getElementById('depAddSearchB');
+      if (sA) sA.value = '';
+      if (sB) sB.value = '';
+      _rebuildGuestBList('');
+    });
+  }
+
+  function _renderDepTypesView() {
+    const body = document.getElementById('depTypesBody');
+    if (!body) return;
+    const custom = State.get().settings?.autoAssign?.customDependencyTypes || [];
+    const STRENGTH_LABELS = { required: 'חובה', preferred: 'מועדף', avoid: 'הימנע', forbidden: 'אסור' };
+
+    let listHtml = '';
+    if (!custom.length) {
+      listHtml = '<p style="color:#90a4ae;font-size:13px;margin-bottom:10px">לא הוגדרו סוגי קשרים מותאמים עדיין.</p>';
+    } else {
+      listHtml = `<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:10px">
+        <thead><tr style="background:#f5f5f5">
+          <th style="padding:5px 8px;text-align:right">שם</th>
+          <th style="padding:5px 8px;text-align:center">אייקון</th>
+          <th style="padding:5px 8px;text-align:center">עוצמה</th>
+          <th style="padding:5px 8px;text-align:center">צבע</th>
+          <th></th>
+        </tr></thead>
+        <tbody>${custom.map((t, i) => `<tr style="border-bottom:1px solid #f0f0f0">
+          <td style="padding:5px 8px">${UI.escHtml(t.label)}</td>
+          <td style="padding:5px 8px;text-align:center">${UI.escHtml(t.icon||'')}</td>
+          <td style="padding:5px 8px;text-align:center">${STRENGTH_LABELS[t.strength] || t.strength}</td>
+          <td style="padding:5px 8px;text-align:center"><span style="display:inline-block;width:20px;height:20px;background:${t.color};border-radius:3px;border:1px solid #ddd"></span></td>
+          <td style="padding:5px 8px;text-align:center"><button class="btn btn-sm" style="color:#e53935;border:1px solid #e53935;padding:1px 7px" data-del-cdt="${i}">✕</button></td>
+        </tr>`).join('')}</tbody>
+      </table>`;
+    }
+
+    body.innerHTML = listHtml + `
+      <div style="background:#f9f9f9;border:1px solid #e0e0e0;border-radius:8px;padding:12px">
+        <p style="font-size:13px;font-weight:600;margin:0 0 10px">הוסף סוג קשר חדש</p>
+        <div style="display:grid;grid-template-columns:1fr 60px 1fr 80px auto;gap:8px;align-items:end">
+          <div>
+            <label class="form-label" style="font-size:11px">שם הקשר</label>
+            <input type="text" id="depNewTypeName" class="input" placeholder="למשל: שכנים" style="width:100%">
+          </div>
+          <div>
+            <label class="form-label" style="font-size:11px">אייקון</label>
+            <input type="text" id="depNewTypeIcon" class="input" placeholder="🏠" style="width:100%;text-align:center" maxlength="4">
+          </div>
+          <div>
+            <label class="form-label" style="font-size:11px">עוצמה</label>
+            <select id="depNewTypeStrength" class="input" style="width:100%">
+              <option value="required">חובה (required)</option>
+              <option value="preferred" selected>מועדף (preferred)</option>
+              <option value="avoid">הימנע (avoid)</option>
+              <option value="forbidden">אסור (forbidden)</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label" style="font-size:11px">צבע</label>
+            <input type="color" id="depNewTypeColor" class="input" value="#42A5F5" style="width:100%;height:34px;padding:2px 3px">
+          </div>
+          <div>
+            <button class="btn btn-primary btn-sm" id="btnConfirmAddDepType" style="white-space:nowrap">+ הוסף</button>
+          </div>
         </div>
       </div>`;
 
-    document.getElementById('btnConfirmAddDep')?.addEventListener('click', () => {
-      const gA   = document.getElementById('depAddGuestA').value;
-      const gB   = document.getElementById('depAddGuestB').value;
-      const type = document.getElementById('depAddType').value;
-      if (!gA || !gB || gA === gB) { UI.toast('נא לבחור שני מוזמנים שונים', 'warning'); return; }
-      const def = (CONFIG.DEPENDENCY_TYPES[type] || _getCustomDepTypesMap()[type] || {});
-      State.addDependency({ guestA: gA, guestB: gB, type, strength: def.strength || 'preferred' });
-      wrap.style.display = 'none';
-      _renderDepTable();
-      _renderDepGraph();
-      UI.toast('קשר נוסף ✓', 'success', 1500);
+    body.querySelectorAll('[data-del-cdt]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.delCdt);
+        const s = State.get().settings;
+        s.autoAssign.customDependencyTypes.splice(idx, 1);
+        State.setSetting('autoAssign', s.autoAssign);
+        _renderDepTypesView();
+        UI.toast('סוג הקשר נמחק', 'info', 1500);
+      });
     });
+
+    document.getElementById('btnConfirmAddDepType')?.addEventListener('click', () => {
+      const label  = document.getElementById('depNewTypeName')?.value.trim();
+      if (!label) { UI.toast('נא להזין שם', 'warning'); return; }
+      const icon     = document.getElementById('depNewTypeIcon')?.value.trim() || '🔗';
+      const strength = document.getElementById('depNewTypeStrength')?.value || 'preferred';
+      const color    = document.getElementById('depNewTypeColor')?.value || '#42A5F5';
+      const s = State.get().settings;
+      if (!s.autoAssign) s.autoAssign = {};
+      if (!s.autoAssign.customDependencyTypes) s.autoAssign.customDependencyTypes = [];
+      s.autoAssign.customDependencyTypes.push({ id: 'cdt_' + Date.now(), label, icon, strength, color });
+      State.setSetting('autoAssign', s.autoAssign);
+      _renderDepTypesView();
+      UI.toast('סוג קשר נוסף ✓', 'success', 1500);
+    });
+  }
+
+  function _printDependencies() {
+    const state = State.get();
+    const deps  = state.guestDependencies || [];
+    const guestMap = {};
+    state.guests.forEach(g => { guestMap[g.id] = g; });
+    const allDepTypes = { ...CONFIG.DEPENDENCY_TYPES, ..._getCustomDepTypesMap() };
+
+    // Build a simple print page with the dep graph SVG + table
+    const graphEl = document.getElementById('depGraphCanvas');
+    const svgHtml = graphEl ? graphEl.innerHTML : '';
+    const eventName = state.event?.name || 'אירוע';
+
+    const rows = deps.map(dep => {
+      const gA = guestMap[dep.guestA];
+      const gB = guestMap[dep.guestB];
+      if (!gA || !gB) return '';
+      const def = allDepTypes[dep.type] || { label: dep.type || 'קשר', color: '#90a4ae', icon: '🔗' };
+      return `<tr>
+        <td style="padding:5px 8px;border-bottom:1px solid #e0e0e0">${UI.escHtml(gA.name)}</td>
+        <td style="padding:5px 8px;border-bottom:1px solid #e0e0e0">${UI.escHtml(gB.name)}</td>
+        <td style="padding:5px 8px;border-bottom:1px solid #e0e0e0;color:${def.color}">${UI.escHtml(def.icon||'')} ${UI.escHtml(def.label)}</td>
+      </tr>`;
+    }).join('');
+
+    const printArea = document.getElementById('printListArea') || document.body;
+    const prev = printArea.innerHTML;
+    printArea.innerHTML = `
+      <div style="padding:16px;font-family:Arial,sans-serif;direction:rtl">
+        <h2 style="margin:0 0 8px;font-size:18px">${UI.escHtml(eventName)} — תרשים תלויות</h2>
+        <div style="margin-bottom:16px">${svgHtml}</div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="background:#f5f5f5;font-weight:600">
+            <th style="padding:6px 8px;text-align:right">מוזמן א</th>
+            <th style="padding:6px 8px;text-align:right">מוזמן ב</th>
+            <th style="padding:6px 8px;text-align:right">סוג קשר</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+    document.body.dataset.printMode = 'list';
+    window.print();
+    setTimeout(() => {
+      printArea.innerHTML = prev;
+      delete document.body.dataset.printMode;
+    }, 500);
   }
 
   /* ═══════════════════ AUTO-ASSIGN SETTINGS ═══════════════════ */
@@ -2583,6 +3063,7 @@ const Modals = (() => {
     renderEventsManager, showAutoAssignResult,
     renderLayoutDropdown, openSaveLayout,
     openNormalizeSizes,
-    openGuestDependencies, openAutoAssignSettings
+    openGuestDependencies, openAutoAssignSettings,
+    openAutoAssignAsLayout
   };
 })();
