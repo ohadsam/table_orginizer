@@ -272,16 +272,19 @@ const Items = (() => {
     const occ    = State.getTableOccupancy(item.id);
     let html = `<div class="tooltip-title">שולחן ${item.number || '?'}${item.label ? ' — ' + UI.escHtml(item.label) : ''}</div>`;
     html += `<div class="tooltip-sub">${occ}/${item.seats} מושבים אוכלוסו</div>`;
+    const proxStatus = _getTableProximityStatus(item);
     if (!guests.length) {
       html += `<div class="tooltip-empty">אין מוזמנים משובצים</div>`;
     } else {
       const MAX = 14;
-      html += guests.slice(0, MAX).map(g =>
-        `<div class="tooltip-guest-row">
-          <span>${UI.escHtml(g.name)}</span>
+      html += guests.slice(0, MAX).map(g => {
+        const mm = _getGuestProximityMismatch(g, proxStatus);
+        return `<div class="tooltip-guest-row${mm ? ' tooltip-guest-mismatch' : ''}">
+          <span>${mm ? '⚠️ ' : ''}${UI.escHtml(g.name)}</span>
           <span class="tooltip-guest-count">${g.adults}${g.children ? '+' + g.children : ''}</span>
-        </div>`
-      ).join('');
+          ${mm ? `<div class="tooltip-mismatch-note">${mm.replace(UI.escHtml(g.name) + ' ', '')}</div>` : ''}
+        </div>`;
+      }).join('');
       if (guests.length > MAX)
         html += `<div class="tooltip-more">ועוד ${guests.length - MAX} נוספים…</div>`;
     }
@@ -306,6 +309,36 @@ const Items = (() => {
     if (_tooltip) _tooltip.style.display = 'none';
   }
 
+  /* ── Central-item proximity helpers ── */
+  // Distance threshold (edge-to-edge) below which a table is considered "near" central items
+  const _NEAR_THRESHOLD = 380; // canvas px
+
+  function _getCentralItems() {
+    return State.get().items.filter(i => i.type === 'dancefloor' || i.isCentral);
+  }
+
+  // Returns {isNear: bool} or null if no central items exist
+  function _getTableProximityStatus(table) {
+    const central = _getCentralItems();
+    if (!central.length) return null;
+    // Minimum edge-to-edge distance to any central item
+    const minDist = central.reduce((mn, c) => {
+      const dx = Math.max(0, Math.abs(table.x - c.x) - (table.width / 2 + c.width  / 2));
+      const dy = Math.max(0, Math.abs(table.y - c.y) - (table.height / 2 + c.height / 2));
+      return Math.min(mn, Math.hypot(dx, dy));
+    }, Infinity);
+    return { isNear: minDist < _NEAR_THRESHOLD, dist: Math.round(minDist) };
+  }
+
+  // Returns a Hebrew description of the mismatch, or null if no mismatch
+  function _getGuestProximityMismatch(guest, proxStatus) {
+    if (!proxStatus) return null;
+    const prox = guest.proximity || [];
+    if (prox.includes('nearDance') && !proxStatus.isNear) return `${UI.escHtml(guest.name)} ביקש קרוב לרחבה אך ממוקם רחוק`;
+    if (prox.includes('farDance')  &&  proxStatus.isNear) return `${UI.escHtml(guest.name)} ביקש רחוק מהרחבה אך ממוקם קרוב`;
+    return null;
+  }
+
   /* ── SVG table (with scaled fonts and guest rows) ── */
   function buildTableSVG(item) {
     const W = item.width, H = item.height;
@@ -316,6 +349,9 @@ const Items = (() => {
     const bgColor   = item.color || tableColor(occupancy, item.seats);
     const R_seat    = CONFIG.SEAT_RADIUS;
     const minDim    = Math.min(W, H);
+
+    // Proximity mismatch: compute once per table
+    const proxStatus = _getTableProximityStatus(item);
 
     // Scaled font sizes (base calibrated at 130px table)
     const stt       = State.get().settings;
@@ -343,8 +379,13 @@ const Items = (() => {
         const ang  = (i / item.seats) * 2 * Math.PI - Math.PI / 2;
         const sx   = cx + sR * Math.cos(ang);
         const sy   = cy + sR * Math.sin(ang);
-        const fill = i < occupancy ? (hasSpace ? CONFIG.COLORS.seatOccupied : CONFIG.COLORS.seatOver) : CONFIG.COLORS.seatEmpty;
-        shapes += `<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="${R_seat}" fill="${fill}" stroke="#fff" stroke-width="1.2"/>`;
+        const occupied = i < guests.length;
+        const mismatch = occupied ? _getGuestProximityMismatch(guests[i], proxStatus) : null;
+        const fill = mismatch ? CONFIG.COLORS.seatMismatch :
+                     (i < occupancy ? (hasSpace ? CONFIG.COLORS.seatOccupied : CONFIG.COLORS.seatOver) : CONFIG.COLORS.seatEmpty);
+        const stroke  = mismatch ? '#ff4500' : '#fff';
+        const titleEl = mismatch ? `<title>⚠️ ${mismatch}</title>` : '';
+        shapes += `<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="${R_seat}" fill="${fill}" stroke="${stroke}" stroke-width="${mismatch ? 2 : 1.2}">${titleEl}</circle>`;
       }
 
       texts += `<text x="${cx}" y="${cy - r + occuFont + 1}" text-anchor="middle" font-size="${occuFont}" fill="${occuColor}">${occupancy}/${item.seats}</text>`;
@@ -376,8 +417,13 @@ const Items = (() => {
       const seatsArr = distributeRectSeats(item.seats, rw, rh);
       let sIdx = 0;
       for (const [sx, sy] of seatsArr) {
-        const fill = sIdx < occupancy ? (hasSpace ? CONFIG.COLORS.seatOccupied : CONFIG.COLORS.seatOver) : CONFIG.COLORS.seatEmpty;
-        shapes += `<circle cx="${(pad + sx).toFixed(1)}" cy="${(pad + sy).toFixed(1)}" r="${R_seat}" fill="${fill}" stroke="#fff" stroke-width="1.2"/>`;
+        const occupied = sIdx < guests.length;
+        const mismatch = occupied ? _getGuestProximityMismatch(guests[sIdx], proxStatus) : null;
+        const fill = mismatch ? CONFIG.COLORS.seatMismatch :
+                     (sIdx < occupancy ? (hasSpace ? CONFIG.COLORS.seatOccupied : CONFIG.COLORS.seatOver) : CONFIG.COLORS.seatEmpty);
+        const stroke  = mismatch ? '#ff4500' : '#fff';
+        const titleEl = mismatch ? `<title>⚠️ ${mismatch}</title>` : '';
+        shapes += `<circle cx="${(pad + sx).toFixed(1)}" cy="${(pad + sy).toFixed(1)}" r="${R_seat}" fill="${fill}" stroke="${stroke}" stroke-width="${mismatch ? 2 : 1.2}">${titleEl}</circle>`;
         sIdx++;
       }
       const cx = W / 2, cy = H / 2;
@@ -462,8 +508,9 @@ const Items = (() => {
     ].filter(Boolean).join(';');
     const iconStyle = iSize ? ` style="font-size:${iSize}px"` : '';
     const iconHtml  = item.hideIcon ? '' : `<span class="special-icon"${iconStyle}>${icon}</span>`;
-    return `<div class="special-item-inner" style="background:${bg};border-radius:${br};border:1.5px solid ${item.borderColor||'#aaa'}">
-      ${iconHtml}<span class="special-label"${lblStyle ? ` style="${lblStyle}"` : ''}>${UI.escHtml(item.label || item.type)}</span>
+    const centralBadge = item.isCentral ? `<span class="central-badge" title="פריט מרכזי — שיבוץ ופיזור מתחשבים במיקומו">⭐</span>` : '';
+    return `<div class="special-item-inner" style="background:${bg};border-radius:${br};border:${item.isCentral ? '2px solid #ff8c00' : '1.5px solid ' + (item.borderColor||'#aaa')}">
+      ${centralBadge}${iconHtml}<span class="special-label"${lblStyle ? ` style="${lblStyle}"` : ''}>${UI.escHtml(item.label || item.type)}</span>
     </div>`;
   }
 
@@ -531,6 +578,11 @@ const Items = (() => {
          <span class="ctx-row-lbl" title="הצגת אייקון">👁</span>
          <label style="font-size:12px;cursor:pointer;flex:1"><input type="checkbox" id="ctxHideIconCheck"> הסתר אייקון</label>
          <button id="ctxApplyHideIcon" class="ctx-apply-btn" title="שמור">✓</button>
+       </div>
+       <div class="ctx-inline-row" id="ctxCentralRow">
+         <span class="ctx-row-lbl" title="פריט מרכזי">⭐</span>
+         <label style="font-size:12px;cursor:pointer;flex:1"><input type="checkbox" id="ctxCentralCheck"> פריט מרכזי לשיבוץ ופיזור</label>
+         <button id="ctxApplyCentral" class="ctx-apply-btn" title="שמור">✓</button>
        </div>
        <button class="ctx-menu-btn ctx-save-all-btn" id="ctxSaveAll">✓&nbsp; שמור וסגור</button>
        <hr class="ctx-menu-sep" id="ctxBulkEditSep" style="display:none">
@@ -649,6 +701,14 @@ const Items = (() => {
       State.updateItem(_ctxItemId, { hideIcon: checked || null });
       _closeIfTable();
     };
+    m.querySelector('#ctxApplyCentral').onclick = () => {
+      if (!_ctxItemId) return;
+      const checked = m.querySelector('#ctxCentralCheck').checked;
+      State.updateItem(_ctxItemId, { isCentral: checked || null });
+      // Re-render all tables to update mismatch indicators
+      renderAll();
+      _closeIfTable();
+    };
     m.querySelector('#ctxSaveAll').onclick = () => { _closeCtxMenu(); };
 
     m.querySelector('#ctxBulkEditBtn').onclick = () => {
@@ -706,12 +766,15 @@ const Items = (() => {
     document.getElementById('ctxIconSizeRow').style.display   = isSpecial ? '' : 'none';
     document.getElementById('ctxHideIconRow').style.display   = isSpecial ? '' : 'none';
     document.getElementById('ctxSaveAll').style.display       = isSpecial ? '' : 'none';
+    // Central toggle: shown for non-table items (tables are not central reference points)
+    document.getElementById('ctxCentralRow').style.display    = isSpecial ? '' : 'none';
     if (isSpecial) {
       document.getElementById('ctxFontSizeInput').value  = item.fontSize  || '';
       document.getElementById('ctxIconSizeInput').value  = item.iconSize  || '';
       const safeClr = (item.fontColor && /^#[0-9a-fA-F]{3,8}$/.test(item.fontColor)) ? item.fontColor : '#222222';
       document.getElementById('ctxFontColorInput').value = safeClr;
       document.getElementById('ctxHideIconCheck').checked = !!item.hideIcon;
+      document.getElementById('ctxCentralCheck').checked  = !!item.isCentral;
     }
     // Rotation fields (all items)
     document.getElementById('ctxRotInput').value = item.rotation || '';

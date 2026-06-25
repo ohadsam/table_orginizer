@@ -252,38 +252,71 @@ const Canvas = (() => {
       });
     });
 
-    // Re-read tables after normalization, then grid-arrange
+    // Re-read tables after normalization
     const updated = State.getTables();
     const n       = updated.length;
-    const cols    = Math.ceil(Math.sqrt(n));
     const GAP     = 50;
     const maxW    = Math.max(...updated.map(t => t.width));
     const maxH    = Math.max(...updated.map(t => t.height));
-    const cellW   = maxW + GAP;
-    const cellH   = maxH + GAP;
-    const rows    = Math.ceil(n / cols);
-    const totalW  = cols * cellW - GAP;
-    const totalH  = rows * cellH - GAP;
 
-    // Center the grid on the visible canvas center
+    // Detect central elements (dancefloor + isCentral items)
+    const centralItems = State.get().items.filter(i =>
+      i.type === 'dancefloor' || i.isCentral
+    );
+
     const vr = viewport.getBoundingClientRect();
     const { zoom: z, panX: px, panY: py } = State.get().canvas;
-    const canvasCx = (_canvasAreaW(vr) / 2 - px) / z;
-    const canvasCy = (vr.height          / 2 - py) / z;
 
-    const startX = canvasCx - totalW / 2 + maxW / 2;
-    const startY = canvasCy - totalH / 2 + maxH / 2;
+    if (centralItems.length > 0) {
+      // Arrange tables in concentric rings around the centroid of central elements
+      const cX = centralItems.reduce((s, i) => s + i.x, 0) / centralItems.length;
+      const cY = centralItems.reduce((s, i) => s + i.y, 0) / centralItems.length;
+      // Outer radius of all central items combined
+      const centralR = centralItems.reduce((mx, i) => Math.max(mx, Math.hypot(i.x - cX, i.y - cY) + Math.max(i.width, i.height) / 2), 0);
 
-    updated.forEach((t, i) => {
-      const col = i % cols;
-      const row = Math.floor(i / cols);
-      State.updateItem(t.id, { x: startX + col * cellW, y: startY + row * cellH });
-    });
+      const tableR = Math.max(maxW, maxH) / 2;
+      let ringR = Math.max(centralR + tableR + GAP, tableR * 2 + GAP);
+
+      let remaining = n;
+      let placed = 0;
+      while (remaining > 0) {
+        const circumference = 2 * Math.PI * ringR;
+        const countThisRing = Math.min(remaining, Math.max(1, Math.floor(circumference / (Math.max(maxW, maxH) + GAP))));
+        for (let i = 0; i < countThisRing; i++) {
+          const ang = (i / countThisRing) * 2 * Math.PI - Math.PI / 2;
+          State.updateItem(updated[placed + i].id, {
+            x: cX + ringR * Math.cos(ang),
+            y: cY + ringR * Math.sin(ang)
+          });
+        }
+        placed    += countThisRing;
+        remaining -= countThisRing;
+        ringR     += Math.max(maxW, maxH) + GAP;
+      }
+    } else {
+      // No central items: grid-arrange centered on viewport
+      const cols   = Math.ceil(Math.sqrt(n));
+      const cellW  = maxW + GAP;
+      const cellH  = maxH + GAP;
+      const rows   = Math.ceil(n / cols);
+      const totalW = cols * cellW - GAP;
+      const totalH = rows * cellH - GAP;
+
+      const canvasCx = (_canvasAreaW(vr) / 2 - px) / z;
+      const canvasCy = (vr.height        / 2 - py) / z;
+      const startX   = canvasCx - totalW / 2 + maxW / 2;
+      const startY   = canvasCy - totalH / 2 + maxH / 2;
+
+      updated.forEach((t, i) => {
+        State.updateItem(t.id, { x: startX + (i % cols) * cellW, y: startY + Math.floor(i / cols) * cellH });
+      });
+    }
 
     Guests.endBatch();
 
     setTimeout(fitAll, 50);
-    UI.toast(`${n} שולחנות פוזרו ✓`, 'success', 2000);
+    const modeLabel = centralItems.length ? 'סביב פריטים מרכזיים' : 'בסידור רשת';
+    UI.toast(`${n} שולחנות פוזרו ${modeLabel} ✓`, 'success', 2200);
   }
 
   return { init, applyTransform, setZoom, fitAll, viewportToCanvas, canvasToViewport,

@@ -1753,3 +1753,23 @@ textarea.input { resize: vertical; min-height: 60px; }
 }
 .hint-btn:hover { color: #37474f; background: #f0f0f0; }
 .hint-dismiss-one { font-size: 13px; font-weight: 600; }
+
+/* ── Central item badge ── */
+.central-badge {
+  position: absolute;
+  top: -6px; right: -6px;
+  font-size: 14px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+  pointer-events: none;
+  z-index: 2;
+}
+.special-item-inner { position: relative; }
+
+/* ── Proximity mismatch tooltip row in table hover tooltip ── */
+.tooltip-guest-mismatch { background: #fff3e0; border-radius: 3px; padding: 1px 3px; }
+.tooltip-mismatch-note {
+  font-size: 10px; color: #e65100; font-style: italic;
+  padding-right: 14px; margin-top: 1px;
+  width: 100%; box-sizing: border-box;
+}

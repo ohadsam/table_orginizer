@@ -1078,6 +1078,26 @@ All new types are handled in `print.js` `SPECIAL_ICONS` map and receive correct 
 
 The extra venue items are grouped in a collapsible section in the sidebar (toggle via `btnToggleVenueItems`), wired in `modals.js init()`.
 
+## Central Items (`item.isCentral`)
+
+Any non-table canvas item can be marked as "central" by right-clicking → checking "פריט מרכזי לשיבוץ ופיזור" → ✓. Central items act as spatial reference points that influence:
+
+1. **Auto-assign proximity scoring** — `nearDance`/`farDance` proximity prefs include all `isCentral` items in the landmark set (in addition to `type === 'dancefloor'`). Tables closer to central items score higher for nearDance guests.
+2. **Auto-create tables** — new tables are placed in a ring around the centroid of all central items (dancefloor + isCentral).
+3. **Distribute tables evenly** — when central items exist, `distributeTablesEvenly` arranges tables in concentric rings around them. Without central items, the original grid layout is used.
+4. **Proximity mismatch indicator** — seats of guests whose proximity preference conflicts with their table position are colored orange (`CONFIG.COLORS.seatMismatch = '#ff8c00'`). Hovering shows a native SVG tooltip (`<title>`) and the table hover tooltip highlights the mismatch row with a note.
+
+### Visual indicators
+- Central items get an **⭐ badge** in the top-right corner and an orange border (`2px solid #ff8c00`).
+- Mismatched seat circles: fill `#ff8c00`, stroke `#ff4500` (2px), with SVG `<title>⚠️ NAME: reason</title>`.
+- Table hover tooltip: mismatched guest rows get a `tooltip-guest-mismatch` class (warm background) and a small italic note below the name.
+
+### Near/far threshold
+`_NEAR_THRESHOLD = 380` canvas px (edge-to-edge). Tables within this distance from any central item count as "near". Stored as a constant in `items.js`.
+
+### Context menu
+Right-click any non-table item → "⭐ פריט מרכזי לשיבוץ ופיזור" checkbox + ✓ button. Confirming calls `State.updateItem(id, { isCentral: bool })` and triggers `renderAll()` to immediately refresh mismatch indicators on all tables.
+
 ## Children with Parents
 
 Guests have a `childrenWithParents` field (integer, 0–N) indicating how many of their children must be seated with a parent (not split to a different table). Set via the guest add/edit modal — the field is shown/hidden based on whether `guestChildren > 0`.

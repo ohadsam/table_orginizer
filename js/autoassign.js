@@ -4,8 +4,9 @@ const AutoAssign = (() => {
 
   /* ── landmark geometry for proximity scoring ── */
   function landmarkCenters(type) {
+    // For dancefloor, also include any isCentral items as equivalent reference points
     return State.get().items
-      .filter(i => i.type === type)
+      .filter(i => i.type === type || (type === 'dancefloor' && i.isCentral))
       .map(i => ({ x: i.x, y: i.y }));
   }
   function nearestDist(table, centers) {
@@ -83,8 +84,8 @@ const AutoAssign = (() => {
       if (areaY2 - areaY < 900)  { const cy = (areaY + areaY2) / 2; areaY = cy - 450; areaY2 = cy + 450; }
     }
 
-    // Dance floor: compute center + radius for ring placement
-    const dfs = existing.filter(i => i.type === 'dancefloor');
+    // Central elements (dancefloor + isCentral items): compute center + radius for ring placement
+    const dfs = existing.filter(i => i.type === 'dancefloor' || i.isCentral);
     const dfCx = dfs.length ? dfs.reduce((s, d) => s + d.x, 0) / dfs.length : (areaX + areaX2) / 2;
     const dfCy = dfs.length ? dfs.reduce((s, d) => s + d.y, 0) / dfs.length : (areaY + areaY2) / 2;
     const dfR  = dfs.length

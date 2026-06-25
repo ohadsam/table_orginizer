@@ -43,6 +43,7 @@ const CONFIG = Object.freeze({
     seatEmpty:     '#b0bec5',
     seatOccupied:  '#43a047',
     seatOver:      '#e53935',
+    seatMismatch:  '#ff8c00',
     dancefloor:    '#f3e5f5',
     dj:            '#e8eaf6',
     door:          '#e8f5e9',
