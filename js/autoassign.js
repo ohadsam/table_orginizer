@@ -370,6 +370,16 @@ const AutoAssign = (() => {
   function reroll(opts, runs) {
     runs = Math.max(2, Math.min(10, runs || 5));
     const algs = ['csp-greedy', 'random-greedy', 'compact', 'round-robin'];
+    const tables = State.getTables();
+    if (!tables.length && !opts.createTables) {
+      UI.toast('אין שולחנות להגרלה', 'warning');
+      return { assigned: 0, failed: 0, splitsCreated: 0, tablesCreated: 0, runs: 0, rerolled: true };
+    }
+    const allGuests = State.get().guests.filter(g => !g.splitOf);
+    if (!allGuests.length) {
+      UI.toast('אין מוזמנים לשיבוץ', 'info');
+      return { assigned: 0, failed: 0, splitsCreated: 0, tablesCreated: 0, runs: 0, rerolled: true };
+    }
 
     // Pre-create tables once (not per-iteration) to avoid accumulating N×tables in state.
     // Unassign everyone first so autoCreateTables sees full free capacity.
@@ -425,7 +435,13 @@ const AutoAssign = (() => {
       UI.toast('כל המוזמנים כבר משובצים', 'info');
       return { assigned: 0, failed: 0, splitsCreated: 0, tablesCreated: 0 };
     }
-    return _runCore(opts) || { assigned: 0, failed: 0, splitsCreated: 0, tablesCreated: 0 };
+    const result = _runCore(opts);
+    if (!result) {
+      // _runCore returns null when pending is empty after locked-seat no-unassign (keepExisting:false, all at locked tables)
+      UI.toast('כל המוזמנים כבר משובצים בשולחנות נעולים', 'info');
+      return { assigned: 0, failed: 0, splitsCreated: 0, tablesCreated: 0 };
+    }
+    return result;
   }
 
   /* ── sort most-constrained guests first (required/forbidden deps → more constrained) ── */

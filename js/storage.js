@@ -677,7 +677,8 @@ const Storage = (() => {
           const existing = State.get().guestDependencies || [];
 
           if (!merge) {
-            existing.forEach(d => State.removeDependency(d.id));
+            // Snapshot IDs before removal — removeDependency splices the live array in-place
+            [...existing].forEach(d => State.removeDependency(d.id));
           }
 
           const existingPairs = new Set(

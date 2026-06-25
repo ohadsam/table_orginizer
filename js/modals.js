@@ -1199,30 +1199,34 @@ const Modals = (() => {
 
   /* ═══════════════════ AUTO-ASSIGN AS LAYOUT ═══════════════════ */
   function openAutoAssignAsLayout(opts) {
-    // Save non-table items; delete all tables; run assign; save as new layout
     const state = State.get();
-    const nonTableItems = state.items.filter(i => i.type !== 'table');
-    const tableItems    = state.items.filter(i => i.type === 'table' && !i.locked);
-    const lockedTables  = state.items.filter(i => i.type === 'table' && i.locked);
+    const guests = state.guests.filter(g => !g.splitOf);
+    if (!guests.length) {
+      UI.toast('אין מוזמנים לשיבוץ', 'info');
+      return;
+    }
 
-    const eventName = state.event?.name || 'אירוע';
-    const layoutNum = (State.getLayoutOptions().length + 1);
-    const layoutName = eventName + ' — שיבוץ ' + layoutNum;
+    const tableItems = state.items.filter(i => i.type === 'table' && !i.locked);
+    const eventName  = state.event?.name || 'אירוע';
+    const layoutName = eventName + ' — שיבוץ ' + (State.getLayoutOptions().length + 1);
 
     Guests.startBatch();
     try {
-      // Remove unlocked tables (assignments cleared automatically)
       tableItems.forEach(t => State.removeItem(t.id));
     } finally {
       Guests.endBatch();
     }
 
-    // Run assign (createTables forced on)
-    const runOpts = { ...opts, keepExisting: false, createTables: true };
-    const result = AutoAssign.run(runOpts);
+    // Run assign (createTables forced on so new tables are created as needed)
+    const result = AutoAssign.run({ ...opts, keepExisting: false, createTables: true });
 
-    // Save as named layout and activate it
-    _activeLayoutId = State.saveLayoutOption(layoutName);
+    // saveLayoutOption emits layoutOptionsChanged synchronously, which calls renderLayoutDropdown()
+    // before returning. Set _activeLayoutId AFTER that fires, then re-render explicitly — same
+    // pattern as confirmSaveLayout — so the dropdown shows the new layout selected.
+    const savedId   = State.saveLayoutOption(layoutName);
+    _activeLayoutId = savedId;
+    renderLayoutDropdown();
+
     requestAnimationFrame(() => Canvas.fitAll());
     showAutoAssignResult({ ...result, layoutName });
   }
@@ -1464,7 +1468,7 @@ const Modals = (() => {
       const result = AutoAssign.reroll(opts);
       if (result.assigned + result.failed + result.splitsCreated + result.tablesCreated === 0) return;
       if (result.tablesCreated > 0) requestAnimationFrame(() => Canvas.fitAll());
-      showAutoAssignResult({ ...result, rerolled: true });
+      showAutoAssignResult(result);
     });
     document.getElementById('btnAutoAssignAsLayout')?.addEventListener('click', () => {
       const opts = _getAutoAssignOpts();
@@ -2735,8 +2739,9 @@ const Modals = (() => {
       const typeOpts2 = Object.entries(allDepTypes).map(([k, v]) =>
         `<option value="${k}">${v.icon || ''} ${v.label}</option>`
       ).join('');
-      const filtered = filter
-        ? guests.filter(g => g.id !== selA && g.name.includes(filter))
+      const lf       = filter.toLowerCase();
+      const filtered = lf
+        ? guests.filter(g => g.id !== selA && g.name.toLowerCase().includes(lf))
         : guests.filter(g => g.id !== selA);
       if (!filtered.length) { listEl.innerHTML = '<p style="color:#90a4ae;font-size:12px;padding:4px">אין תוצאות</p>'; return; }
       listEl.innerHTML = filtered.map(g =>
@@ -2886,9 +2891,10 @@ const Modals = (() => {
     body.querySelectorAll('[data-del-cdt]').forEach(btn => {
       btn.addEventListener('click', () => {
         const idx = parseInt(btn.dataset.delCdt);
-        const s = State.get().settings;
-        s.autoAssign.customDependencyTypes.splice(idx, 1);
-        State.setSetting('autoAssign', s.autoAssign);
+        const s   = State.get().settings;
+        const arr = [...(s.autoAssign.customDependencyTypes || [])];
+        arr.splice(idx, 1);
+        State.setSetting('autoAssign', { ...s.autoAssign, customDependencyTypes: arr });
         _renderDepTypesView();
         UI.toast('סוג הקשר נמחק', 'info', 1500);
       });
