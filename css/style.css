@@ -1773,3 +1773,23 @@ textarea.input { resize: vertical; min-height: 60px; }
   padding-right: 14px; margin-top: 1px;
   width: 100%; box-sizing: border-box;
 }
+
+/* ── What's New modal ── */
+.wn-version { padding: 20px 24px; border-bottom: 1px solid var(--border); }
+.wn-version:last-child { border-bottom: none; }
+.wn-version-older { background: #fafafa; }
+.wn-version-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.wn-badge {
+  background: linear-gradient(135deg,#3949ab,#7c4dff);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  letter-spacing: .03em;
+}
+.wn-badge-old { background: linear-gradient(135deg,#607d8b,#90a4ae); }
+.wn-date { font-size: 13px; color: #888; }
+.wn-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 9px; }
+.wn-list li { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.5; }
+.wn-icon { font-size: 17px; flex-shrink: 0; margin-top: 1px; width: 22px; text-align: center; }

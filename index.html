@@ -72,6 +72,7 @@
       </div>
     </div>
 
+    <button class="btn btn-icon" id="btnWhatsNew" title="מה חדש בגרסה זו?">✨</button>
     <a href="help.html" target="_blank" class="btn btn-icon" title="פתח מדריך למשתמש בחלון חדש">❓</a>
   </div>
 </header>
@@ -1335,6 +1336,62 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-primary" data-close-modal="modalGettingStarted">הבנתי, בואו נתחיל! 🚀</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ WHAT'S NEW MODAL ═══════════════════ -->
+<div class="modal-overlay" id="modalWhatsNew">
+  <div class="modal modal-lg">
+    <div class="modal-header" style="background:linear-gradient(135deg,#3949ab,#7c4dff);color:#fff">
+      <h2 style="color:#fff">✨ מה חדש במארגן ההושבה</h2>
+      <button class="modal-close" data-close-modal="modalWhatsNew" style="color:#fff">✕</button>
+    </div>
+    <div class="modal-body" style="max-height:72vh;overflow-y:auto;padding:0">
+
+      <!-- Version 2.1 -->
+      <div class="wn-version">
+        <div class="wn-version-header">
+          <span class="wn-badge">2.1</span>
+          <span class="wn-date">יוני 2026</span>
+        </div>
+        <ul class="wn-list">
+          <li><span class="wn-icon">🔗</span><div><strong>תלויות בין מוזמנים</strong> — הגדירו יחסים בין אורחים: בני זוג, משפחה, קונפליקטים ואסורים. השיבוץ האוטומטי מכבד את כל האילוצים. גישה מכפתור 🔗 בכותרת פאנל המוזמנים.</div></li>
+          <li><span class="wn-icon">⭐</span><div><strong>פריטים מרכזיים</strong> — סמנו כל פריט אולם (בופה, במה, בר וכד') כ"מרכזי" בתפריט לחיצה ימנית. שיבוץ אוטומטי ופיזור שולחנות יסדרו שולחנות בטבעות סביב הפריטים המרכזיים.</div></li>
+          <li><span class="wn-icon">🟠</span><div><strong>מדד אי-התאמת מיקום</strong> — כסאות של מוזמנים שהושבו רחוק/קרוב בניגוד להעדפתם מוצגים בכתום. עמידה עם העכבר מסבירה את הבעיה.</div></li>
+          <li><span class="wn-icon">📊</span><div><strong>ייבוא מוזמנים מ-CSV / Excel</strong> — ייבאו רשימות מוזמנים ישירות מקובצי Excel (xlsx) ו-CSV. תבנית להורדה כלולה בתפריט הייצוא/ייבוא.</div></li>
+          <li><span class="wn-icon">🏛️</span><div><strong>11 פריטי אולם חדשים</strong> — מדרגות, מעלית, מטבח, מרפסת, בריכה, מפל, בר, במה, פינת צילום, בופה, שירותים — כולם ניתנים לגרירה, שינוי גודל וצביעה.</div></li>
+          <li><span class="wn-icon">🎓</span><div><strong>פרויקט דוגמא</strong> — טענו פרויקט מוכן-מראש עם שולחנות, מוזמנים ותלויות להכרת המערכת. זמין בתפריט הייצוא/ייבוא.</div></li>
+          <li><span class="wn-icon">🎟️</span><div><strong>כרטיסי הושבה להדפסה</strong> — הדפסת כרטיסי מתקפל (8×8 ס"מ) לכל מוזמן עם שם ומספר שולחן. ניתן להתאים גופן, גודל, צבע ותמונת רקע.</div></li>
+          <li><span class="wn-icon">🗺️</span><div><strong>תרשים שולחנות מתקדם</strong> — מצב "שמות בתוך הצורה" שמציג את שמות המוזמנים בתוך ציור השולחן עצמו. גופן קבוע / אוטומטי בהדפסה.</div></li>
+          <li><span class="wn-icon">✏️</span><div><strong>עריכה מרובה של שולחנות</strong> — בחרו מספר שולחנות (Ctrl+לחיצה) ועדכנו מושבים, צורה, גופן וצבע בבת אחת.</div></li>
+          <li><span class="wn-icon">⊞</span><div><strong>יישור ופיזור פריטים</strong> — יישרו או פזרו שולחנות נבחרים אופקית/אנכית בלחיצה אחת (כפתור ⊞ בכותרת).</div></li>
+          <li><span class="wn-icon">↔️</span><div><strong>נורמליזציית גדלי שולחנות</strong> — השוו את גדלי כל השולחנות לפי שולחן ייחוס. זמין מכפתור ↔ בפאנל בקרת האולם.</div></li>
+          <li><span class="wn-icon">🔄</span><div><strong>סיבוב פריטים וטקסט</strong> — כל פריט ניתן לסיבוב בתפריט הלחיצה הימנית. ניתן לסובב את הטקסט בנפרד מהפריט.</div></li>
+          <li><span class="wn-icon">💡</span><div><strong>מערכת רמזים</strong> — כרטיסי רמזים מוצגים בראש הסרגל הצדדי עם טיפים על תכונות מתקדמות. ניתן לסגירה אחת-אחת או כולם.</div></li>
+          <li><span class="wn-icon">📐</span><div><strong>שיבוץ אוטומטי מתקדם</strong> — אלגוריתם CSP-Greedy היברידי: מיון לפי אילוצים, ניקוד תלויות (חובה +500, מועדף +200, הימנעות −300), חסימה קשה לאסורים.</div></li>
+        </ul>
+      </div>
+
+      <!-- Version 2.0 -->
+      <div class="wn-version wn-version-older">
+        <div class="wn-version-header">
+          <span class="wn-badge wn-badge-old">2.0</span>
+          <span class="wn-date">2025</span>
+        </div>
+        <ul class="wn-list">
+          <li><span class="wn-icon">📁</span><div><strong>אירועים מרובים</strong> — ניהול מספר אירועים עצמאיים ב-localStorage עם מעבר חלק ביניהם.</div></li>
+          <li><span class="wn-icon">🗂️</span><div><strong>פריסות הושבה מרובות</strong> — שמירה וטעינה של מספר פריסות שולחנות לאותו אירוע.</div></li>
+          <li><span class="wn-icon">↩️</span><div><strong>Undo / Redo</strong> — עד 50 פעולות ביטול ושחזור.</div></li>
+          <li><span class="wn-icon">🖨️</span><div><strong>הדפסות מתקדמות</strong> — תוכנית הושבה, רשימת מוזמנים, תרשים SVG ועמוד לכל שולחן.</div></li>
+          <li><span class="wn-icon">🔒</span><div><strong>נעילת שולחנות</strong> — נעל שולחנות VIP כדי שהשיבוץ האוטומטי לא ישנה אותם.</div></li>
+        </ul>
+      </div>
+
+    </div>
+    <div class="modal-footer" style="justify-content:space-between;align-items:center">
+      <a href="help.html#whats-new" target="_blank" class="btn btn-ghost btn-sm" style="font-size:13px">📖 מדריך מלא</a>
+      <button class="btn btn-primary" data-close-modal="modalWhatsNew">הבנתי 🚀</button>
     </div>
   </div>
 </div>

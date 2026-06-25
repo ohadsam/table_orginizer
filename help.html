@@ -270,6 +270,7 @@
 <div class="toc-wrap">
   <div class="toc">
     <h3>תוכן עניינים</h3>
+    <a href="#whats-new">✨ מה חדש (גרסה 2.1)</a>
     <a href="#intro">מה זה מארגן הושבה?</a>
     <a href="#quickstart">התחלה מהירה</a>
     <a href="#canvas">תצוגת האולם (Canvas)</a>
@@ -277,7 +278,9 @@
     <a href="#tables">שולחנות</a>
     <a href="#bulk-edit">עריכה מרובה של שולחנות</a>
     <a href="#special">פריטי אולם נוספים</a>
+    <a href="#central-items">פריטים מרכזיים (⭐)</a>
     <a href="#guests">מוזמנים</a>
+    <a href="#dependencies">תלויות בין מוזמנים (🔗)</a>
     <a href="#assign">שיבוץ ידני (גרירה)</a>
     <a href="#autoassign">שיבוץ אוטומטי</a>
     <a href="#split">פיצול מוזמנים</a>
@@ -286,14 +289,95 @@
     <a href="#history">ביטול ושחזור (Undo/Redo)</a>
     <a href="#layouts">פריסות הושבה מרובות</a>
     <a href="#export">ייצוא וייבוא</a>
+    <a href="#csv-import">ייבוא מוזמנים מ-CSV/Excel</a>
+    <a href="#demo-project">פרויקט דוגמא</a>
     <a href="#print">הדפסה</a>
     <a href="#settings">הגדרות</a>
+    <a href="#hints">רמזים ועזרה</a>
     <a href="#shortcuts">קיצורי מקלדת</a>
     <a href="#tips">טיפים והמלצות</a>
   </div>
 </div>
 
 <div class="content">
+
+<!-- ═══════════════ WHAT'S NEW ═══════════════ -->
+<section class="section" id="whats-new">
+  <div class="section-header" style="background:linear-gradient(135deg,#e8eaf6,#f3e5f5)">
+    <span class="section-icon">✨</span>
+    <span class="section-title">מה חדש — היסטוריית גרסאות</span>
+  </div>
+  <div class="section-body">
+
+    <!-- v2.1 -->
+    <div style="margin-bottom:28px">
+      <h3 style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <span style="background:linear-gradient(135deg,#3949ab,#7c4dff);color:#fff;font-size:12px;padding:2px 10px;border-radius:12px;font-weight:700">2.1</span>
+        יוני 2026
+      </h3>
+
+      <h4 style="color:#3949ab;margin:12px 0 6px">🔗 <a href="#dependencies">תלויות בין מוזמנים</a></h4>
+      <p>הגדירו יחסים בין זוגות מוזמנים: בני זוג (חייבים לשבת יחד), משפחה (מועדף), גרושים (הימנעות), קונפליקט, ואסורים. השיבוץ האוטומטי מכבד את כל האילוצים. גישה מכפתור 🔗 בכותרת פאנל המוזמנים, ומכפתור 🔗 על כל כרטיס מוזמן.</p>
+
+      <h4 style="color:#3949ab;margin:12px 0 6px">⭐ <a href="#central-items">פריטים מרכזיים</a></h4>
+      <p>סמנו כל פריט אולם (בופה, במה, בר וכד') כ"מרכזי" בתפריט לחיצה ימנית. שיבוץ אוטומטי ופיזור שולחנות יסדרו שולחנות בטבעות סביב הפריטים המרכזיים.</p>
+
+      <h4 style="color:#3949ab;margin:12px 0 6px">🟠 מדד אי-התאמת מיקום</h4>
+      <p>כסאות של מוזמנים שהושבו רחוק/קרוב בניגוד להעדפתם מוצגים בצבע כתום. עמידה עם העכבר מעל הכיסא מסבירה את הבעיה בטולטיפ.</p>
+
+      <h4 style="color:#3949ab;margin:12px 0 6px">📊 <a href="#csv-import">ייבוא מוזמנים מ-CSV / Excel</a></h4>
+      <p>ייבאו רשימות מוזמנים ישירות מקובצי Excel (xlsx/xls) ו-CSV. תבנית להורדה כלולה בתפריט הייצוא/ייבוא.</p>
+
+      <h4 style="color:#3949ab;margin:12px 0 6px">🏛️ <a href="#special">11 פריטי אולם חדשים</a></h4>
+      <p>מדרגות 🪜, מעלית 🛗, מטבח 🍳, מרפסת 🌿, בריכה 🏊, מפל 💧, בר 🍹, במה 🎤, פינת צילום 📸, בופה 🍽️, שירותים 🚻 — כולם ניתנים לגרירה, שינוי גודל, צביעה וסיבוב.</p>
+
+      <h4 style="color:#3949ab;margin:12px 0 6px">🎓 <a href="#demo-project">פרויקט דוגמא</a></h4>
+      <p>טענו פרויקט מוכן-מראש עם שולחנות, מוזמנים ותלויות להכרת המערכת. זמין בתפריט 📦 ← "פרויקט דוגמא".</p>
+
+      <h4 style="color:#3949ab;margin:12px 0 6px">🎟️ כרטיסי הושבה</h4>
+      <p>הדפסת כרטיסי מתקפל (8×8 ס"מ) לכל מוזמן עם שם ומספר שולחן. ניתן להתאים גופן, גודל, צבע, תמונת רקע ומספר כרטיסים ריקים. זמין ב-🖨️ ← "כרטיסי הושבה".</p>
+
+      <h4 style="color:#3949ab;margin:12px 0 6px">🗺️ תרשים שולחנות מתקדם</h4>
+      <p>מצב "שמות בתוך הצורה" מציג את שמות המוזמנים בתוך ציור השולחן. בקרת גופן קבוע / אוטומטי, כיוון הדפסה לאורך/לרוחב. זמין ב-🖨️ ← "תרשים שולחנות".</p>
+
+      <h4 style="color:#3949ab;margin:12px 0 6px">✏️ <a href="#bulk-edit">עריכה מרובה של שולחנות</a></h4>
+      <p>בחרו מספר שולחנות בו-זמנית (Ctrl+לחיצה) ועדכנו מושבים, צורה, גופן וצבע בבת אחת מכפתור ✏️ בכותרת.</p>
+
+      <h4 style="color:#3949ab;margin:12px 0 6px">⊞ יישור ופיזור פריטים</h4>
+      <p>יישרו או פזרו שולחנות נבחרים לפי ציר X או Y בלחיצה אחת. כפתור ⊞ מופיע בכותרת כשנבחרו 2+ פריטים.</p>
+
+      <h4 style="color:#3949ab;margin:12px 0 6px">↔️ נורמליזציית גדלי שולחנות</h4>
+      <p>השוו את גדלי כל השולחנות לפי שולחן ייחוס. כפתור ↔ בפאנל בקרת האולם.</p>
+
+      <h4 style="color:#3949ab;margin:12px 0 6px">🔄 סיבוב פריטים וטקסט</h4>
+      <p>כל פריט תומך בסיבוב (0–359°) דרך תפריט לחיצה ימנית ← "סיבוב פריט". ניתן לסובב את הטקסט בנפרד (0°/90°/180°/270°).</p>
+
+      <h4 style="color:#3949ab;margin:12px 0 6px">💡 <a href="#hints">מערכת רמזים</a></h4>
+      <p>כרטיסי רמזים בראש הסרגל הצדדי מכירים אתכם עם תכונות מתקדמות. ניתן לסגור כל רמז בנפרד או לסגור את כולם.</p>
+
+      <h4 style="color:#3949ab;margin:12px 0 6px">⚙️ אלגוריתם שיבוץ מתקדם</h4>
+      <p>אלגוריתם CSP-Greedy היברידי: מיון מוזמנים לפי כמות האילוצים שלהם, ניקוד תלויות (חובה +500, מועדף +200, הימנעות −300), חסימה קשה לאסורים, מודעות לפריטים מרכזיים.</p>
+    </div>
+
+    <!-- v2.0 -->
+    <div style="background:#fafafa;padding:16px 20px;border-radius:8px;border:1px solid #e0e0e0">
+      <h3 style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <span style="background:linear-gradient(135deg,#607d8b,#90a4ae);color:#fff;font-size:12px;padding:2px 10px;border-radius:12px;font-weight:700">2.0</span>
+        2025
+      </h3>
+      <ul class="bullets">
+        <li><strong><a href="#events">אירועים מרובים</a></strong> — ניהול מספר אירועים עצמאיים ב-localStorage עם מעבר חלק ביניהם</li>
+        <li><strong><a href="#layouts">פריסות הושבה מרובות</a></strong> — שמירה וטעינה של מספר פריסות שולחנות לאותו אירוע</li>
+        <li><strong><a href="#history">Undo / Redo</a></strong> — עד 50 פעולות ביטול ושחזור</li>
+        <li><strong><a href="#print">הדפסות מתקדמות</a></strong> — תוכנית הושבה, רשימת מוזמנים, תרשים SVG ועמוד לכל שולחן</li>
+        <li><strong>נעילת שולחנות</strong> — נעל שולחנות VIP כדי שהשיבוץ האוטומטי לא ישנה אותם</li>
+        <li><strong>צבעים מותאמים אישית</strong> — צבע ייחודי לכל שולחן ופריט, מועבר לכרטיסי מוזמנים ולהדפסה</li>
+        <li><strong>תצוגת ניווט פריטים</strong> — פאנל ניווט מתקפל בצד שמאל עם רשימת כל פריטי האולם</li>
+      </ul>
+    </div>
+
+  </div>
+</section>
 
 <!-- ═══════════════ INTRO ═══════════════ -->
 <section class="section" id="intro">
@@ -611,13 +695,14 @@
     <span class="section-title">פריטי אולם נוספים</span>
   </div>
   <div class="section-body">
-    <p>ניתן להוסיף לאולם פריטים שאינם שולחנות לייצוג מרחבי אמיתי:</p>
+    <p>ניתן להוסיף לאולם פריטים שאינם שולחנות לייצוג מרחבי אמיתי. כל הפריטים ניתנים לגרירה, שינוי גודל, צביעה וסיבוב.</p>
 
+    <h3>פריטים בסיסיים</h3>
     <div class="feature-grid">
       <div class="feature-card">
         <span class="fc-icon">🕺</span>
         <div class="fc-name">רחבת ריקודים</div>
-        <div class="fc-desc">משפיע על שיבוץ חכם — ניתן להגדיר שמוזמנים יושבו קרוב/רחוק ממנה</div>
+        <div class="fc-desc">משפיע על שיבוץ חכם — ניתן להגדיר שמוזמנים יושבו קרוב/רחוק ממנה. ניתן לסמן כ<a href="#central-items">פריט מרכזי</a>.</div>
       </div>
       <div class="feature-card">
         <span class="fc-icon">🎵</span>
@@ -627,14 +712,76 @@
       <div class="feature-card">
         <span class="fc-icon">🚪</span>
         <div class="fc-name">כניסה</div>
-        <div class="fc-desc">פריט ויזואלי לייצוג הכניסה לאולם</div>
+        <div class="fc-desc">פריט ויזואלי לייצוג הכניסה לאולם; ניתן לשים מוזמנים "קרוב לכניסה"</div>
       </div>
       <div class="feature-card">
         <span class="fc-icon">⬛</span>
         <div class="fc-name">צורה חופשית</div>
-        <div class="fc-desc">מלבן, ריבוע, או עיגול — לייצוג במה, בר, וכד'</div>
+        <div class="fc-desc">מלבן, ריבוע, או עיגול — לייצוג אלמנטים מותאמים אישית</div>
       </div>
     </div>
+
+    <h3>פריטי אולם נוספים <span style="background:#e8f5e9;color:#2e7d32;font-size:11px;padding:1px 7px;border-radius:10px;font-weight:600;vertical-align:middle">חדש ב-2.1</span></h3>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <span class="fc-icon">🪜</span>
+        <div class="fc-name">מדרגות</div>
+        <div class="fc-desc">ייצוג מדרגות באולם / כניסה</div>
+      </div>
+      <div class="feature-card">
+        <span class="fc-icon">🛗</span>
+        <div class="fc-name">מעלית</div>
+        <div class="fc-desc">מעלית / גישה נגישה</div>
+      </div>
+      <div class="feature-card">
+        <span class="fc-icon">🍳</span>
+        <div class="fc-name">מטבח</div>
+        <div class="fc-desc">מטבח / כניסת שירות</div>
+      </div>
+      <div class="feature-card">
+        <span class="fc-icon">🌿</span>
+        <div class="fc-name">מרפסת</div>
+        <div class="fc-desc">מרפסת / שטח חיצוני</div>
+      </div>
+      <div class="feature-card">
+        <span class="fc-icon">🏊</span>
+        <div class="fc-name">בריכה</div>
+        <div class="fc-desc">בריכה / מאגר מים</div>
+      </div>
+      <div class="feature-card">
+        <span class="fc-icon">💧</span>
+        <div class="fc-name">מפל</div>
+        <div class="fc-desc">פינת מים / מפל דקורטיבי</div>
+      </div>
+      <div class="feature-card">
+        <span class="fc-icon">🍹</span>
+        <div class="fc-name">בר</div>
+        <div class="fc-desc">פינת בר / שתייה. ניתן לסמן כ<a href="#central-items">פריט מרכזי</a>.</div>
+      </div>
+      <div class="feature-card">
+        <span class="fc-icon">🎤</span>
+        <div class="fc-name">במה</div>
+        <div class="fc-desc">במה / אזור הופעה. ניתן לסמן כ<a href="#central-items">פריט מרכזי</a>.</div>
+      </div>
+      <div class="feature-card">
+        <span class="fc-icon">📸</span>
+        <div class="fc-name">פינת צילום</div>
+        <div class="fc-desc">Photo booth / פינת צילום</div>
+      </div>
+      <div class="feature-card">
+        <span class="fc-icon">🍽️</span>
+        <div class="fc-name">בופה</div>
+        <div class="fc-desc">שולחן בופה / ארוחה. ניתן לסמן כ<a href="#central-items">פריט מרכזי</a>.</div>
+      </div>
+      <div class="feature-card">
+        <span class="fc-icon">🚻</span>
+        <div class="fc-name">שירותים</div>
+        <div class="fc-desc">שירותים / חדר שירות</div>
+      </div>
+    </div>
+
+    <h3>הוספת פריט אולם</h3>
+    <p>בסרגל הצד, לחצו על הכפתור המתאים בסעיף "הוסף לאולם". פריטי האולם הנוספים מוסתרים בקטע "⬇ פריטי אולם נוספים" — לחצו להרחבה.</p>
 
     <h3>עריכת פריט</h3>
     <p>לחיצה כפולה על כל פריט (שאינו שולחן) פותחת חלון עריכה שבו ניתן לשנות:</p>
@@ -644,6 +791,55 @@
       <li><strong>צבע רקע</strong> — צבע ייחודי לפריט</li>
       <li><strong>צורה</strong> (לצורה חופשית בלבד) — מלבן / ריבוע / עיגול</li>
     </ul>
+
+    <h3>תפריט לחיצה ימנית / ⋮ — אפשרויות נוספות</h3>
+    <ul class="bullets">
+      <li><strong>סיבוב פריט</strong> — ↺/↻ כפתורי 90°, שדה ידני 0–359°, ⊙ לאיפוס</li>
+      <li><strong>סיבוב טקסט</strong> — סיבוב הטקסט בלבד: 0°/90°/180°/270°</li>
+      <li><strong>גופן / צבע גופן</strong> — עיצוב הטקסט שעל הפריט</li>
+      <li><strong>גודל אייקון / הסתר אייקון</strong> — שליטה על האמוג'י המוצג</li>
+      <li><strong>⭐ פריט מרכזי</strong> — סמן כ<a href="#central-items">פריט מרכזי</a> להשפעה על שיבוץ ופיזור</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ═══════════════ CENTRAL ITEMS ═══════════════ -->
+<section class="section" id="central-items">
+  <div class="section-header">
+    <span class="section-icon">⭐</span>
+    <span class="section-title">פריטים מרכזיים <span style="background:#e8f5e9;color:#2e7d32;font-size:11px;padding:1px 7px;border-radius:10px;font-weight:600">חדש ב-2.1</span></span>
+  </div>
+  <div class="section-body">
+    <p>כל פריט אולם (שאינו שולחן) יכול להיות מסומן כ<strong>פריט מרכזי</strong>. פריטים מרכזיים משפיעים על שיבוץ ופיזור שולחנות בצורה דומה לרחבת ריקודים.</p>
+
+    <h3>כיצד לסמן פריט כמרכזי</h3>
+    <ol class="steps">
+      <li>לחצו לחיצה ימנית על הפריט (או על ⋮)</li>
+      <li>סמנו את התיבה "⭐ פריט מרכזי לשיבוץ ופיזור"</li>
+      <li>לחצו ✓ לאישור</li>
+    </ol>
+    <p>פריט מרכזי מוצג עם כוכב ⭐ בפינה וגבול כתום.</p>
+
+    <h3>השפעות של פריטים מרכזיים</h3>
+    <ul class="bullets">
+      <li><strong>שיבוץ אוטומטי — קרבה</strong>: מוזמנים עם העדפת "קרוב לרחבה" יקבלו עדיפות לשולחנות קרובים לכל הפריטים המרכזיים (רחבת ריקודים + כל פריט מסומן).</li>
+      <li><strong>יצירת שולחנות אוטומטית</strong>: שולחנות חדשים שנוצרים בשיבוץ אוטומטי יתמקמו בטבעת מסביב לפריטים המרכזיים.</li>
+      <li><strong>פיזור שולחנות</strong>: כפתור פיזור שולחנות (בקרת האולם) יסדר את כל השולחנות בטבעות קונצנטריות סביב מרכז הפריטים המרכזיים.</li>
+    </ul>
+
+    <h3>מדד אי-התאמת מיקום</h3>
+    <p>לאחר שיבוץ, כסאות של מוזמנים שהושבו בניגוד להעדפת המיקום שלהם יהיו <strong>כתומים</strong> על הציור:</p>
+    <ul class="bullets">
+      <li>מוזמן שביקש "קרוב לרחבה" אבל שובץ בשולחן רחוק — כיסאו כתום</li>
+      <li>מוזמן שביקש "רחוק מרחבה" אבל שובץ בשולחן קרוב — כיסאו כתום</li>
+      <li>עמידה עם העכבר מעל הכיסא — טולטיפ מסביר את הבעיה</li>
+      <li>הסף ל"קרוב" הוא 380 פיקסלים (קצה לקצה) בין השולחן לפריט המרכזי</li>
+    </ul>
+
+    <div class="tip">
+      <span class="tip-icon">💡</span>
+      <span>ניתן לסמן מספר פריטים כמרכזיים בו-זמנית — למשל רחבת ריקודים + בר. השולחנות יסודרו סביב הנקודה המרכזית של כולם.</span>
+    </div>
   </div>
 </section>
 
@@ -670,6 +866,11 @@
       <li><strong>סינון לפי תגית</strong> — לחצו על תגית בשורת הסינון לסינון הרשימה</li>
     </ul>
 
+    <h3>שדות נוספים</h3>
+    <ul class="bullets">
+      <li><strong>ילדים עם הורים</strong> — כמה מהילדים חייבים לשבת עם הורה (לא לפצל). הגדר בחלון עריכת מוזמן כשיש ילדים.</li>
+    </ul>
+
     <h3>כרטיס מוזמן</h3>
     <p>כל מוזמן מוצג ככרטיס בסרגל הצד. על כל כרטיס:</p>
     <ul class="bullets">
@@ -679,6 +880,7 @@
       <li><strong>גבול צבעוני</strong> — אם לשולחן יש צבע מותאם, הגבול בצד של הכרטיס יהיה בצבע השולחן</li>
       <li><strong>✕</strong> — הסרת שיבוץ (המוזמן חוזר לממתינים)</li>
       <li><strong>🔍</strong> — מצא שולחן פנוי (ראו להלן)</li>
+      <li><strong>🔗</strong> — פתיחת <a href="#dependencies">תרשים תלויות</a> עבור מוזמן זה (חדש ב-2.1)</li>
       <li><strong>✏️</strong> — עריכת פרטי המוזמן</li>
       <li><strong>🗑</strong> — מחיקת המוזמן</li>
     </ul>
@@ -698,6 +900,94 @@
     <div class="tip">
       <span class="tip-icon">💡</span>
       <span>ניתן לייבא רשימת מוזמנים מקובץ JSON (⬇️ בכותרת פאנל המוזמנים) כדי לחסוך הזנה ידנית. ראו סעיף ייצוא וייבוא.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ DEPENDENCIES ═══════════════ -->
+<section class="section" id="dependencies">
+  <div class="section-header">
+    <span class="section-icon">🔗</span>
+    <span class="section-title">תלויות בין מוזמנים <span style="background:#e8f5e9;color:#2e7d32;font-size:11px;padding:1px 7px;border-radius:10px;font-weight:600">חדש ב-2.1</span></span>
+  </div>
+  <div class="section-body">
+    <p>תלויות מאפשרות להגדיר יחסים בין זוגות מוזמנים — מי חייב לשבת ביחד, מי מועדף ביחד, ומי אסור בשולחן אחד. השיבוץ האוטומטי מכבד את כל האילוצים הללו.</p>
+
+    <h3>סוגי תלויות</h3>
+    <div class="feature-grid">
+      <div class="feature-card" style="border-right:3px solid #EC407A">
+        <span class="fc-icon">💑</span>
+        <div class="fc-name">בני זוג</div>
+        <div class="fc-desc"><strong>חובה לשבת יחד</strong> — אילוץ קשיח</div>
+      </div>
+      <div class="feature-card" style="border-right:3px solid #AB47BC">
+        <span class="fc-icon">👨‍👩‍👧</span>
+        <div class="fc-name">הורים/ילדים</div>
+        <div class="fc-desc"><strong>חובה לשבת יחד</strong> — אילוץ קשיח</div>
+      </div>
+      <div class="feature-card" style="border-right:3px solid #66BB6A">
+        <span class="fc-icon">👪</span>
+        <div class="fc-name">משפחה</div>
+        <div class="fc-desc"><strong>מועדף</strong> — ניקוד חיובי בשיבוץ</div>
+      </div>
+      <div class="feature-card" style="border-right:3px solid #42A5F5">
+        <span class="fc-icon">👫</span>
+        <div class="fc-name">חברים</div>
+        <div class="fc-desc"><strong>מועדף</strong> — ניקוד חיובי בשיבוץ</div>
+      </div>
+      <div class="feature-card" style="border-right:3px solid #26A69A">
+        <span class="fc-icon">💼</span>
+        <div class="fc-name">עמיתים</div>
+        <div class="fc-desc"><strong>מועדף</strong> — ניקוד חיובי בשיבוץ</div>
+      </div>
+      <div class="feature-card" style="border-right:3px solid #FFA726">
+        <span class="fc-icon">💔</span>
+        <div class="fc-name">גרושים</div>
+        <div class="fc-desc"><strong>הימנעות</strong> — ניקוד שלילי בשיבוץ</div>
+      </div>
+      <div class="feature-card" style="border-right:3px solid #FF7043">
+        <span class="fc-icon">⚡</span>
+        <div class="fc-name">לא מסתדרים</div>
+        <div class="fc-desc"><strong>הימנעות</strong> — ניקוד שלילי בשיבוץ</div>
+      </div>
+      <div class="feature-card" style="border-right:3px solid #EF5350">
+        <span class="fc-icon">🚫</span>
+        <div class="fc-name">אסור להושיב יחד</div>
+        <div class="fc-desc"><strong>אסור</strong> — חסימה קשיחה מוחלטת</div>
+      </div>
+    </div>
+
+    <h3>כיצד להגדיר תלות</h3>
+    <ol class="steps">
+      <li>לחצו על 🔗 בכותרת פאנל המוזמנים (או 🔗 על כרטיס מוזמן ספציפי)</li>
+      <li>בטאב "📋 טבלה", לחצו "+ הוסף קשר"</li>
+      <li>בחרו שני מוזמנים וסוג הקשר</li>
+      <li>אישרו — הקשר יישמר ויוצג בתרשים</li>
+    </ol>
+
+    <h3>תרשים תלויות (Graph)</h3>
+    <p>הטאב "🕸 תרשים" מציג רשת ויזואלית של כל המוזמנים כנקודות, עם קווים צבעוניים לפי סוג הקשר. ניתן:</p>
+    <ul class="bullets">
+      <li>לגרור נקודות לסידור הרשת</li>
+      <li>לחפש מוזמן לפי שם</li>
+      <li>לסנן לפי סוג קשר</li>
+    </ul>
+
+    <h3>הצעות אוטומטיות</h3>
+    <p>הטאב "✨ הצעות" מנתח תגיות משותפות ומציע קשרי "חברים" / "משפחה". לחצו ✓ לאישור הצעה או ✕ לדחייה.</p>
+
+    <h3>השפעה על שיבוץ אוטומטי</h3>
+    <p>וודאו ש<strong>"התחשב בתלויות"</strong> מסומן בהגדרות השיבוץ האוטומטי (⚙️ בחלון השיבוץ).</p>
+    <ul class="bullets">
+      <li><strong>חובה / הורים</strong>: +500 ניקוד — השיבוץ ישתדל מאוד לשמור אותם יחד</li>
+      <li><strong>מועדף (משפחה/חברים)</strong>: +200 ניקוד</li>
+      <li><strong>הימנעות (גרושים/קונפליקט)</strong>: −300 ניקוד</li>
+      <li><strong>אסור</strong>: חסימה קשיחה — לעולם לא יושבו באותו שולחן</li>
+    </ul>
+
+    <div class="tip">
+      <span class="tip-icon">💡</span>
+      <span>השתמשו בהצעות האוטומטיות כנקודת התחלה — הן מזהות מוזמנים עם תגיות משותפות ומציעות להם קשר "חברים".</span>
     </div>
   </div>
 </section>
@@ -750,17 +1040,22 @@
       <li><strong>צור שולחנות חדשים אוטומטית</strong> — אם אין מספיק קיבולת, ייצור שולחנות חדשים. השולחנות יתפזרו סביב האולם (טבעת סביב רחבת ריקודים אם קיימת), ללא חפיפה עם פריטים קיימים.</li>
     </ul>
 
-    <h3>כיצד פועל השיבוץ</h3>
+    <h3>אפשרויות מתקדמות</h3>
+    <ul class="bullets">
+      <li><strong>התחשב בתלויות</strong> (חדש ב-2.1) — <a href="#dependencies">תלויות בין מוזמנים</a> משפיעות על הניקוד; אסורים חסומים לחלוטין. הגדירו בכפתור ⚙️ בתחתית חלון השיבוץ.</li>
+    </ul>
+
+    <h3>כיצד פועל השיבוץ (אלגוריתם CSP-Greedy)</h3>
     <div class="flow">
       <span class="flow-step">קיבוץ לפי תגיות</span>
       <span class="flow-arrow">→</span>
-      <span class="flow-step">מיון לפי גודל (גדול קודם)</span>
+      <span class="flow-step">מיון לפי כמות אילוצים</span>
       <span class="flow-arrow">→</span>
-      <span class="flow-step">חיפוש שולחן מתאים (Tight Fit)</span>
+      <span class="flow-step">חיפוש שולחן (ניקוד קרבה + תלויות)</span>
       <span class="flow-arrow">→</span>
       <span class="flow-step">פיצול אם נדרש</span>
     </div>
-    <p>מוזמנים עם אותן תגיות ישובצו יחד ככל האפשר. בתוך כל קבוצה, מועדפות משפחות גדולות יותר.</p>
+    <p>מוזמנים עם אותן תגיות ישובצו יחד ככל האפשר. מוזמנים עם הרבה תלויות מעובדים ראשונים.</p>
 
     <h3>תוצאה</h3>
     <p>לאחר השיבוץ יוצג חלון סיכום עם:</p>
@@ -994,6 +1289,88 @@
   </div>
 </section>
 
+<!-- ═══════════════ CSV IMPORT ═══════════════ -->
+<section class="section" id="csv-import">
+  <div class="section-header">
+    <span class="section-icon">📊</span>
+    <span class="section-title">ייבוא מוזמנים מ-CSV / Excel <span style="background:#e8f5e9;color:#2e7d32;font-size:11px;padding:1px 7px;border-radius:10px;font-weight:600">חדש ב-2.1</span></span>
+  </div>
+  <div class="section-body">
+    <p>ניתן לייבא רשימת מוזמנים מקובץ Excel (.xlsx/.xls) או CSV ישירות מהתפריט 📦 ← "ייבוא מוזמנים".</p>
+
+    <h3>שלבי הייבוא</h3>
+    <ol class="steps">
+      <li>הורידו את תבנית ה-CSV: 📦 ← "הורד תבנית CSV לייבוא"</li>
+      <li>פתחו את הקובץ ב-Excel או Google Sheets</li>
+      <li>מלאו את הנתונים (ראו עמודות להלן)</li>
+      <li>שמרו כ-CSV (.csv) או Excel (.xlsx)</li>
+      <li>ייבאו: 📦 ← "ייבוא מוזמנים (CSV)" או "(Excel)"</li>
+      <li>בחרו <strong>מיזוג</strong> (הוסף לקיים) או <strong>החלפה</strong> (מחק הכל ותחליף)</li>
+    </ol>
+
+    <h3>עמודות נתמכות</h3>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:#e8eaf6">
+            <th style="padding:7px 12px;text-align:right;border:1px solid #ddd">עמודה (עברית)</th>
+            <th style="padding:7px 12px;text-align:right;border:1px solid #ddd">שם אנגלי</th>
+            <th style="padding:7px 12px;text-align:right;border:1px solid #ddd">הערות</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style="padding:6px 12px;border:1px solid #ddd">שם</td><td style="padding:6px 12px;border:1px solid #ddd">name</td><td style="padding:6px 12px;border:1px solid #ddd">שם הקבוצה / משפחה</td></tr>
+          <tr style="background:#fafafa"><td style="padding:6px 12px;border:1px solid #ddd">מבוגרים</td><td style="padding:6px 12px;border:1px solid #ddd">adults</td><td style="padding:6px 12px;border:1px solid #ddd">מספר; ברירת מחדל 1</td></tr>
+          <tr><td style="padding:6px 12px;border:1px solid #ddd">ילדים</td><td style="padding:6px 12px;border:1px solid #ddd">children</td><td style="padding:6px 12px;border:1px solid #ddd">מספר; ברירת מחדל 0</td></tr>
+          <tr style="background:#fafafa"><td style="padding:6px 12px;border:1px solid #ddd">ילדים עם הורים</td><td style="padding:6px 12px;border:1px solid #ddd">childrenWithParents</td><td style="padding:6px 12px;border:1px solid #ddd">מספר ילדים שחייבים לשבת עם הורה</td></tr>
+          <tr><td style="padding:6px 12px;border:1px solid #ddd">תגיות</td><td style="padding:6px 12px;border:1px solid #ddd">tags</td><td style="padding:6px 12px;border:1px solid #ddd">מופרדות בנקודה-פסיק (;)</td></tr>
+          <tr style="background:#fafafa"><td style="padding:6px 12px;border:1px solid #ddd">הערות</td><td style="padding:6px 12px;border:1px solid #ddd">notes</td><td style="padding:6px 12px;border:1px solid #ddd">טקסט חופשי</td></tr>
+          <tr><td style="padding:6px 12px;border:1px solid #ddd">העדפת מיקום</td><td style="padding:6px 12px;border:1px solid #ddd">proximity</td><td style="padding:6px 12px;border:1px solid #ddd">nearDance / farDance / nearEntrance</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="tip" style="margin-top:12px">
+      <span class="tip-icon">💡</span>
+      <span>שמרו את הקובץ עם קידוד UTF-8 כדי שאותיות עבריות יוצגו נכון.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ DEMO PROJECT ═══════════════ -->
+<section class="section" id="demo-project">
+  <div class="section-header">
+    <span class="section-icon">🎓</span>
+    <span class="section-title">פרויקט דוגמא <span style="background:#e8f5e9;color:#2e7d32;font-size:11px;padding:1px 7px;border-radius:10px;font-weight:600">חדש ב-2.1</span></span>
+  </div>
+  <div class="section-body">
+    <p>פרויקט הדוגמא מאפשר לכם לחוות את המערכת עם נתונים מוכנים מראש — בלי להזין שום דבר.</p>
+
+    <h3>טעינת פרויקט הדוגמא</h3>
+    <ol class="steps">
+      <li>לחצו על 📦 (ייצוא/ייבוא) בכותרת</li>
+      <li>בסעיף "פרויקט דוגמא" לחצו "🎓 טען פרויקט דוגמא"</li>
+      <li>הפרויקט יטען ויופיע ברשימת האירועים</li>
+    </ol>
+
+    <h3>מה כלול בפרויקט הדוגמא?</h3>
+    <ul class="bullets">
+      <li>12 מוזמנים עם שמות, ילדים, תגיות והערות</li>
+      <li>7 פריטי אולם: 3 שולחנות, רחבת ריקודים, כניסה, במה ושולחן ריק</li>
+      <li>3 תלויות: בני זוג, חברים, וקונפליקט</li>
+      <li>4 תגיות: משפחה, חברים, עבודה, VIP</li>
+    </ul>
+
+    <h3>הסרת פרויקט הדוגמא</h3>
+    <p>לחצו "🗑 הסר פרויקט דוגמא" מאותו תפריט. לא ניתן להסיר אם זה האירוע היחיד.</p>
+
+    <div class="tip">
+      <span class="tip-icon">💡</span>
+      <span>נסו להפעיל שיבוץ אוטומטי עם "התחשב בתלויות" — תראו כיצד הקונפליקט מונע מוזמנים משולחן אחד.</span>
+    </div>
+  </div>
+</section>
+
 <!-- ═══════════════ PRINT ═══════════════ -->
 <section class="section" id="print">
   <div class="section-header">
@@ -1174,6 +1551,24 @@
   </div>
 </section>
 
+<!-- ═══════════════ HINTS ═══════════════ -->
+<section class="section" id="hints">
+  <div class="section-header">
+    <span class="section-icon">💡</span>
+    <span class="section-title">רמזים ועזרה <span style="background:#e8f5e9;color:#2e7d32;font-size:11px;padding:1px 7px;border-radius:10px;font-weight:600">חדש ב-2.1</span></span>
+  </div>
+  <div class="section-body">
+    <p>המערכת מציגה כרטיסי רמזים בראש הסרגל הצדדי כדי להכיר אתכם עם תכונות מתקדמות.</p>
+    <ul class="bullets">
+      <li>בכל פעם תוצג <strong>רמז אחד אקראי</strong> שעדיין לא נסגר</li>
+      <li><strong>✕</strong> — סגור את הרמז הנוכחי (לא יוצג שוב)</li>
+      <li><strong>הסתר הכל</strong> — סגור את כל הרמזים לצמיתות</li>
+    </ul>
+    <p>הרמזים מכסים נושאים כגון: גרירה לשולחן, Ctrl+לחיצה, תפריט לחיצה ימנית, תלויות בין מוזמנים, פריסות, גיבוי, זום, ייבוא CSV.</p>
+    <p>מצב הרמזים (אלו נסגרו) נשמר ב-localStorage של הדפדפן.</p>
+  </div>
+</section>
+
 <!-- ═══════════════ SHORTCUTS ═══════════════ -->
 <section class="section" id="shortcuts">
   <div class="section-header">
@@ -1184,10 +1579,13 @@
     <div class="shortcuts-grid">
       <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>Z</kbd><span class="shortcut-desc">ביטול פעולה אחרונה</span></div>
       <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>Y</kbd><span class="shortcut-desc">שחזור פעולה</span></div>
+      <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>S</kbd><span class="shortcut-desc">שמור מידי</span></div>
+      <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>E</kbd><span class="shortcut-desc">ייצא פרויקט JSON</span></div>
       <div class="shortcut-row"><kbd>0</kbd><span class="shortcut-desc">התאם תצוגה לתוכן</span></div>
       <div class="shortcut-row"><kbd>+</kbd><span class="shortcut-desc">הגדל זום</span></div>
       <div class="shortcut-row"><kbd>-</kbd><span class="shortcut-desc">הקטן זום</span></div>
-      <div class="shortcut-row"><kbd>Delete</kbd> / <kbd>Backspace</kbd><span class="shortcut-desc">מחק פריט נבחר</span></div>
+      <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>לחיצה</kbd><span class="shortcut-desc">בחירה מרובה של שולחנות</span></div>
+      <div class="shortcut-row"><kbd>Delete</kbd> / <kbd>Backspace</kbd><span class="shortcut-desc">מחק פריט נבחר (עם אישור אם מרובה)</span></div>
       <div class="shortcut-row"><kbd>Escape</kbd><span class="shortcut-desc">סגור מודל / בטל בחירה</span></div>
     </div>
   </div>

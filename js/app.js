@@ -137,6 +137,17 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnLoadDemo')?.addEventListener('click', () => Storage.loadDemoProject());
   document.getElementById('btnRemoveDemo')?.addEventListener('click', () => Storage.removeDemoProject());
 
+  /* ── What's New ── */
+  document.getElementById('btnWhatsNew')?.addEventListener('click', () => UI.openModal('modalWhatsNew'));
+  // Auto-show once per app version — skip for brand-new users (they see Getting Started instead)
+  const WN_KEY = 'sp_version_seen';
+  if (hasData && localStorage.getItem(WN_KEY) !== CONFIG.APP_VERSION) {
+    setTimeout(() => {
+      UI.openModal('modalWhatsNew');
+      localStorage.setItem(WN_KEY, CONFIG.APP_VERSION);
+    }, 800);
+  }
+
   /* ── Guest export / import ── */
   document.getElementById('btnExportGuests')?.addEventListener('click', () => Storage.exportGuestsJSON());
   document.getElementById('btnImportGuests')?.addEventListener('click', () => document.getElementById('importGuestsInput')?.click());
