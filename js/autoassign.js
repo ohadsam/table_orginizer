@@ -138,28 +138,58 @@ const AutoAssign = (() => {
     return created;
   }
 
+  /* ── score table for custom dep type based on isPositive + significanceLevel ── */
+  const _CDT_LEVEL_SCORES = [0, 50, 100, 200, 350, 500];
+
   /* ── build dependency maps for constraint checking ── */
   function buildDepMaps(guestDependencies) {
-    const forbidden  = {};  // guestId → Set of forbidden co-table guestIds
-    const required   = {};  // guestId → Set of required co-table guestIds
-    const preferred  = {};  // guestId → Set of preferred co-table guestIds
-    const avoid      = {};  // guestId → Set of avoid co-table guestIds
+    const forbidden  = {};  // guestId → Set of hard-forbidden co-table guestIds
+    const required   = {};  // guestId → Set of hard-required co-table guestIds
+    const preferred  = {};  // guestId → Set of preferred co-table guestIds (legacy/built-in)
+    const avoid      = {};  // guestId → Set of avoid co-table guestIds (legacy/built-in)
+    const weighted   = {};  // guestId → Map<coGuestId, score>  (custom types with level 1-4)
+
+    // Build lookup for custom dep types that have explicit significance + direction
+    const customTypes = State.get().settings?.autoAssign?.customDependencyTypes || [];
+    const cdtMap = {};
+    customTypes.forEach(t => { if (t.id) cdtMap[t.id] = t; });
 
     function add(map, a, b) {
       if (!map[a]) map[a] = new Set();
       if (!map[b]) map[b] = new Set();
       map[a].add(b); map[b].add(a);
     }
+    function addWeighted(a, b, score) {
+      if (!weighted[a]) weighted[a] = new Map();
+      if (!weighted[b]) weighted[b] = new Map();
+      weighted[a].set(b, (weighted[a].get(b) || 0) + score);
+      weighted[b].set(a, (weighted[b].get(a) || 0) + score);
+    }
 
     (guestDependencies || []).forEach(dep => {
-      const s = dep.strength;
-      if (s === 'forbidden') { add(forbidden, dep.guestA, dep.guestB); }
-      else if (s === 'required') { add(required, dep.guestA, dep.guestB); }
-      else if (s === 'preferred') { add(preferred, dep.guestA, dep.guestB); }
-      else if (s === 'avoid') { add(avoid, dep.guestA, dep.guestB); }
+      const ct = cdtMap[dep.type];
+      if (ct && ct.significanceLevel != null && ct.isPositive != null) {
+        // Custom type with explicit direction + significance level
+        const level = Math.min(5, Math.max(1, ct.significanceLevel | 0));
+        const score = _CDT_LEVEL_SCORES[level];
+        if (ct.isPositive) {
+          if (level >= 5) add(required, dep.guestA, dep.guestB);
+          else addWeighted(dep.guestA, dep.guestB, score);
+        } else {
+          if (level >= 5) add(forbidden, dep.guestA, dep.guestB);
+          else addWeighted(dep.guestA, dep.guestB, -score);
+        }
+      } else {
+        // Legacy / built-in strength
+        const s = dep.strength;
+        if (s === 'forbidden')  add(forbidden, dep.guestA, dep.guestB);
+        else if (s === 'required')  add(required, dep.guestA, dep.guestB);
+        else if (s === 'preferred') add(preferred, dep.guestA, dep.guestB);
+        else if (s === 'avoid')     add(avoid, dep.guestA, dep.guestB);
+      }
     });
 
-    return { forbidden, required, preferred, avoid };
+    return { forbidden, required, preferred, avoid, weighted };
   }
 
   /* ── constraint score for placing guest at a specific table ── */
@@ -169,6 +199,8 @@ const AutoAssign = (() => {
     if (depMaps.preferred[guestId]) depMaps.preferred[guestId].forEach(id => { if (occupants.has(id)) score += 200; });
     if (depMaps.required[guestId])  depMaps.required[guestId].forEach(id =>  { if (occupants.has(id)) score += 500; });
     if (depMaps.avoid[guestId])     depMaps.avoid[guestId].forEach(id =>     { if (occupants.has(id)) score -= 300; });
+    // Custom-type weighted score (levels 1-4, both positive and negative)
+    if (depMaps.weighted?.[guestId]) depMaps.weighted[guestId].forEach((sc, id) => { if (occupants.has(id)) score += sc; });
     return score;
   }
 
@@ -297,7 +329,8 @@ const AutoAssign = (() => {
       Guests.endBatch();
     }
 
-    return { assigned, failed, splitsCreated, tablesCreated };
+    const failedGuests = State.get().guests.filter(g => !g.tableId && !g.splitOf);
+    return { assigned, failed, failedGuests, splitsCreated, tablesCreated };
   }
 
   function _assignRoundRobin(guests, tables, capacity, allowSplit, landmarks, respectProximity, depMaps, tableGuests) {

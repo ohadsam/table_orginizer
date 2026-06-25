@@ -1185,14 +1185,36 @@ const Modals = (() => {
   function showAutoAssignResult(result) {
     const body = document.getElementById('autoAssignResultBody');
     if (!body) return;
-    const { assigned, failed, splitsCreated, tablesCreated, rerolled, runs, algorithm, layoutName } = result;
+    const { assigned, failed, failedGuests, splitsCreated, tablesCreated, rerolled, runs, layoutName } = result;
+
+    // Totals for percentage
+    const allGuests  = State.get().guests.filter(g => !g.splitOf);
+    const totalPeople = allGuests.reduce((s, g) => s + (g.total || 1), 0);
+    const pct = totalPeople > 0 ? Math.round(assigned / totalPeople * 100) : 0;
+
     const rows = [];
     if (rerolled && runs)   rows.push(`<div class="result-row result-info">הוגרל ${runs} פעמים — נבחרה התוצאה הטובה ביותר 🎲</div>`);
     if (layoutName)         rows.push(`<div class="result-row result-info">נשמר כפריסה: <strong>${UI.escHtml(layoutName)}</strong> 📐</div>`);
     if (tablesCreated > 0)  rows.push(`<div class="result-row result-info"><strong>${tablesCreated}</strong> שולחנות נוצרו אוטומטית 🪑</div>`);
-    rows.push(`<div class="result-row result-success"><strong>${assigned}</strong> מוזמנים שובצו ✅</div>`);
+
+    if (assigned === 0 && failed === 0 && tablesCreated === 0) {
+      rows.push(`<div class="result-row result-info">אין שינויים — כל המוזמנים כבר שובצו ✓</div>`);
+    } else {
+      rows.push(`<div class="result-row result-success"><strong>${assigned}</strong> / ${totalPeople} מוזמנים שובצו (${pct}%) ✅</div>`);
+    }
     if (splitsCreated > 0) rows.push(`<div class="result-row result-warning"><strong>${splitsCreated}</strong> קבוצות פוצלו ⛓ (מסומנות בכרטיסים ובהדפסה)</div>`);
-    if (failed > 0)        rows.push(`<div class="result-row result-danger"><strong>${failed}</strong> מוזמנים לא שובצו ⚠️</div>`);
+    if (failed > 0) {
+      rows.push(`<div class="result-row result-danger"><strong>${failed}</strong> מוזמנים לא שובצו ⚠️</div>`);
+      if (failedGuests && failedGuests.length) {
+        const names = failedGuests.slice(0, 6).map(g =>
+          `<li>${UI.escHtml(g.name)}${g.total > 1 ? ` (${g.total})` : ''}</li>`
+        ).join('');
+        const more  = failedGuests.length > 6
+          ? `<li style="color:#90a4ae">...ועוד ${failedGuests.length - 6}</li>` : '';
+        rows.push(`<ul style="margin:4px 0 0 0;padding:0 18px 0 0;font-size:12px;color:#b71c1c;line-height:1.7">${names}${more}</ul>`);
+      }
+    }
+
     body.innerHTML = `<div class="assign-result-grid">${rows.join('')}</div>`;
     UI.openModal('modalAutoAssignResult');
   }
@@ -1458,7 +1480,6 @@ const Modals = (() => {
       const opts = _getAutoAssignOpts();
       UI.closeModal('modalAutoAssign');
       const result = AutoAssign.run(opts);
-      if (result.assigned + result.failed + result.splitsCreated + result.tablesCreated === 0) return;
       if (result.tablesCreated > 0) requestAnimationFrame(() => Canvas.fitAll());
       showAutoAssignResult(result);
     });
@@ -1466,7 +1487,6 @@ const Modals = (() => {
       const opts = _getAutoAssignOpts();
       UI.closeModal('modalAutoAssign');
       const result = AutoAssign.reroll(opts);
-      if (result.assigned + result.failed + result.splitsCreated + result.tablesCreated === 0) return;
       if (result.tablesCreated > 0) requestAnimationFrame(() => Canvas.fitAll());
       showAutoAssignResult(result);
     });
@@ -2829,11 +2849,28 @@ const Modals = (() => {
     });
   }
 
+  // Derive display direction/level from a custom dep type (supports both old and new format)
+  function _cdtDirection(t) {
+    if (t.isPositive != null) return !!t.isPositive;
+    return t.strength === 'required' || t.strength === 'preferred';
+  }
+  function _cdtLevel(t) {
+    if (t.significanceLevel != null) return Math.min(5, Math.max(1, t.significanceLevel | 0));
+    if (t.strength === 'required' || t.strength === 'forbidden') return 5;
+    return 3;
+  }
+  // Derive legacy strength from isPositive + level (for backward compat with depScore fallback)
+  function _cdtStrength(isPositive, level) {
+    if (isPositive) return level >= 5 ? 'required' : 'preferred';
+    return level >= 5 ? 'forbidden' : 'avoid';
+  }
+
   function _renderDepTypesView() {
     const body = document.getElementById('depTypesBody');
     if (!body) return;
     const custom = State.get().settings?.autoAssign?.customDependencyTypes || [];
-    const STRENGTH_LABELS = { required: 'חובה', preferred: 'מועדף', avoid: 'הימנע', forbidden: 'אסור' };
+
+    const LEVEL_LABELS = ['', '★ מינימלי', '★★ נמוך', '★★★ בינוני', '★★★★ גבוה', '★★★★★ קריטי'];
 
     let listHtml = '';
     if (!custom.length) {
@@ -2843,24 +2880,32 @@ const Modals = (() => {
         <thead><tr style="background:#f5f5f5">
           <th style="padding:5px 8px;text-align:right">שם</th>
           <th style="padding:5px 8px;text-align:center">אייקון</th>
-          <th style="padding:5px 8px;text-align:center">עוצמה</th>
+          <th style="padding:5px 8px;text-align:center">כיוון</th>
+          <th style="padding:5px 8px;text-align:center">משמעות</th>
           <th style="padding:5px 8px;text-align:center">צבע</th>
           <th></th>
         </tr></thead>
-        <tbody>${custom.map((t, i) => `<tr style="border-bottom:1px solid #f0f0f0">
-          <td style="padding:5px 8px">${UI.escHtml(t.label)}</td>
-          <td style="padding:5px 8px;text-align:center">${UI.escHtml(t.icon||'')}</td>
-          <td style="padding:5px 8px;text-align:center">${STRENGTH_LABELS[t.strength] || t.strength}</td>
-          <td style="padding:5px 8px;text-align:center"><span style="display:inline-block;width:20px;height:20px;background:${t.color};border-radius:3px;border:1px solid #ddd"></span></td>
-          <td style="padding:5px 8px;text-align:center"><button class="btn btn-sm" style="color:#e53935;border:1px solid #e53935;padding:1px 7px" data-del-cdt="${i}">✕</button></td>
-        </tr>`).join('')}</tbody>
+        <tbody>${custom.map((t, i) => {
+          const dir   = _cdtDirection(t);
+          const level = _cdtLevel(t);
+          return `<tr style="border-bottom:1px solid #f0f0f0">
+            <td style="padding:5px 8px">${UI.escHtml(t.label)}</td>
+            <td style="padding:5px 8px;text-align:center">${UI.escHtml(t.icon||'')}</td>
+            <td style="padding:5px 8px;text-align:center">${dir ? '✅ ביחד' : '❌ בנפרד'}</td>
+            <td style="padding:5px 8px;text-align:center" title="${LEVEL_LABELS[level]}">${'★'.repeat(level)}${'☆'.repeat(5-level)}</td>
+            <td style="padding:5px 8px;text-align:center"><span style="display:inline-block;width:20px;height:20px;background:${t.color};border-radius:3px;border:1px solid #ddd"></span></td>
+            <td style="padding:5px 8px;text-align:center"><button class="btn btn-sm" style="color:#e53935;border:1px solid #e53935;padding:1px 7px" data-del-cdt="${i}">✕</button></td>
+          </tr>`;
+        }).join('')}</tbody>
       </table>`;
     }
 
     body.innerHTML = listHtml + `
       <div style="background:#f9f9f9;border:1px solid #e0e0e0;border-radius:8px;padding:12px">
         <p style="font-size:13px;font-weight:600;margin:0 0 10px">הוסף סוג קשר חדש</p>
-        <div style="display:grid;grid-template-columns:1fr 60px 1fr 80px auto;gap:8px;align-items:end">
+
+        <!-- Row 1: name + icon + color -->
+        <div style="display:grid;grid-template-columns:1fr 60px 70px;gap:8px;margin-bottom:10px">
           <div>
             <label class="form-label" style="font-size:11px">שם הקשר</label>
             <input type="text" id="depNewTypeName" class="input" placeholder="למשל: שכנים" style="width:100%">
@@ -2870,23 +2915,47 @@ const Modals = (() => {
             <input type="text" id="depNewTypeIcon" class="input" placeholder="🏠" style="width:100%;text-align:center" maxlength="4">
           </div>
           <div>
-            <label class="form-label" style="font-size:11px">עוצמה</label>
-            <select id="depNewTypeStrength" class="input" style="width:100%">
-              <option value="required">חובה (required)</option>
-              <option value="preferred" selected>מועדף (preferred)</option>
-              <option value="avoid">הימנע (avoid)</option>
-              <option value="forbidden">אסור (forbidden)</option>
-            </select>
-          </div>
-          <div>
             <label class="form-label" style="font-size:11px">צבע</label>
             <input type="color" id="depNewTypeColor" class="input" value="#42A5F5" style="width:100%;height:34px;padding:2px 3px">
           </div>
+        </div>
+
+        <!-- Row 2: direction + significance -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px">
           <div>
-            <button class="btn btn-primary btn-sm" id="btnConfirmAddDepType" style="white-space:nowrap">+ הוסף</button>
+            <label class="form-label" style="font-size:11px">כיוון הקשר</label>
+            <div style="display:flex;gap:6px">
+              <button class="btn dep-dir-btn btn-primary" data-positive="true" style="flex:1;font-size:12px">✅ ביחד</button>
+              <button class="btn dep-dir-btn btn-ghost"   data-positive="false" style="flex:1;font-size:12px">❌ בנפרד</button>
+            </div>
+            <p style="font-size:10px;color:#90a4ae;margin:4px 0 0">האם לנסות לשבץ את שני המוזמנים לאותו שולחן</p>
+          </div>
+          <div>
+            <label class="form-label" style="font-size:11px">רמת משמעות</label>
+            <select id="depNewTypeLevel" class="input" style="width:100%">
+              <option value="1">★☆☆☆☆ — מינימלי</option>
+              <option value="2">★★☆☆☆ — נמוך</option>
+              <option value="3" selected>★★★☆☆ — בינוני</option>
+              <option value="4">★★★★☆ — גבוה</option>
+              <option value="5">★★★★★ — קריטי (כלל חובה)</option>
+            </select>
+            <p style="font-size:10px;color:#90a4ae;margin:4px 0 0">רמה 5 = כלל דווקאי (חובה / אסור בהחלט)</p>
           </div>
         </div>
+
+        <button class="btn btn-primary btn-sm" id="btnConfirmAddDepType">+ הוסף סוג קשר</button>
       </div>`;
+
+    // Wire direction toggle buttons
+    let _newTypePositive = true;
+    body.querySelectorAll('.dep-dir-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        _newTypePositive = btn.dataset.positive === 'true';
+        body.querySelectorAll('.dep-dir-btn').forEach(b => {
+          b.className = 'btn dep-dir-btn ' + (b.dataset.positive === String(_newTypePositive) ? 'btn-primary' : 'btn-ghost');
+        });
+      });
+    });
 
     body.querySelectorAll('[data-del-cdt]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -2901,16 +2970,19 @@ const Modals = (() => {
     });
 
     document.getElementById('btnConfirmAddDepType')?.addEventListener('click', () => {
-      const label  = document.getElementById('depNewTypeName')?.value.trim();
+      const label = document.getElementById('depNewTypeName')?.value.trim();
       if (!label) { UI.toast('נא להזין שם', 'warning'); return; }
-      const icon     = document.getElementById('depNewTypeIcon')?.value.trim() || '🔗';
-      const strength = document.getElementById('depNewTypeStrength')?.value || 'preferred';
-      const color    = document.getElementById('depNewTypeColor')?.value || '#42A5F5';
+      const icon             = document.getElementById('depNewTypeIcon')?.value.trim() || '🔗';
+      const color            = document.getElementById('depNewTypeColor')?.value || '#42A5F5';
+      const significanceLevel = parseInt(document.getElementById('depNewTypeLevel')?.value || '3');
+      const isPositive       = _newTypePositive;
+      const strength         = _cdtStrength(isPositive, significanceLevel);
       const s = State.get().settings;
       if (!s.autoAssign) s.autoAssign = {};
       if (!s.autoAssign.customDependencyTypes) s.autoAssign.customDependencyTypes = [];
-      s.autoAssign.customDependencyTypes.push({ id: 'cdt_' + Date.now(), label, icon, strength, color });
-      State.setSetting('autoAssign', s.autoAssign);
+      const newArr = [...s.autoAssign.customDependencyTypes,
+        { id: 'cdt_' + Date.now(), label, icon, color, isPositive, significanceLevel, strength }];
+      State.setSetting('autoAssign', { ...s.autoAssign, customDependencyTypes: newArr });
       _renderDepTypesView();
       UI.toast('סוג קשר נוסף ✓', 'success', 1500);
     });
