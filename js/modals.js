@@ -2644,6 +2644,11 @@ const Modals = (() => {
 
   /* ─────────────────── INFERENCE ENGINE ─────────────────── */
 
+  // Only allow safe hex color values in inline styles (guards against CSS injection via imported JSON)
+  function _safeCssColor(c) {
+    return (typeof c === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(c)) ? c : '#90a4ae';
+  }
+
   // Build suggestions by transitivity: if A-B have rel typeAB and B-C have typeBC,
   // infer a candidate relationship A-C based on rule table.
   function _computeInferenceSuggestions(focusGuestId) {
@@ -2699,7 +2704,7 @@ const Modals = (() => {
           if (gC === gA || !guestMap[gC]) return;
           const pairKey = [gA, gC].sort().join('|');
           if (existingPairs.has(pairKey)) return;
-          const suggKey = focusGuestId ? pairKey : `${gA}|${gC}`;
+          const suggKey = pairKey;
           if (seen.has(suggKey)) return;
           const rule = inferRule(typeAB, typeBC);
           if (!rule) return;
@@ -2744,9 +2749,9 @@ const Modals = (() => {
       const typeInf = allDT[s.suggestedType] || {};
       return `<div class="inference-row" style="padding:7px 0;border-bottom:1px solid #f0f0f0">
         <div style="font-size:12px;font-weight:600;margin-bottom:2px">${UI.escHtml(gBName)}</div>
-        <div style="font-size:11px;color:#607d8b;margin-bottom:4px">${s.reason}</div>
+        <div style="font-size:11px;color:#607d8b;margin-bottom:4px">${UI.escHtml(s.reason)}</div>
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
-          <span style="background:${typeInf.color||'#90a4ae'};color:#fff;font-size:10px;padding:1px 6px;border-radius:8px;white-space:nowrap">${typeInf.icon||''} ${UI.escHtml(typeInf.label||'')}</span>
+          <span style="background:${_safeCssColor(typeInf.color)};color:#fff;font-size:10px;padding:1px 6px;border-radius:8px;white-space:nowrap">${UI.escHtml(typeInf.icon||'')} ${UI.escHtml(typeInf.label||'')}</span>
           <button class="btn btn-sm btn-primary" data-inf-add="${i}" style="padding:1px 7px;font-size:11px">הוסף ✓</button>
           <button class="btn btn-sm" data-inf-skip="${i}" style="padding:1px 5px;font-size:11px;color:#90a4ae">✕</button>
         </div>
@@ -2757,7 +2762,8 @@ const Modals = (() => {
       const i = parseInt(btn.dataset.infAdd);
       btn.addEventListener('click', () => {
         const s = suggestions[i];
-        if (!s) return;
+        if (!s || btn.disabled) return;
+        btn.disabled = true;
         const def = allDT[s.suggestedType] || {};
         State.addDependency({ guestA: s.guestA, guestB: s.guestB, type: s.suggestedType, strength: def.strength || 'preferred' });
         UI.toast('קשר נוסף ✓', 'success', 1400);
@@ -2773,7 +2779,7 @@ const Modals = (() => {
     const body = document.getElementById('depSuggestBody');
     if (!body) return;
     const state = State.get();
-    const guests = state.guests;
+    const guests = state.guests.filter(g => !g.splitOf);
     const existingPairs = new Set((state.guestDependencies || []).map(d => [d.guestA, d.guestB].sort().join('|')));
     const allDT = { ...CONFIG.DEPENDENCY_TYPES, ..._getCustomDepTypesMap() };
     const guestMap = {};
@@ -2794,7 +2800,7 @@ const Modals = (() => {
               <strong>${UI.escHtml(gAName)}</strong> + <strong>${UI.escHtml(gBName)}</strong>
               <span style="display:block;font-size:11px;color:#607d8b;margin-top:2px">${UI.escHtml(s.reason)}</span>
             </span>
-            <span style="background:${typeInf.color||'#90a4ae'};color:#fff;font-size:10px;padding:1px 6px;border-radius:8px;white-space:nowrap;flex-shrink:0">${UI.escHtml(typeInf.icon||'')} ${UI.escHtml(typeInf.label||'')}</span>
+            <span style="background:${_safeCssColor(typeInf.color)};color:#fff;font-size:10px;padding:1px 6px;border-radius:8px;white-space:nowrap;flex-shrink:0">${UI.escHtml(typeInf.icon||'')} ${UI.escHtml(typeInf.label||'')}</span>
             <button class="btn btn-sm btn-primary" style="padding:3px 8px;flex-shrink:0" data-infer-accept="${idx}">✓</button>
             <button class="btn btn-sm" style="padding:3px 6px;color:#90a4ae;flex-shrink:0" data-infer-reject="${idx}">✕</button>
           </div>`;
