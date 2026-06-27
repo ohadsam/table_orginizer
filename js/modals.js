@@ -2642,14 +2642,167 @@ const Modals = (() => {
     });
   }
 
+  /* ─────────────────── INFERENCE ENGINE ─────────────────── */
+
+  // Build suggestions by transitivity: if A-B have rel typeAB and B-C have typeBC,
+  // infer a candidate relationship A-C based on rule table.
+  function _computeInferenceSuggestions(focusGuestId) {
+    const state    = State.get();
+    const deps     = state.guestDependencies || [];
+    const guests   = state.guests.filter(g => !g.splitOf);
+    if (!deps.length || guests.length < 3) return [];
+
+    const guestMap = {};
+    guests.forEach(g => { guestMap[g.id] = g; });
+
+    // Adjacency: guestId → [{id, type}]
+    const adj = {};
+    deps.forEach(dep => {
+      const t = dep.type || 'friends';
+      if (!adj[dep.guestA]) adj[dep.guestA] = [];
+      if (!adj[dep.guestB]) adj[dep.guestB] = [];
+      adj[dep.guestA].push({ id: dep.guestB, type: t });
+      adj[dep.guestB].push({ id: dep.guestA, type: t });
+    });
+
+    const existingPairs = new Set(deps.map(d => [d.guestA, d.guestB].sort().join('|')));
+
+    const FAMILY_LIKE = new Set(['family', 'spouses', 'parents']);
+
+    function inferRule(typeAB, typeBC) {
+      if (FAMILY_LIKE.has(typeAB) && FAMILY_LIKE.has(typeBC))
+        return { type: 'family', confidence: 0.8 };
+      if (typeAB === 'friends'    && typeBC === 'friends')
+        return { type: 'friends', confidence: 0.5 };
+      if (typeAB === 'colleagues' && typeBC === 'colleagues')
+        return { type: 'colleagues', confidence: 0.5 };
+      return null;
+    }
+
+    function inferReason(typeAB, typeBC, viaName) {
+      if (FAMILY_LIKE.has(typeAB) && FAMILY_LIKE.has(typeBC))
+        return `שניהם קשורים משפחתית דרך ${viaName}`;
+      if (typeAB === 'friends' && typeBC === 'friends')
+        return `${viaName} הוא חבר/ה של שניהם`;
+      if (typeAB === 'colleagues' && typeBC === 'colleagues')
+        return `${viaName} הוא עמית/ה של שניהם`;
+      return `דרך ${viaName}`;
+    }
+
+    const seen = new Set();
+    const suggestions = [];
+    const focusIds = focusGuestId ? [focusGuestId] : guests.map(g => g.id);
+
+    focusIds.forEach(gA => {
+      (adj[gA] || []).forEach(({ id: gB, type: typeAB }) => {
+        (adj[gB] || []).forEach(({ id: gC, type: typeBC }) => {
+          if (gC === gA || !guestMap[gC]) return;
+          const pairKey = [gA, gC].sort().join('|');
+          if (existingPairs.has(pairKey)) return;
+          const suggKey = focusGuestId ? pairKey : `${gA}|${gC}`;
+          if (seen.has(suggKey)) return;
+          const rule = inferRule(typeAB, typeBC);
+          if (!rule) return;
+          seen.add(suggKey);
+          const viaName = guestMap[gB]?.name || gB;
+          suggestions.push({
+            guestA: gA, guestB: gC, via: gB,
+            typeAB, typeBC,
+            suggestedType: rule.type,
+            confidence: rule.confidence,
+            reason: inferReason(typeAB, typeBC, viaName)
+          });
+        });
+      });
+    });
+
+    return suggestions.sort((a, b) => b.confidence - a.confidence);
+  }
+
+  // Render inference suggestions into a container element.
+  // Called whenever Guest A changes in the Add tab.
+  function _renderInferenceSuggestionsPanel(guestId, containerEl) {
+    if (!containerEl) return;
+    if (!guestId) {
+      containerEl.innerHTML = '<p style="font-size:11px;color:#b0bec5;text-align:center;padding:10px 0">בחר מוזמן א׳<br>לראיית הצעות</p>';
+      return;
+    }
+
+    const guestMap = {};
+    State.get().guests.forEach(g => { guestMap[g.id] = g; });
+    const gAName      = guestMap[guestId]?.name || '';
+    const suggestions = _computeInferenceSuggestions(guestId).slice(0, 7);
+    const allDT       = { ...CONFIG.DEPENDENCY_TYPES, ..._getCustomDepTypesMap() };
+
+    if (!suggestions.length) {
+      containerEl.innerHTML = `<p style="font-size:11px;color:#b0bec5;text-align:center;padding:10px 0">אין הצעות<br>עבור ${UI.escHtml(gAName)}</p>`;
+      return;
+    }
+
+    containerEl.innerHTML = suggestions.map((s, i) => {
+      const gBName  = guestMap[s.guestB]?.name || '';
+      const typeInf = allDT[s.suggestedType] || {};
+      return `<div class="inference-row" style="padding:7px 0;border-bottom:1px solid #f0f0f0">
+        <div style="font-size:12px;font-weight:600;margin-bottom:2px">${UI.escHtml(gBName)}</div>
+        <div style="font-size:11px;color:#607d8b;margin-bottom:4px">${s.reason}</div>
+        <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+          <span style="background:${typeInf.color||'#90a4ae'};color:#fff;font-size:10px;padding:1px 6px;border-radius:8px;white-space:nowrap">${typeInf.icon||''} ${UI.escHtml(typeInf.label||'')}</span>
+          <button class="btn btn-sm btn-primary" data-inf-add="${i}" style="padding:1px 7px;font-size:11px">הוסף ✓</button>
+          <button class="btn btn-sm" data-inf-skip="${i}" style="padding:1px 5px;font-size:11px;color:#90a4ae">✕</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    containerEl.querySelectorAll('[data-inf-add]').forEach(btn => {
+      const i = parseInt(btn.dataset.infAdd);
+      btn.addEventListener('click', () => {
+        const s = suggestions[i];
+        if (!s) return;
+        const def = allDT[s.suggestedType] || {};
+        State.addDependency({ guestA: s.guestA, guestB: s.guestB, type: s.suggestedType, strength: def.strength || 'preferred' });
+        UI.toast('קשר נוסף ✓', 'success', 1400);
+        _renderInferenceSuggestionsPanel(guestId, containerEl);
+      });
+    });
+    containerEl.querySelectorAll('[data-inf-skip]').forEach(btn => {
+      btn.addEventListener('click', () => btn.closest('.inference-row').remove());
+    });
+  }
+
   function _renderDepSuggest() {
     const body = document.getElementById('depSuggestBody');
     if (!body) return;
     const state = State.get();
     const guests = state.guests;
     const existingPairs = new Set((state.guestDependencies || []).map(d => [d.guestA, d.guestB].sort().join('|')));
+    const allDT = { ...CONFIG.DEPENDENCY_TYPES, ..._getCustomDepTypesMap() };
+    const guestMap = {};
+    guests.forEach(g => { guestMap[g.id] = g; });
 
-    // Suggest pairs that share 2+ tags
+    // --- Inference-based suggestions section ---
+    const inferSuggestions = _computeInferenceSuggestions(null).slice(0, 10);
+    let inferHtml = '';
+    if (inferSuggestions.length) {
+      inferHtml = `<div style="margin-bottom:16px">
+        <div style="font-size:13px;font-weight:700;color:#33691e;margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid #c5e1a5">🔗 הצעות מבוססות-היסק</div>
+        ${inferSuggestions.map((s, idx) => {
+          const gAName  = guestMap[s.guestA]?.name || '';
+          const gBName  = guestMap[s.guestB]?.name || '';
+          const typeInf = allDT[s.suggestedType] || {};
+          return `<div class="dep-suggest-row dep-infer-row" data-infer-idx="${idx}" style="display:flex;align-items:center;gap:8px;padding:8px;border-bottom:1px solid #f0f0f0;background:#fafffe">
+            <span style="flex:1;font-size:13px">
+              <strong>${UI.escHtml(gAName)}</strong> + <strong>${UI.escHtml(gBName)}</strong>
+              <span style="display:block;font-size:11px;color:#607d8b;margin-top:2px">${UI.escHtml(s.reason)}</span>
+            </span>
+            <span style="background:${typeInf.color||'#90a4ae'};color:#fff;font-size:10px;padding:1px 6px;border-radius:8px;white-space:nowrap;flex-shrink:0">${UI.escHtml(typeInf.icon||'')} ${UI.escHtml(typeInf.label||'')}</span>
+            <button class="btn btn-sm btn-primary" style="padding:3px 8px;flex-shrink:0" data-infer-accept="${idx}">✓</button>
+            <button class="btn btn-sm" style="padding:3px 6px;color:#90a4ae;flex-shrink:0" data-infer-reject="${idx}">✕</button>
+          </div>`;
+        }).join('')}
+      </div>`;
+    }
+
+    // --- Tag-based suggestions section ---
     const suggestions = [];
     for (let i = 0; i < guests.length; i++) {
       for (let j = i + 1; j < guests.length; j++) {
@@ -2664,26 +2817,53 @@ const Modals = (() => {
       }
     }
 
-    if (!suggestions.length) {
+    let tagHtml = '';
+    if (suggestions.length) {
+      tagHtml = `<div>
+        <div style="font-size:13px;font-weight:700;color:#455a64;margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid #e8edf0">🏷 הצעות לפי תגיות משותפות</div>
+        ${suggestions.slice(0, 30).map((s, idx) =>
+          `<div class="dep-suggest-row" data-idx="${idx}" style="display:flex;align-items:center;gap:10px;padding:8px;border-bottom:1px solid #f0f0f0">
+            <span style="flex:1;font-size:13px"><strong>${UI.escHtml(s.gA.name)}</strong> + <strong>${UI.escHtml(s.gB.name)}</strong>
+              <span style="font-size:11px;color:#90a4ae;margin-right:6px">תגיות משותפות: ${s.common.map(t => UI.escHtml(t)).join(', ')}</span>
+            </span>
+            <select class="input" style="width:130px;padding:3px 6px;font-size:12px" data-suggest-type="${idx}">
+              ${Object.entries(allDT).map(([k, v]) =>
+                `<option value="${k}" ${k === 'friends' ? 'selected' : ''}>${UI.escHtml(v.icon||'')} ${UI.escHtml(v.label)}</option>`
+              ).join('')}
+            </select>
+            <button class="btn btn-sm btn-primary" style="padding:3px 10px" data-suggest-accept="${idx}">✓</button>
+            <button class="btn btn-sm" style="padding:3px 8px;color:#90a4ae" data-suggest-reject="${idx}">✕</button>
+          </div>`
+        ).join('')}
+      </div>`;
+    }
+
+    if (!inferHtml && !tagHtml) {
       body.innerHTML = '<p style="color:#90a4ae;font-size:13px">אין הצעות חדשות — כל הזוגות עם תגיות משותפות כבר מוגדרים, או שאין מוזמנים עם תגיות משותפות.</p>';
       return;
     }
 
-    body.innerHTML = suggestions.slice(0, 30).map((s, idx) =>
-      `<div class="dep-suggest-row" data-idx="${idx}" style="display:flex;align-items:center;gap:10px;padding:8px;border-bottom:1px solid #f0f0f0">
-        <span style="flex:1;font-size:13px"><strong>${UI.escHtml(s.gA.name)}</strong> + <strong>${UI.escHtml(s.gB.name)}</strong>
-          <span style="font-size:11px;color:#90a4ae;margin-right:6px">תגיות משותפות: ${s.common.map(t => UI.escHtml(t)).join(', ')}</span>
-        </span>
-        <select class="input" style="width:130px;padding:3px 6px;font-size:12px" data-suggest-type="${idx}">
-          ${Object.entries({ ...CONFIG.DEPENDENCY_TYPES, ..._getCustomDepTypesMap() }).map(([k, v]) =>
-            `<option value="${k}" ${k === 'friends' ? 'selected' : ''}>${UI.escHtml(v.icon||'')} ${UI.escHtml(v.label)}</option>`
-          ).join('')}
-        </select>
-        <button class="btn btn-sm btn-primary" style="padding:3px 10px" data-suggest-accept="${idx}">✓</button>
-        <button class="btn btn-sm" style="padding:3px 8px;color:#90a4ae" data-suggest-reject="${idx}">✕</button>
-      </div>`
-    ).join('');
+    body.innerHTML = inferHtml + tagHtml;
 
+    // Wire inference accept/reject buttons
+    body.querySelectorAll('[data-infer-accept]').forEach(btn => {
+      const idx = parseInt(btn.dataset.inferAccept);
+      btn.addEventListener('click', () => {
+        const s = inferSuggestions[idx];
+        if (!s) return;
+        const def = allDT[s.suggestedType] || {};
+        State.addDependency({ guestA: s.guestA, guestB: s.guestB, type: s.suggestedType, strength: def.strength || 'preferred' });
+        _renderDepSuggest();
+        if (_depActiveTab === 'table') _renderDepTable();
+        if (_depActiveTab === 'graph') _renderDepGraph();
+        UI.toast(`קשר נוסף: ${guestMap[s.guestA]?.name || ''} ↔ ${guestMap[s.guestB]?.name || ''}`, 'success', 1600);
+      });
+    });
+    body.querySelectorAll('[data-infer-reject]').forEach(btn => {
+      btn.addEventListener('click', () => btn.closest('.dep-infer-row').remove());
+    });
+
+    // Wire tag-based accept/reject buttons
     body.querySelectorAll('[data-suggest-accept]').forEach(btn => {
       const idx = parseInt(btn.dataset.suggestAccept);
       btn.addEventListener('click', () => {
@@ -2730,36 +2910,44 @@ const Modals = (() => {
     ).join('');
 
     wrap.innerHTML = `
-      <p style="font-size:12px;color:#607d8b;margin-bottom:12px">בחר מוזמן א׳, לאחר מכן סמן מוזמנים ב׳ (אפשר מרובים) וקבע סוג קשר לכל אחד.</p>
-      <!-- Guest A selector with search -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-        <div>
-          <label class="form-label" style="font-size:12px">מוזמן א׳ (מקור)</label>
-          <input type="text" id="depAddSearchA" class="input" placeholder="חפש מוזמן..." style="width:100%;margin-bottom:4px" autocomplete="off">
-          <select id="depAddGuestA" class="input" style="width:100%;height:120px" size="6">
-            ${guestOpts}
-          </select>
+      <div style="display:flex;gap:16px;align-items:flex-start">
+        <div style="flex:1;min-width:0">
+          <p style="font-size:12px;color:#607d8b;margin-bottom:12px">בחר מוזמן א׳, לאחר מכן סמן מוזמנים ב׳ (אפשר מרובים) וקבע סוג קשר לכל אחד.</p>
+          <!-- Guest A selector with search -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+            <div>
+              <label class="form-label" style="font-size:12px">מוזמן א׳ (מקור)</label>
+              <input type="text" id="depAddSearchA" class="input" placeholder="חפש מוזמן..." style="width:100%;margin-bottom:4px" autocomplete="off">
+              <select id="depAddGuestA" class="input" style="width:100%;height:120px" size="6">
+                ${guestOpts}
+              </select>
+            </div>
+            <div>
+              <label class="form-label" style="font-size:12px">סוג קשר ברירת מחדל</label>
+              <select id="depAddTypeDefault" class="input" style="width:100%;margin-bottom:4px">${typeOpts}</select>
+              <p style="font-size:11px;color:#90a4ae;margin:4px 0">ניתן לשנות סוג לכל מוזמן ב׳ בנפרד למטה.</p>
+            </div>
+          </div>
+          <!-- Guest B multi-select with search -->
+          <div style="margin-bottom:10px">
+            <label class="form-label" style="font-size:12px">מוזמנים ב׳ (ניתן לבחור מרובים)</label>
+            <input type="text" id="depAddSearchB" class="input" placeholder="חפש מוזמן..." style="width:100%;margin-bottom:4px" autocomplete="off">
+            <div id="depAddGuestBList" class="dep-multi-list"></div>
+          </div>
+          <!-- Selected pairs preview -->
+          <div id="depAddPairsPreview" style="margin-bottom:10px;display:none">
+            <label class="form-label" style="font-size:12px">תצוגה מקדימה של הקשרים להוספה</label>
+            <div id="depAddPairsBody" style="max-height:150px;overflow-y:auto;border:1px solid #e0e0e0;border-radius:6px;padding:6px"></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary" id="btnConfirmAddDepBulk">הוסף קשרים</button>
+            <button class="btn btn-ghost" id="btnClearDepAddForm">נקה</button>
+          </div>
         </div>
-        <div>
-          <label class="form-label" style="font-size:12px">סוג קשר ברירת מחדל</label>
-          <select id="depAddTypeDefault" class="input" style="width:100%;margin-bottom:4px">${typeOpts}</select>
-          <p style="font-size:11px;color:#90a4ae;margin:4px 0">ניתן לשנות סוג לכל מוזמן ב׳ בנפרד למטה.</p>
-        </div>
-      </div>
-      <!-- Guest B multi-select with search -->
-      <div style="margin-bottom:10px">
-        <label class="form-label" style="font-size:12px">מוזמנים ב׳ (ניתן לבחור מרובים)</label>
-        <input type="text" id="depAddSearchB" class="input" placeholder="חפש מוזמן..." style="width:100%;margin-bottom:4px" autocomplete="off">
-        <div id="depAddGuestBList" class="dep-multi-list"></div>
-      </div>
-      <!-- Selected pairs preview -->
-      <div id="depAddPairsPreview" style="margin-bottom:10px;display:none">
-        <label class="form-label" style="font-size:12px">תצוגה מקדימה של הקשרים להוספה</label>
-        <div id="depAddPairsBody" style="max-height:150px;overflow-y:auto;border:1px solid #e0e0e0;border-radius:6px;padding:6px"></div>
-      </div>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-primary" id="btnConfirmAddDepBulk">הוסף קשרים</button>
-        <button class="btn btn-ghost" id="btnClearDepAddForm">נקה</button>
+        <aside id="depAddInferencePanel" style="width:220px;flex-shrink:0;background:#f9fbe7;border-radius:8px;padding:12px;border:1px solid #c5e1a5;max-height:460px;overflow-y:auto">
+          <div style="font-size:12px;font-weight:700;color:#33691e;margin-bottom:8px;border-bottom:1px solid #c5e1a5;padding-bottom:6px">💡 הצעות חכמות</div>
+          <div id="depAddInferencePanelBody"></div>
+        </aside>
       </div>`;
 
     // Build multi-select guest B list
@@ -2789,6 +2977,7 @@ const Modals = (() => {
       });
     }
     _rebuildGuestBList('');
+    _renderInferenceSuggestionsPanel(null, document.getElementById('depAddInferencePanelBody'));
 
     // Sync default type to all rows
     document.getElementById('depAddTypeDefault')?.addEventListener('change', () => {
@@ -2811,9 +3000,13 @@ const Modals = (() => {
       _rebuildGuestBList(e.target.value.trim());
     });
 
-    // When guest A changes, rebuild B list to exclude A
+    // When guest A changes, rebuild B list to exclude A and refresh inference panel
     document.getElementById('depAddGuestA')?.addEventListener('change', () => {
       _rebuildGuestBList(document.getElementById('depAddSearchB')?.value.trim() || '');
+      _renderInferenceSuggestionsPanel(
+        document.getElementById('depAddGuestA')?.value || null,
+        document.getElementById('depAddInferencePanelBody')
+      );
     });
 
     // Confirm bulk add
@@ -2840,6 +3033,10 @@ const Modals = (() => {
         UI.toast(added + ' קשרים נוספו ✓', 'success', 1800);
         _renderDepTable();
         _renderDepGraph();
+        _renderInferenceSuggestionsPanel(
+          document.getElementById('depAddGuestA')?.value || null,
+          document.getElementById('depAddInferencePanelBody')
+        );
         // Uncheck all
         wrap.querySelectorAll('.dep-b-check:checked').forEach(c => { c.checked = false; });
       } else {
@@ -2857,6 +3054,7 @@ const Modals = (() => {
       if (sA) sA.value = '';
       if (sB) sB.value = '';
       _rebuildGuestBList('');
+      _renderInferenceSuggestionsPanel(null, document.getElementById('depAddInferencePanelBody'));
     });
   }
 

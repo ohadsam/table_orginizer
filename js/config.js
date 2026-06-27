@@ -85,6 +85,8 @@ const CONFIG = Object.freeze({
     friends:    { label: 'חברים',             strength: 'preferred', color: '#42A5F5', icon: '👫' },
     colleagues: { label: 'עמיתים',            strength: 'preferred', color: '#26A69A', icon: '💼' },
     divorced:   { label: 'גרושים',            strength: 'avoid',     color: '#FFA726', icon: '💔' },
+    separated:  { label: 'פרודים/נפרדים',    strength: 'avoid',     color: '#FF8A65', icon: '😶' },
+    expartners: { label: 'שותפים לשעבר',    strength: 'avoid',     color: '#B0BEC5', icon: '🤷' },
     conflict:   { label: 'לא מסתדרים',       strength: 'avoid',     color: '#FF7043', icon: '⚡' },
     prohibited: { label: 'אסור להושיב יחד', strength: 'forbidden', color: '#EF5350', icon: '🚫' }
   },
