@@ -1395,7 +1395,7 @@ const Modals = (() => {
       const color    = document.getElementById('aaCustomDepColor')?.value || '#42A5F5';
       const s = State.get().settings;
       if (!s.autoAssign.customDependencyTypes) s.autoAssign.customDependencyTypes = [];
-      s.autoAssign.customDependencyTypes.push({ id: 'cdt_' + Date.now(), label, icon, strength, color });
+      s.autoAssign.customDependencyTypes.push({ id: 'cdt_' + Date.now(), label, icon, strength, color, category: '' });
       State.setSetting('autoAssign', s.autoAssign);
       document.getElementById('aaCustomDepLabel').value = '';
       document.getElementById('aaAddCustomDepForm').style.display = 'none';
@@ -2391,32 +2391,42 @@ const Modals = (() => {
     const cats = CONFIG.DEPENDENCY_CATEGORIES || {};
     const allDT = allDepTypes;
 
-    // Render controls bar (always re-render)
+    // Render controls bar (only rebuild on first render; update button states on subsequent calls)
     const ctrlDiv = document.getElementById('depGraphControls');
     if (ctrlDiv) {
-      ctrlDiv.innerHTML = `<div style="display:flex;gap:8px;align-items:center;padding:6px 10px;background:#f9f9f9;border-bottom:1px solid #e8edf0;flex-wrap:wrap">
-        <span style="font-size:11px;color:#607d8b">תצוגה:</span>
-        <button class="btn btn-sm dep-layout-btn ${_depGraphLayout === 'circle' ? 'btn-primary' : ''}" data-layout="circle">🔵 עיגול</button>
-        <button class="btn btn-sm dep-layout-btn ${_depGraphLayout === 'alpha' ? 'btn-primary' : ''}" data-layout="alpha">🔤 אלפביתי</button>
-        <button class="btn btn-sm dep-layout-btn ${_depGraphLayout === 'category' ? 'btn-primary' : ''}" data-layout="category">📊 לפי קטגוריה</button>
-        <div style="flex:1"></div>
-        <input type="text" id="depGraphSearch" class="input" placeholder="🔍 חיפוש מוזמן..." style="width:150px;font-size:12px;padding:3px 8px" value="${UI.escHtml(_depGraphSearch)}">
-      </div>`;
-      ctrlDiv.querySelectorAll('.dep-layout-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          _depGraphLayout = btn.dataset.layout;
-          _renderDepGraph();
-        });
-      });
-      const searchInput = ctrlDiv.querySelector('#depGraphSearch');
-      if (searchInput) {
-        searchInput.addEventListener('input', () => {
-          clearTimeout(_depSearchTimer);
-          _depSearchTimer = setTimeout(() => {
-            _depGraphSearch = searchInput.value;
+      if (!ctrlDiv.querySelector('.dep-layout-btn')) {
+        ctrlDiv.innerHTML = `<div style="display:flex;gap:8px;align-items:center;padding:6px 10px;background:#f9f9f9;border-bottom:1px solid #e8edf0;flex-wrap:wrap">
+          <span style="font-size:11px;color:#607d8b">תצוגה:</span>
+          <button class="btn btn-sm dep-layout-btn" data-layout="circle">🔵 עיגול</button>
+          <button class="btn btn-sm dep-layout-btn" data-layout="alpha">🔤 אלפביתי</button>
+          <button class="btn btn-sm dep-layout-btn" data-layout="category">📊 לפי קטגוריה</button>
+          <div style="flex:1"></div>
+          <input type="text" id="depGraphSearch" class="input" placeholder="🔍 חיפוש מוזמן..." style="width:150px;font-size:12px;padding:3px 8px">
+        </div>`;
+        ctrlDiv.querySelectorAll('.dep-layout-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            _depGraphLayout = btn.dataset.layout;
             _renderDepGraph();
-          }, 200);
+          });
         });
+        const searchInput = ctrlDiv.querySelector('#depGraphSearch');
+        if (searchInput) {
+          searchInput.addEventListener('input', () => {
+            clearTimeout(_depSearchTimer);
+            _depSearchTimer = setTimeout(() => {
+              _depGraphSearch = searchInput.value;
+              _renderDepGraph();
+            }, 200);
+          });
+        }
+      }
+      // Update active button state and search value without destroying the element
+      ctrlDiv.querySelectorAll('.dep-layout-btn').forEach(btn => {
+        btn.classList.toggle('btn-primary', btn.dataset.layout === _depGraphLayout);
+      });
+      const existingSearch = ctrlDiv.querySelector('#depGraphSearch');
+      if (existingSearch && existingSearch !== document.activeElement) {
+        existingSearch.value = _depGraphSearch;
       }
     }
 
@@ -2571,7 +2581,7 @@ const Modals = (() => {
       const isSelected = id === _depGraphFirstId;
       const inDep      = depGuestIds.has(id);
       const isMatch    = !matchedIds || matchedIds.has(id);
-      const r = (matchedIds && matchedIds.has(id)) ? (isFocus ? 20 : 16) : (isFocus ? 18 : (inDep ? 14 : 10));
+      const r = isMatch ? (isFocus ? 20 : (inDep ? 16 : 12)) : (isFocus ? 18 : (inDep ? 14 : 10));
       const fill = isSelected ? '#e53935'
                  : isFocus    ? '#1565c0'
                  : inDep      ? '#42A5F5'
@@ -2827,7 +2837,7 @@ const Modals = (() => {
     const adj = {};
     deps.forEach(dep => {
       const t = dep.type || 'friends';
-      const cat = allDT[t]?.category || 'friends';
+      const cat = allDT[t]?.category || 'other';
       if (!adj[dep.guestA]) adj[dep.guestA] = [];
       if (!adj[dep.guestB]) adj[dep.guestB] = [];
       adj[dep.guestA].push({ id: dep.guestB, type: t, category: cat });
@@ -3436,11 +3446,9 @@ const Modals = (() => {
       <div style="margin-bottom:12px">
         <p style="font-size:13px;font-weight:700;margin:0 0 4px">⚙️ כללי היסק — הסקה אוטומטית של קשרים</p>
         <p style="font-size:12px;color:#607d8b;margin:0 0 10px">כאשר מוזמן A קשור ל-B, ו-B קשור ל-C, המערכת מציעה קשר בין A ל-C בהתאם לכללים הבאים.</p>
-        ${!isCustom ? `<div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+        ${isCustom ? `<div style="display:flex;justify-content:flex-end;margin-bottom:8px">
           <button class="btn btn-sm btn-ghost" id="btnIrResetDefault" style="font-size:11px">↺ שחזר כללי ברירת מחדל</button>
-        </div>` : `<div style="display:flex;justify-content:flex-end;margin-bottom:8px">
-          <button class="btn btn-sm btn-ghost" id="btnIrResetDefault" style="font-size:11px">↺ שחזר כללי ברירת מחדל</button>
-        </div>`}
+        </div>` : ''}
       </div>
       <div style="overflow-x:auto;margin-bottom:16px">
         <table style="width:100%;border-collapse:collapse;font-size:13px">

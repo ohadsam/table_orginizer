@@ -350,7 +350,7 @@ const State = (() => {
   /* ── inference rules ── */
   function saveInferenceRules(rules) {
     _state.settings.inferenceRules = rules;
-    emit('change', { evt: 'inferenceRulesChanged' });
+    emit('inferenceRulesChanged', rules);
   }
 
   /* ── guest-only import (merge or replace) ── */
