@@ -3020,7 +3020,7 @@ const Modals = (() => {
         _renderDepSuggest();
         if (_depActiveTab === 'table') _renderDepTable();
         if (_depActiveTab === 'graph') _renderDepGraph();
-        UI.toast(`קשר נוסף: ${guestMap[s.guestA]?.name || ''} ↔ ${guestMap[s.guestB]?.name || ''}`, 'success', 1600);
+        UI.toast(`קשר נוסף: ${UI.escHtml(guestMap[s.guestA]?.name || '')} ↔ ${UI.escHtml(guestMap[s.guestB]?.name || '')}`, 'success', 1600);
       });
     });
     body.querySelectorAll('[data-infer-reject]').forEach(btn => {
@@ -3031,6 +3031,8 @@ const Modals = (() => {
     body.querySelectorAll('[data-suggest-accept]').forEach(btn => {
       const idx = parseInt(btn.dataset.suggestAccept);
       btn.addEventListener('click', () => {
+        if (btn.disabled) return;
+        btn.disabled = true;
         const s = suggestions[idx];
         const typeEl = body.querySelector(`[data-suggest-type="${idx}"]`);
         const type = typeEl ? typeEl.value : 'friends';
@@ -3039,7 +3041,7 @@ const Modals = (() => {
         _renderDepSuggest();
         if (_depActiveTab === 'table') _renderDepTable();
         if (_depActiveTab === 'graph') _renderDepGraph();
-        UI.toast(`קשר נוסף: ${s.gA.name} ↔ ${s.gB.name}`, 'success', 1600);
+        UI.toast(`קשר נוסף: ${UI.escHtml(s.gA.name)} ↔ ${UI.escHtml(s.gB.name)}`, 'success', 1600);
       });
     });
     body.querySelectorAll('[data-suggest-reject]').forEach(btn => {
