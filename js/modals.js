@@ -2827,8 +2827,11 @@ const Modals = (() => {
     if (!deps.length || guests.length < 3) return [];
 
     const allDT = { ...CONFIG.DEPENDENCY_TYPES, ..._getCustomDepTypesMap() };
-    const rules = _getActiveInferenceRules().filter(r => r.enabled !== false);
+    const allRules = _getActiveInferenceRules();
+    const rules = allRules.filter(r => r.enabled !== false);
     if (!rules.length) return [];
+    // Set of (fromCat,toCat) pairs covered by ANY rule (even disabled) — used to suppress symmetric fallback
+    const coveredPairs = new Set(allRules.map(r => r.fromCat + '|' + r.toCat));
 
     const guestMap = {};
     guests.forEach(g => { guestMap[g.id] = g; });
@@ -2857,9 +2860,9 @@ const Modals = (() => {
           const pairKey = [gA, gC].sort().join('|');
           if (existingPairs.has(pairKey) || seen.has(pairKey)) return;
 
-          // Find matching rule
+          // Find matching rule; symmetric fallback only when no rule (even disabled) covers the reverse
           const rule = rules.find(r => r.fromCat === catAB && r.toCat === catBC)
-                    || rules.find(r => r.fromCat === catBC && r.toCat === catAB);
+                    || (!coveredPairs.has(catBC + '|' + catAB) && rules.find(r => r.fromCat === catBC && r.toCat === catAB));
           if (!rule) return;
 
           seen.add(pairKey);
@@ -3010,7 +3013,8 @@ const Modals = (() => {
       const idx = parseInt(btn.dataset.inferAccept);
       btn.addEventListener('click', () => {
         const s = inferSuggestions[idx];
-        if (!s) return;
+        if (!s || btn.disabled) return;
+        btn.disabled = true;
         const def = allDT[s.suggestedType] || {};
         State.addDependency({ guestA: s.guestA, guestB: s.guestB, type: s.suggestedType, strength: def.strength || 'preferred' });
         _renderDepSuggest();
