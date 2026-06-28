@@ -1328,8 +1328,9 @@ const Modals = (() => {
     document.getElementById('depTabGraph')?.addEventListener('click',   () => _renderDepView('graph'));
     document.getElementById('depTabAdd')?.addEventListener('click',     () => _renderDepView('add'));
     document.getElementById('depTabTable')?.addEventListener('click',   () => _renderDepView('table'));
-    document.getElementById('depTabTypes')?.addEventListener('click',   () => _renderDepView('types'));
-    document.getElementById('depTabSuggest')?.addEventListener('click', () => _renderDepView('suggest'));
+    document.getElementById('depTabTypes')?.addEventListener('click',      () => _renderDepView('types'));
+    document.getElementById('depTabSuggest')?.addEventListener('click',    () => _renderDepView('suggest'));
+    document.getElementById('depTabInferRules')?.addEventListener('click', () => _renderDepView('inferrules'));
     document.getElementById('btnDepGraphAddMode')?.addEventListener('click', _toggleDepGraphAddMode);
     document.getElementById('btnPrintDependencies')?.addEventListener('click', _printDependencies);
     document.getElementById('btnExportDependencies')?.addEventListener('click', () => Storage.exportDependencies());
@@ -2328,6 +2329,9 @@ const Modals = (() => {
   let _depGraphFirstId  = null;
   let _newTypePositive  = true;   // persists between _renderDepTypesView calls
   let _pendingDepsFile  = null;
+  let _depGraphLayout = 'circle';  // 'circle' | 'alpha' | 'category'
+  let _depGraphSearch = '';
+  let _depSearchTimer = null;
 
   function openGuestDependencies(focusGuestId) {
     if (focusGuestId) _depFocusGuest = focusGuestId;
@@ -2341,20 +2345,28 @@ const Modals = (() => {
 
   function _renderDepView(tab) {
     _depActiveTab = tab;
-    const ALL_TABS = ['graph','add','table','types','suggest'];
+    const ALL_TABS = ['graph','add','table','types','suggest','inferrules'];
     ALL_TABS.forEach(t => {
-      const viewId = 'dep' + t.charAt(0).toUpperCase() + t.slice(1) + 'View';
-      const btnId  = 'depTab' + t.charAt(0).toUpperCase() + t.slice(1);
+      // Special case: 'inferrules' maps to 'depInferRulesView' (camelCase) and 'depTabInferRules'
+      let viewId, btnId;
+      if (t === 'inferrules') {
+        viewId = 'depInferRulesView';
+        btnId  = 'depTabInferRules';
+      } else {
+        viewId = 'dep' + t.charAt(0).toUpperCase() + t.slice(1) + 'View';
+        btnId  = 'depTab' + t.charAt(0).toUpperCase() + t.slice(1);
+      }
       const view = document.getElementById(viewId);
       const btn  = document.getElementById(btnId);
       if (view) view.style.display = (t === tab) ? '' : 'none';
       if (btn)  btn.classList.toggle('active', t === tab);
     });
-    if (tab === 'graph')   _renderDepGraph();
-    if (tab === 'add')     _renderDepAddView();
-    if (tab === 'table')   _renderDepTable();
-    if (tab === 'types')   _renderDepTypesView();
-    if (tab === 'suggest') _renderDepSuggest();
+    if (tab === 'graph')      _renderDepGraph();
+    if (tab === 'add')        _renderDepAddView();
+    if (tab === 'table')      _renderDepTable();
+    if (tab === 'types')      _renderDepTypesView();
+    if (tab === 'suggest')    _renderDepSuggest();
+    if (tab === 'inferrules') _renderDepInferRules();
   }
 
   function _toggleDepGraphAddMode() {
@@ -2376,6 +2388,37 @@ const Modals = (() => {
     const state = State.get();
     const deps  = state.guestDependencies || [];
     const allDepTypes = { ...CONFIG.DEPENDENCY_TYPES, ..._getCustomDepTypesMap() };
+    const cats = CONFIG.DEPENDENCY_CATEGORIES || {};
+    const allDT = allDepTypes;
+
+    // Render controls bar (always re-render)
+    const ctrlDiv = document.getElementById('depGraphControls');
+    if (ctrlDiv) {
+      ctrlDiv.innerHTML = `<div style="display:flex;gap:8px;align-items:center;padding:6px 10px;background:#f9f9f9;border-bottom:1px solid #e8edf0;flex-wrap:wrap">
+        <span style="font-size:11px;color:#607d8b">תצוגה:</span>
+        <button class="btn btn-sm dep-layout-btn ${_depGraphLayout === 'circle' ? 'btn-primary' : ''}" data-layout="circle">🔵 עיגול</button>
+        <button class="btn btn-sm dep-layout-btn ${_depGraphLayout === 'alpha' ? 'btn-primary' : ''}" data-layout="alpha">🔤 אלפביתי</button>
+        <button class="btn btn-sm dep-layout-btn ${_depGraphLayout === 'category' ? 'btn-primary' : ''}" data-layout="category">📊 לפי קטגוריה</button>
+        <div style="flex:1"></div>
+        <input type="text" id="depGraphSearch" class="input" placeholder="🔍 חיפוש מוזמן..." style="width:150px;font-size:12px;padding:3px 8px" value="${UI.escHtml(_depGraphSearch)}">
+      </div>`;
+      ctrlDiv.querySelectorAll('.dep-layout-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          _depGraphLayout = btn.dataset.layout;
+          _renderDepGraph();
+        });
+      });
+      const searchInput = ctrlDiv.querySelector('#depGraphSearch');
+      if (searchInput) {
+        searchInput.addEventListener('input', () => {
+          clearTimeout(_depSearchTimer);
+          _depSearchTimer = setTimeout(() => {
+            _depGraphSearch = searchInput.value;
+            _renderDepGraph();
+          }, 200);
+        });
+      }
+    }
 
     // Update graph-add-mode button state
     const addModeBtn = document.getElementById('btnDepGraphAddMode');
@@ -2402,17 +2445,83 @@ const Modals = (() => {
     const N = guestIds.length;
     const W = 700, H = _depGraphAddMode ? 480 : 420;
 
-    // Initialize positions in circle(s)
+    // Sort by layout
+    let orderedIds = [...guestIds];
+    if (_depGraphLayout === 'alpha') {
+      orderedIds.sort((a, b) => (guestMap[a]?.name || '').localeCompare(guestMap[b]?.name || '', 'he'));
+    } else if (_depGraphLayout === 'category') {
+      // Group by dominant category: look at all deps for each guest, find most common category
+      const guestCat = {};
+      orderedIds.forEach(id => {
+        const myDeps = deps.filter(d => d.guestA === id || d.guestB === id);
+        const catCount = {};
+        myDeps.forEach(d => {
+          const t = d.type || 'friends';
+          const cat = allDT[t]?.category || 'other';
+          catCount[cat] = (catCount[cat] || 0) + 1;
+        });
+        const best = Object.entries(catCount).sort((a, b) => b[1] - a[1])[0];
+        guestCat[id] = best ? best[0] : 'other';
+      });
+      orderedIds.sort((a, b) => {
+        const ca = guestCat[a] || 'other', cb = guestCat[b] || 'other';
+        if (ca !== cb) return ca.localeCompare(cb);
+        return (guestMap[a]?.name || '').localeCompare(guestMap[b]?.name || '', 'he');
+      });
+    }
+
+    // Compute positions
     const positions = {};
-    guestIds.forEach((id, i) => {
-      const angle = (2 * Math.PI * i) / N;
-      const rx = W * (N > 20 ? 0.44 : 0.38);
-      const ry = H * (N > 20 ? 0.44 : 0.38);
-      positions[id] = {
-        x: W/2 + rx * Math.cos(angle - Math.PI / 2),
-        y: H/2 + ry * Math.sin(angle - Math.PI / 2)
-      };
-    });
+    if (_depGraphLayout === 'category') {
+      // Group ids by category
+      const groups = {};
+      orderedIds.forEach(id => {
+        const myDeps = deps.filter(d => d.guestA === id || d.guestB === id);
+        const catCount = {};
+        myDeps.forEach(d => {
+          const t = d.type || 'friends';
+          const cat = allDT[t]?.category || 'other';
+          catCount[cat] = (catCount[cat] || 0) + 1;
+        });
+        const best = Object.entries(catCount).sort((a, b) => b[1] - a[1])[0];
+        const cat = best ? best[0] : 'other';
+        if (!groups[cat]) groups[cat] = [];
+        groups[cat].push(id);
+      });
+      const groupKeys = Object.keys(groups);
+      const nGroups = groupKeys.length;
+      groupKeys.forEach((catKey, gi) => {
+        const groupAngle = (2 * Math.PI * gi) / nGroups;
+        const clusterR = Math.min(W, H) * 0.28;
+        const cx = W/2 + clusterR * Math.cos(groupAngle - Math.PI/2);
+        const cy = H/2 + clusterR * Math.sin(groupAngle - Math.PI/2);
+        const members = groups[catKey];
+        members.forEach((id, mi) => {
+          const localAngle = (2 * Math.PI * mi) / Math.max(members.length, 1);
+          const localR = members.length > 1 ? Math.min(80, 25 * Math.sqrt(members.length)) : 0;
+          positions[id] = {
+            x: cx + localR * Math.cos(localAngle),
+            y: cy + localR * Math.sin(localAngle)
+          };
+        });
+      });
+    } else {
+      orderedIds.forEach((id, i) => {
+        const angle = (2 * Math.PI * i) / orderedIds.length;
+        const rx = W * (N > 20 ? 0.44 : 0.38);
+        const ry = H * (N > 20 ? 0.44 : 0.38);
+        positions[id] = {
+          x: W/2 + rx * Math.cos(angle - Math.PI / 2),
+          y: H/2 + ry * Math.sin(angle - Math.PI / 2)
+        };
+      });
+    }
+
+    // Search filtering
+    const searchLower = _depGraphSearch.toLowerCase();
+    const matchedIds = searchLower
+      ? new Set(guestIds.filter(id => (guestMap[id]?.name || '').toLowerCase().includes(searchLower)))
+      : null;
 
     let edges = deps.map(dep => {
       const def = allDepTypes[dep.type] || { color: '#90a4ae', label: dep.type || 'קשר', strength: 'preferred', icon: '🔗' };
@@ -2420,29 +2529,61 @@ const Modals = (() => {
       const pB = positions[dep.guestB];
       if (!pA || !pB) return '';
       const color = def.color || '#90a4ae';
+      const dimmed = matchedIds && !matchedIds.has(dep.guestA) && !matchedIds.has(dep.guestB) ? 0.1 : 0.7;
       const dashArr = dep.strength === 'required' ? '' : dep.strength === 'forbidden' ? '6,3' : dep.strength === 'preferred' ? '4,2' : '2,3';
-      return `<line x1="${pA.x.toFixed(1)}" y1="${pA.y.toFixed(1)}" x2="${pB.x.toFixed(1)}" y2="${pB.y.toFixed(1)}" stroke="${color}" stroke-width="2" ${dashArr ? `stroke-dasharray="${dashArr}"` : ''} opacity="0.7"/>
-        <text x="${((pA.x+pB.x)/2).toFixed(1)}" y="${((pA.y+pB.y)/2 - 4).toFixed(1)}" text-anchor="middle" font-size="10" fill="${color}">${UI.escHtml(def.icon || '')} ${UI.escHtml(def.label || dep.type)}</text>`;
+      return `<line x1="${pA.x.toFixed(1)}" y1="${pA.y.toFixed(1)}" x2="${pB.x.toFixed(1)}" y2="${pB.y.toFixed(1)}" stroke="${color}" stroke-width="2" ${dashArr ? `stroke-dasharray="${dashArr}"` : ''} opacity="${dimmed}"/>
+        <text x="${((pA.x+pB.x)/2).toFixed(1)}" y="${((pA.y+pB.y)/2 - 4).toFixed(1)}" text-anchor="middle" font-size="10" fill="${color}" opacity="${dimmed}">${UI.escHtml(def.icon || '')} ${UI.escHtml(def.label || dep.type)}</text>`;
     }).join('');
+
+    // Category cluster labels for category layout
+    let clusterLabels = '';
+    if (_depGraphLayout === 'category') {
+      const groups = {};
+      orderedIds.forEach(id => {
+        const myDeps = deps.filter(d => d.guestA === id || d.guestB === id);
+        const catCount = {};
+        myDeps.forEach(d => {
+          const t = d.type || 'friends';
+          const cat = allDT[t]?.category || 'other';
+          catCount[cat] = (catCount[cat] || 0) + 1;
+        });
+        const best = Object.entries(catCount).sort((a, b) => b[1] - a[1])[0];
+        const cat = best ? best[0] : 'other';
+        if (!groups[cat]) groups[cat] = [];
+        groups[cat].push(id);
+      });
+      const groupKeys = Object.keys(groups);
+      groupKeys.forEach((catKey, gi) => {
+        const catDef = cats[catKey] || {};
+        const groupAngle = (2 * Math.PI * gi) / groupKeys.length;
+        const clusterR = Math.min(W, H) * 0.28;
+        const cx = W/2 + clusterR * Math.cos(groupAngle - Math.PI/2);
+        const cy = H/2 + clusterR * Math.sin(groupAngle - Math.PI/2);
+        clusterLabels += `<text x="${cx.toFixed(1)}" y="${(cy - Math.min(80, 25 * Math.sqrt(groups[catKey].length)) - 8).toFixed(1)}" text-anchor="middle" font-size="11" fill="${_safeCssColor(catDef.color || '#607d8b')}" font-weight="600">${UI.escHtml(catDef.label || catKey)}</text>`;
+      });
+    }
 
     let nodes = guestIds.map(id => {
       const g = guestMap[id];
       const p = positions[id];
+      if (!p) return '';
       const isFocus    = id === _depFocusGuest;
       const isSelected = id === _depGraphFirstId;
       const inDep      = depGuestIds.has(id);
-      const r = isFocus ? 18 : (inDep ? 14 : 10);
+      const isMatch    = !matchedIds || matchedIds.has(id);
+      const r = (matchedIds && matchedIds.has(id)) ? (isFocus ? 20 : 16) : (isFocus ? 18 : (inDep ? 14 : 10));
       const fill = isSelected ? '#e53935'
                  : isFocus    ? '#1565c0'
                  : inDep      ? '#42A5F5'
                  : '#b0bec5';
-      const stroke = isSelected ? '#fff' : '#fff';
       const strokeW = isSelected ? 3 : 2;
+      const opacity = matchedIds && !isMatch ? 0.2 : 1;
       const nameSlice = (_depGraphAddMode && N > 15) ? 8 : 10;
       const name = (g.name || id).slice(0, nameSlice);
-      return `<g class="dep-node${_depGraphAddMode ? ' dep-node-clickable' : ''}" data-guest-id="${id}" style="cursor:${_depGraphAddMode ? 'pointer' : 'default'}">
-        <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="${strokeW}"/>
-        <text x="${p.x.toFixed(1)}" y="${(p.y + r + 12).toFixed(1)}" text-anchor="middle" font-size="${N > 20 ? 9 : 10}" fill="#333">${UI.escHtml(name)}</text>
+      const fontW = matchedIds && isMatch ? 'bold' : 'normal';
+      return `<g class="dep-node${_depGraphAddMode ? ' dep-node-clickable' : ''}" data-guest-id="${id}" style="cursor:${_depGraphAddMode ? 'pointer' : 'default'};opacity:${opacity}">
+        <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r}" fill="${fill}" stroke="#fff" stroke-width="${strokeW}"/>
+        <text x="${p.x.toFixed(1)}" y="${(p.y + r + 12).toFixed(1)}" text-anchor="middle" font-size="${N > 20 ? 9 : 10}" fill="#333" font-weight="${fontW}">${UI.escHtml(name)}</text>
       </g>`;
     }).join('');
 
@@ -2455,7 +2596,7 @@ const Modals = (() => {
     }
 
     wrap.innerHTML = `<svg width="100%" viewBox="0 0 ${W} ${H}" style="max-height:${H}px">
-      ${edges}${nodes}
+      ${clusterLabels}${edges}${nodes}
     </svg>`;
 
     // Wire click handlers for add-mode node selection
@@ -2649,73 +2790,76 @@ const Modals = (() => {
     return (typeof c === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(c)) ? c : '#90a4ae';
   }
 
+  function _getActiveInferenceRules() {
+    const stored = State.get().settings?.inferenceRules;
+    if (Array.isArray(stored)) return stored;
+    return Array.isArray(CONFIG.DEFAULT_INFERENCE_RULES) ? CONFIG.DEFAULT_INFERENCE_RULES : [];
+  }
+
+  function _inferReason(catAB, catBC, viaName, rule) {
+    const catDef = CONFIG.DEPENDENCY_CATEGORIES || {};
+    const labelAB = catDef[catAB]?.label || catAB;
+    const labelBC = catDef[catBC]?.label || catBC;
+    if (catAB === catBC) {
+      if (catAB === 'family') return `שניהם קשורים משפחתית דרך ${viaName}`;
+      if (catAB === 'friends') return `${viaName} הוא חבר/ה של שניהם`;
+      if (catAB === 'colleagues') return `${viaName} הוא עמית/ה של שניהם`;
+    }
+    return `דרך ${viaName} (${labelAB} + ${labelBC})`;
+  }
+
   // Build suggestions by transitivity: if A-B have rel typeAB and B-C have typeBC,
   // infer a candidate relationship A-C based on rule table.
   function _computeInferenceSuggestions(focusGuestId) {
-    const state    = State.get();
-    const deps     = state.guestDependencies || [];
-    const guests   = state.guests.filter(g => !g.splitOf);
+    const state = State.get();
+    const deps = state.guestDependencies || [];
+    const guests = state.guests.filter(g => !g.splitOf);
     if (!deps.length || guests.length < 3) return [];
+
+    const allDT = { ...CONFIG.DEPENDENCY_TYPES, ..._getCustomDepTypesMap() };
+    const rules = _getActiveInferenceRules().filter(r => r.enabled !== false);
+    if (!rules.length) return [];
 
     const guestMap = {};
     guests.forEach(g => { guestMap[g.id] = g; });
 
-    // Adjacency: guestId → [{id, type}]
+    // Build adjacency with category: guestId → [{id, type, category}]
     const adj = {};
     deps.forEach(dep => {
       const t = dep.type || 'friends';
+      const cat = allDT[t]?.category || 'friends';
       if (!adj[dep.guestA]) adj[dep.guestA] = [];
       if (!adj[dep.guestB]) adj[dep.guestB] = [];
-      adj[dep.guestA].push({ id: dep.guestB, type: t });
-      adj[dep.guestB].push({ id: dep.guestA, type: t });
+      adj[dep.guestA].push({ id: dep.guestB, type: t, category: cat });
+      adj[dep.guestB].push({ id: dep.guestA, type: t, category: cat });
     });
 
     const existingPairs = new Set(deps.map(d => [d.guestA, d.guestB].sort().join('|')));
-
-    const FAMILY_LIKE = new Set(['family', 'spouses', 'parents']);
-
-    function inferRule(typeAB, typeBC) {
-      if (FAMILY_LIKE.has(typeAB) && FAMILY_LIKE.has(typeBC))
-        return { type: 'family', confidence: 0.8 };
-      if (typeAB === 'friends'    && typeBC === 'friends')
-        return { type: 'friends', confidence: 0.5 };
-      if (typeAB === 'colleagues' && typeBC === 'colleagues')
-        return { type: 'colleagues', confidence: 0.5 };
-      return null;
-    }
-
-    function inferReason(typeAB, typeBC, viaName) {
-      if (FAMILY_LIKE.has(typeAB) && FAMILY_LIKE.has(typeBC))
-        return `שניהם קשורים משפחתית דרך ${viaName}`;
-      if (typeAB === 'friends' && typeBC === 'friends')
-        return `${viaName} הוא חבר/ה של שניהם`;
-      if (typeAB === 'colleagues' && typeBC === 'colleagues')
-        return `${viaName} הוא עמית/ה של שניהם`;
-      return `דרך ${viaName}`;
-    }
 
     const seen = new Set();
     const suggestions = [];
     const focusIds = focusGuestId ? [focusGuestId] : guests.map(g => g.id);
 
     focusIds.forEach(gA => {
-      (adj[gA] || []).forEach(({ id: gB, type: typeAB }) => {
-        (adj[gB] || []).forEach(({ id: gC, type: typeBC }) => {
+      (adj[gA] || []).forEach(({ id: gB, type: typeAB, category: catAB }) => {
+        (adj[gB] || []).forEach(({ id: gC, type: typeBC, category: catBC }) => {
           if (gC === gA || !guestMap[gC]) return;
           const pairKey = [gA, gC].sort().join('|');
-          if (existingPairs.has(pairKey)) return;
-          const suggKey = pairKey;
-          if (seen.has(suggKey)) return;
-          const rule = inferRule(typeAB, typeBC);
+          if (existingPairs.has(pairKey) || seen.has(pairKey)) return;
+
+          // Find matching rule
+          const rule = rules.find(r => r.fromCat === catAB && r.toCat === catBC)
+                    || rules.find(r => r.fromCat === catBC && r.toCat === catAB);
           if (!rule) return;
-          seen.add(suggKey);
-          const viaName = guestMap[gB]?.name || gB;
+
+          seen.add(pairKey);
+          const viaName = guestMap[gB]?.name || '';
           suggestions.push({
             guestA: gA, guestB: gC, via: gB,
-            typeAB, typeBC,
-            suggestedType: rule.type,
-            confidence: rule.confidence,
-            reason: inferReason(typeAB, typeBC, viaName)
+            catAB, catBC,
+            suggestedType: rule.resultType,
+            confidence: rule.weight,
+            reason: _inferReason(catAB, catBC, viaName, rule)
           });
         });
       });
@@ -3115,7 +3259,38 @@ const Modals = (() => {
       </table>`;
     }
 
-    body.innerHTML = listHtml + `
+    // Built-in types grouped by category
+    const cats = CONFIG.DEPENDENCY_CATEGORIES || {};
+    const builtIn = CONFIG.DEPENDENCY_TYPES || {};
+    const grouped = {};
+    Object.entries(builtIn).forEach(([k, v]) => {
+      const cat = v.category || 'other';
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push({ key: k, ...v });
+    });
+    const builtInHtml = Object.entries(grouped).map(([catKey, types]) => {
+      const catDef = cats[catKey] || {};
+      const catColor = _safeCssColor(catDef.color || '#90a4ae');
+      return `<div style="margin-bottom:8px">
+        <div style="font-size:11px;font-weight:600;color:#607d8b;margin-bottom:4px;padding:2px 6px;background:#f5f5f5;border-radius:4px">
+          <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${catColor};margin-inline-end:4px"></span>${UI.escHtml(catDef.label || catKey)}
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;padding-inline-start:14px">
+          ${types.map(t => `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;background:${_safeCssColor(t.color || '#90a4ae')}22;border:1px solid ${_safeCssColor(t.color || '#90a4ae')}66;font-size:12px">${UI.escHtml(t.icon || '')} ${UI.escHtml(t.label || t.key)}</span>`).join('')}
+        </div>
+      </div>`;
+    }).join('');
+    const catSelectOpts = Object.entries(cats).map(([k, v]) =>
+      `<option value="${k}">${UI.escHtml(v.label || k)}</option>`
+    ).join('');
+
+    body.innerHTML = `
+      <div style="margin-bottom:14px">
+        <p style="font-size:13px;font-weight:600;margin:0 0 8px">סוגי קשרים מובנים</p>
+        ${builtInHtml || '<p style="color:#90a4ae;font-size:12px">לא הוגדרו קטגוריות.</p>'}
+      </div>
+      <hr style="border:none;border-top:1px solid #e0e0e0;margin:12px 0">
+    ` + listHtml + `
       <div style="background:#f9f9f9;border:1px solid #e0e0e0;border-radius:8px;padding:12px">
         <p style="font-size:13px;font-weight:600;margin:0 0 10px">הוסף סוג קשר חדש</p>
 
@@ -3134,6 +3309,15 @@ const Modals = (() => {
             <input type="color" id="depNewTypeColor" class="input" value="#42A5F5" style="width:100%;height:34px;padding:2px 3px">
           </div>
         </div>
+
+        <!-- Row 1b: category -->
+        ${catSelectOpts ? `<div style="margin-bottom:10px">
+          <label class="form-label" style="font-size:11px">קטגוריה</label>
+          <select id="depNewTypeCategory" class="input" style="width:200px">
+            <option value="">— ללא קטגוריה —</option>
+            ${catSelectOpts}
+          </select>
+        </div>` : ''}
 
         <!-- Row 2: direction + significance -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px">
@@ -3186,19 +3370,175 @@ const Modals = (() => {
     document.getElementById('btnConfirmAddDepType')?.addEventListener('click', () => {
       const label = document.getElementById('depNewTypeName')?.value.trim();
       if (!label) { UI.toast('נא להזין שם', 'warning'); return; }
-      const icon             = document.getElementById('depNewTypeIcon')?.value.trim() || '🔗';
-      const color            = document.getElementById('depNewTypeColor')?.value || '#42A5F5';
+      const icon              = document.getElementById('depNewTypeIcon')?.value.trim() || '🔗';
+      const color             = document.getElementById('depNewTypeColor')?.value || '#42A5F5';
+      const category          = document.getElementById('depNewTypeCategory')?.value || '';
       const significanceLevel = parseInt(document.getElementById('depNewTypeLevel')?.value || '3');
-      const isPositive       = _newTypePositive;
-      const strength         = _cdtStrength(isPositive, significanceLevel);
+      const isPositive        = _newTypePositive;
+      const strength          = _cdtStrength(isPositive, significanceLevel);
       const s = State.get().settings;
       if (!s.autoAssign) s.autoAssign = {};
       if (!s.autoAssign.customDependencyTypes) s.autoAssign.customDependencyTypes = [];
       const newArr = [...s.autoAssign.customDependencyTypes,
-        { id: 'cdt_' + Date.now(), label, icon, color, isPositive, significanceLevel, strength }];
+        { id: 'cdt_' + Date.now(), label, icon, color, category, isPositive, significanceLevel, strength }];
       State.setSetting('autoAssign', { ...s.autoAssign, customDependencyTypes: newArr });
       _renderDepTypesView();
       UI.toast('סוג קשר נוסף ✓', 'success', 1500);
+    });
+  }
+
+  function _renderDepInferRules() {
+    const bodyEl = document.getElementById('depInferRulesBody');
+    if (!bodyEl) return;
+
+    const cats = CONFIG.DEPENDENCY_CATEGORIES || {};
+    const allDT = { ...CONFIG.DEPENDENCY_TYPES, ..._getCustomDepTypesMap() };
+    const activeRules = _getActiveInferenceRules();
+    const isCustom = Array.isArray(State.get().settings?.inferenceRules);
+
+    const catOpts = Object.entries(cats).map(([k, v]) =>
+      `<option value="${k}">${UI.escHtml(v.icon || '')} ${UI.escHtml(v.label || k)}</option>`
+    ).join('');
+    const typeOpts = Object.entries(allDT).map(([k, v]) =>
+      `<option value="${k}">${UI.escHtml(v.icon || '')} ${UI.escHtml(v.label || k)}</option>`
+    ).join('');
+
+    const rulesHtml = activeRules.map((rule, i) => {
+      const fromCatDef  = cats[rule.fromCat] || {};
+      const toCatDef    = cats[rule.toCat]   || {};
+      const resultDef   = allDT[rule.resultType] || {};
+      const resultColor = _safeCssColor(resultDef.color || '#90a4ae');
+      return `<tr class="ir-row" data-rule-idx="${i}" style="border-bottom:1px solid #f0f0f0;${rule.enabled === false ? 'opacity:0.5' : ''}">
+        <td style="padding:6px 8px;text-align:center">
+          <input type="checkbox" class="ir-enabled" data-idx="${i}" ${rule.enabled !== false ? 'checked' : ''} title="הפעל/כבה כלל זה">
+        </td>
+        <td style="padding:6px 8px">
+          <span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;background:${_safeCssColor(fromCatDef.color || '#90a4ae')}22;border:1px solid ${_safeCssColor(fromCatDef.color || '#90a4ae')}66;font-size:12px">${UI.escHtml(fromCatDef.icon || '')} ${UI.escHtml(fromCatDef.label || rule.fromCat)}</span>
+        </td>
+        <td style="padding:6px 8px;text-align:center;color:#90a4ae">+</td>
+        <td style="padding:6px 8px">
+          <span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;background:${_safeCssColor(toCatDef.color || '#90a4ae')}22;border:1px solid ${_safeCssColor(toCatDef.color || '#90a4ae')}66;font-size:12px">${UI.escHtml(toCatDef.icon || '')} ${UI.escHtml(toCatDef.label || rule.toCat)}</span>
+        </td>
+        <td style="padding:6px 8px;text-align:center;color:#37474f">→</td>
+        <td style="padding:6px 8px">
+          <span style="background:${resultColor};color:#fff;font-size:11px;padding:2px 8px;border-radius:8px;white-space:nowrap">${UI.escHtml(resultDef.icon || '')} ${UI.escHtml(resultDef.label || rule.resultType)}</span>
+        </td>
+        <td style="padding:6px 8px;text-align:center">
+          <span style="font-size:12px;color:#607d8b" title="משקל הצעה (0-1)">${typeof rule.weight === 'number' ? rule.weight.toFixed(1) : '—'}</span>
+        </td>
+        <td style="padding:6px 4px;text-align:center;white-space:nowrap">
+          <button class="btn btn-sm ir-del" data-idx="${i}" style="padding:1px 6px;color:#e53935;border:1px solid #e53935" title="מחק כלל">✕</button>
+        </td>
+      </tr>`;
+    }).join('');
+
+    bodyEl.innerHTML = `
+      <div style="margin-bottom:12px">
+        <p style="font-size:13px;font-weight:700;margin:0 0 4px">⚙️ כללי היסק — הסקה אוטומטית של קשרים</p>
+        <p style="font-size:12px;color:#607d8b;margin:0 0 10px">כאשר מוזמן A קשור ל-B, ו-B קשור ל-C, המערכת מציעה קשר בין A ל-C בהתאם לכללים הבאים.</p>
+        ${!isCustom ? `<div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+          <button class="btn btn-sm btn-ghost" id="btnIrResetDefault" style="font-size:11px">↺ שחזר כללי ברירת מחדל</button>
+        </div>` : `<div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+          <button class="btn btn-sm btn-ghost" id="btnIrResetDefault" style="font-size:11px">↺ שחזר כללי ברירת מחדל</button>
+        </div>`}
+      </div>
+      <div style="overflow-x:auto;margin-bottom:16px">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="background:#f5f5f5;font-weight:600">
+            <th style="padding:6px 8px;text-align:center" title="הפעל/כבה">✓</th>
+            <th style="padding:6px 8px;text-align:right">קטגוריה א</th>
+            <th></th>
+            <th style="padding:6px 8px;text-align:right">קטגוריה ב</th>
+            <th></th>
+            <th style="padding:6px 8px;text-align:right">סוג קשר מוצע</th>
+            <th style="padding:6px 8px;text-align:center" title="משקל (0=חלש, 1=חזק)">משקל</th>
+            <th></th>
+          </tr></thead>
+          <tbody id="irRulesBody">
+            ${rulesHtml || '<tr><td colspan="8" style="padding:10px;color:#90a4ae;text-align:center">אין כללים מוגדרים</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+      <div style="background:#f9f9f9;border:1px solid #e0e0e0;border-radius:8px;padding:12px">
+        <p style="font-size:13px;font-weight:600;margin:0 0 10px">+ הוסף כלל היסק חדש</p>
+        <div style="display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 80px;gap:8px;align-items:end;margin-bottom:10px">
+          <div>
+            <label class="form-label" style="font-size:11px">קטגוריה א</label>
+            <select id="irFromCat" class="input" style="width:100%">
+              <option value="">— בחר —</option>${catOpts}
+            </select>
+          </div>
+          <span style="padding-bottom:8px;color:#90a4ae;font-size:16px">+</span>
+          <div>
+            <label class="form-label" style="font-size:11px">קטגוריה ב</label>
+            <select id="irToCat" class="input" style="width:100%">
+              <option value="">— בחר —</option>${catOpts}
+            </select>
+          </div>
+          <span style="padding-bottom:8px;color:#37474f;font-size:16px">→</span>
+          <div>
+            <label class="form-label" style="font-size:11px">סוג קשר מוצע</label>
+            <select id="irResultType" class="input" style="width:100%">
+              ${typeOpts}
+            </select>
+          </div>
+          <div>
+            <label class="form-label" style="font-size:11px">משקל</label>
+            <input type="number" id="irWeight" class="input" value="0.5" min="0.1" max="1" step="0.1" style="width:70px">
+          </div>
+          <div>
+            <button class="btn btn-primary btn-sm" id="btnIrAdd" style="width:100%">+ הוסף</button>
+          </div>
+        </div>
+      </div>`;
+
+    // Wire reset to defaults
+    bodyEl.querySelector('#btnIrResetDefault')?.addEventListener('click', () => {
+      if (!UI.confirmDialog('לאפס את כל הכללים לברירת המחדל?')) return;
+      State.saveInferenceRules(null);
+      _renderDepInferRules();
+      UI.toast('הכללים אופסו לברירת מחדל', 'info', 1800);
+    });
+
+    // Wire enable/disable toggles
+    bodyEl.querySelectorAll('.ir-enabled').forEach(chk => {
+      chk.addEventListener('change', () => {
+        const idx = parseInt(chk.dataset.idx);
+        const rules = _getActiveInferenceRules().map((r, i) =>
+          i === idx ? { ...r, enabled: chk.checked } : { ...r }
+        );
+        State.saveInferenceRules(rules);
+        _renderDepInferRules();
+      });
+    });
+
+    // Wire delete buttons
+    bodyEl.querySelectorAll('.ir-del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.idx);
+        const rules = _getActiveInferenceRules().filter((_, i) => i !== idx);
+        State.saveInferenceRules(rules);
+        _renderDepInferRules();
+        UI.toast('הכלל נמחק', 'info', 1500);
+      });
+    });
+
+    // Wire add rule
+    bodyEl.querySelector('#btnIrAdd')?.addEventListener('click', () => {
+      const fromCat    = bodyEl.querySelector('#irFromCat')?.value;
+      const toCat      = bodyEl.querySelector('#irToCat')?.value;
+      const resultType = bodyEl.querySelector('#irResultType')?.value;
+      const weight     = parseFloat(bodyEl.querySelector('#irWeight')?.value || '0.5');
+      if (!fromCat || !toCat || !resultType) {
+        UI.toast('נא לבחור קטגוריות וסוג קשר', 'warning'); return;
+      }
+      const rules = [..._getActiveInferenceRules(), {
+        id: 'ir_' + Date.now(), fromCat, toCat, resultType,
+        weight: Math.max(0.1, Math.min(1, weight)), enabled: true
+      }];
+      State.saveInferenceRules(rules);
+      _renderDepInferRules();
+      UI.toast('כלל נוסף ✓', 'success', 1500);
     });
   }
 
