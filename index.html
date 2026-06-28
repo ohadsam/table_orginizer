@@ -1360,8 +1360,23 @@
     </div>
     <div class="modal-body" style="max-height:72vh;overflow-y:auto;padding:0">
 
-      <!-- Version 2.1 -->
+      <!-- Version 2.2 -->
       <div class="wn-version">
+        <div class="wn-version-header">
+          <span class="wn-badge">2.2</span>
+          <span class="wn-date">יוני 2026</span>
+        </div>
+        <ul class="wn-list">
+          <li><span class="wn-icon">🏷</span><div><strong>קטגוריות בסוגי קשרים</strong> — כל סוג קשר משויך לקטגוריה (משפחה, חברים, בנפרד וכו׳) לתצוגה והסקה חכמה יותר.</div></li>
+          <li><span class="wn-icon">⚙️</span><div><strong>מסך כללי היסק</strong> — לשונית חדשה "⚙️ כללי היסק" בתרשים הקשרים — הגדר, ערוך ומחק כללי הסקה אוטומטיים.</div></li>
+          <li><span class="wn-icon">🕸</span><div><strong>תצוגות תרשים</strong> — תרשים קשרים עם 3 מצבי תצוגה: עיגול, אלפביתי ולפי קטגוריה, עם חיפוש מובנה.</div></li>
+          <li><span class="wn-icon">💔</span><div><strong>סוגי קשרים חדשים</strong> — פרודים/נפרדים 😶 ושותפים לשעבר 🤷 — לציון הימנעות ישיבה משותפת.</div></li>
+          <li><span class="wn-icon">✨</span><div><strong>הצעות חכמות משופרות</strong> — הצעות מבוססות-היסק בשתי לשוניות: בזמן הוספת קשר ובלשונית ההצעות.</div></li>
+        </ul>
+      </div>
+
+      <!-- Version 2.1 -->
+      <div class="wn-version wn-version-older">
         <div class="wn-version-header">
           <span class="wn-badge">2.1</span>
           <span class="wn-date">יוני 2026</span>
@@ -1422,9 +1437,11 @@
         <button class="dep-tab" id="depTabTable" data-tab="table">📋 רשימה</button>
         <button class="dep-tab" id="depTabTypes" data-tab="types">🏷 סוגי קשרים</button>
         <button class="dep-tab" id="depTabSuggest" data-tab="suggest">✨ הצעות</button>
+        <button class="dep-tab" id="depTabInferRules" data-tab="inferrules">⚙️ כללי היסק</button>
       </div>
       <!-- Graph view -->
       <div id="depGraphView" class="dep-view">
+        <div id="depGraphControls"></div>
         <div class="dep-graph-toolbar">
           <button class="btn btn-sm" id="btnDepGraphAddMode" title="לחץ על שני מוזמנים בתרשים להוספת קשר">➕ הוסף קשר בתרשים</button>
           <span id="depGraphAddStatus" class="dep-graph-add-status"></span>
@@ -1452,6 +1469,10 @@
           <p style="font-size:13px;color:#607d8b;margin-bottom:12px">המערכת מציעה קשרים בין מוזמנים בעלי תגיות משותפות. לחץ ✓ לאישור או ✕ לדחייה.</p>
           <div id="depSuggestBody"></div>
         </div>
+      </div>
+      <!-- Inference rules view -->
+      <div id="depInferRulesView" class="dep-view" style="display:none">
+        <div style="padding:12px" id="depInferRulesBody"></div>
       </div>
     </div>
     <div class="modal-footer" style="justify-content:space-between">

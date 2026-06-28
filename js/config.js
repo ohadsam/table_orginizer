@@ -1,7 +1,7 @@
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION:          '2.1',
+  APP_VERSION:          '2.2',
   STORAGE_KEY:          'seating_planner_v2',        // legacy — kept for migration only
   STORAGE_META_KEY:     'seating_planner_meta',
   STORAGE_EVENT_PREFIX: 'seating_planner_event_',
@@ -79,17 +79,33 @@ const CONFIG = Object.freeze({
 
   // Guest dependency/relationship types for the dependency diagram
   DEPENDENCY_TYPES: {
-    spouses:    { label: 'בני זוג',          strength: 'required',  color: '#EC407A', icon: '💑' },
-    parents:    { label: 'הורים/ילדים',       strength: 'required',  color: '#AB47BC', icon: '👨‍👩‍👧' },
-    family:     { label: 'משפחה',             strength: 'preferred', color: '#66BB6A', icon: '👪' },
-    friends:    { label: 'חברים',             strength: 'preferred', color: '#42A5F5', icon: '👫' },
-    colleagues: { label: 'עמיתים',            strength: 'preferred', color: '#26A69A', icon: '💼' },
-    divorced:   { label: 'גרושים',            strength: 'avoid',     color: '#FFA726', icon: '💔' },
-    separated:  { label: 'פרודים/נפרדים',    strength: 'avoid',     color: '#FF8A65', icon: '😶' },
-    expartners: { label: 'שותפים לשעבר',    strength: 'avoid',     color: '#B0BEC5', icon: '🤷' },
-    conflict:   { label: 'לא מסתדרים',       strength: 'avoid',     color: '#FF7043', icon: '⚡' },
-    prohibited: { label: 'אסור להושיב יחד', strength: 'forbidden', color: '#EF5350', icon: '🚫' }
+    spouses:    { label: 'בני זוג',          strength: 'required',  color: '#EC407A', icon: '💑',  category: 'family'     },
+    parents:    { label: 'הורים/ילדים',       strength: 'required',  color: '#AB47BC', icon: '👨‍👩‍👧', category: 'family'     },
+    family:     { label: 'משפחה',             strength: 'preferred', color: '#66BB6A', icon: '👪',  category: 'family'     },
+    friends:    { label: 'חברים',             strength: 'preferred', color: '#42A5F5', icon: '👫',  category: 'friends'    },
+    colleagues: { label: 'עמיתים',            strength: 'preferred', color: '#26A69A', icon: '💼',  category: 'colleagues' },
+    divorced:   { label: 'גרושים',            strength: 'avoid',     color: '#FFA726', icon: '💔',  category: 'apart'      },
+    separated:  { label: 'פרודים/נפרדים',    strength: 'avoid',     color: '#FF8A65', icon: '😶',  category: 'apart'      },
+    expartners: { label: 'שותפים לשעבר',    strength: 'avoid',     color: '#B0BEC5', icon: '🤷',  category: 'apart'      },
+    conflict:   { label: 'לא מסתדרים',       strength: 'avoid',     color: '#FF7043', icon: '⚡',  category: 'conflict'   },
+    prohibited: { label: 'אסור להושיב יחד', strength: 'forbidden', color: '#EF5350', icon: '🚫',  category: 'conflict'   }
   },
+
+  DEPENDENCY_CATEGORIES: {
+    family:     { label: 'משפחה',        icon: '👨‍👩‍👧', color: '#AB47BC' },
+    friends:    { label: 'חברים',         icon: '👫',    color: '#42A5F5' },
+    colleagues: { label: 'עמיתים',        icon: '💼',    color: '#26A69A' },
+    apart:      { label: 'בנפרד',         icon: '💔',    color: '#FFA726' },
+    conflict:   { label: 'לא מסתדרים',   icon: '⚡',    color: '#EF5350' }
+  },
+
+  DEFAULT_INFERENCE_RULES: [
+    { id: 'ir_1', fromCat: 'family',     toCat: 'family',     resultType: 'family',     weight: 0.8, enabled: true },
+    { id: 'ir_2', fromCat: 'friends',    toCat: 'friends',    resultType: 'friends',    weight: 0.5, enabled: true },
+    { id: 'ir_3', fromCat: 'colleagues', toCat: 'colleagues', resultType: 'colleagues', weight: 0.5, enabled: true },
+    { id: 'ir_4', fromCat: 'family',     toCat: 'friends',    resultType: 'friends',    weight: 0.3, enabled: true },
+    { id: 'ir_5', fromCat: 'friends',    toCat: 'family',     resultType: 'friends',    weight: 0.3, enabled: false },
+  ],
 
   LOCK_COLOR: '#ff8f00',
 
@@ -99,6 +115,27 @@ const CONFIG = Object.freeze({
     bat_mitzvah: 'בת מצווה',
     birthday:    'יום הולדת',
     other:       'אחר'
-  }
+  },
+
+  CHANGELOG: {
+    '2.2': {
+      date: '2026-06-28',
+      features: [
+        { title: 'קטגוריות בסוגי קשרים', desc: 'כל סוג קשר משויך לקטגוריה (משפחה, חברים, בנפרד וכו׳) לתצוגה והסקה חכמה יותר', helpRef: '#dependencies' },
+        { title: 'מסך כללי היסק', desc: 'לשונית חדשה "⚙️ כללי היסק" בתרשים הקשרים — הגדר, ערוך ומחק כללי הסקה אוטומטיים', helpRef: '#inference-rules' },
+        { title: 'תצוגות תרשים', desc: 'תרשים קשרים עם 3 מצבי תצוגה: עיגול, אלפביתי ולפי קטגוריה, עם חיפוש מובנה', helpRef: '#dependencies' },
+        { title: 'סוגי קשרים חדשים', desc: 'פרודים/נפרדים 😶 ושותפים לשעבר 🤷 — לציון הימנעות ישיבה משותפת', helpRef: '#dependencies' },
+        { title: 'הצעות חכמות משופרות', desc: 'הצעות מבוססות-היסק בשתי לשוניות: בזמן הוספת קשר ובלשונית ההצעות', helpRef: '#dependencies' },
+      ]
+    },
+    '2.1': {
+      date: '2025-12-01',
+      features: [
+        { title: 'תלויות בין מוזמנים', desc: 'מערכת ניהול קשרים מלאה עם תרשים, הוספת קשר, טבלה, סוגי קשרים והצעות', helpRef: '#dependencies' },
+        { title: 'שיבוץ אוטומטי חכם', desc: 'מינימום N ריצות, הגרלה מחדש (reroll), שמירה כפריסה, קבוצות תלויות', helpRef: '#autoassign' },
+        { title: 'ניווט פריטים', desc: 'פאנל ניווט מהיר בצד שמאל לכל פריטי האולם עם תצוגה מקדימה', helpRef: '#canvas' },
+      ]
+    }
+  },
 });
 

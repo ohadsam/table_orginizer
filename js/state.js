@@ -30,7 +30,8 @@ const State = (() => {
           respectDependencies: true,
           tableTypes: [],           // [{id, name, maxCount, maxSeats, minOccupancyBeforeSplit}]
           customDependencyTypes: [] // [{id, label, strength, color, icon}]
-        }
+        },
+        inferenceRules: null        // null = use CONFIG.DEFAULT_INFERENCE_RULES
       },
       canvas: { zoom: 0.6, panX: 40, panY: 40 },
       items: [],
@@ -346,6 +347,12 @@ const State = (() => {
     emit('layoutOptionsChanged', { id: null });
   }
 
+  /* ── inference rules ── */
+  function saveInferenceRules(rules) {
+    _state.settings.inferenceRules = rules;
+    emit('change', { evt: 'inferenceRulesChanged' });
+  }
+
   /* ── guest-only import (merge or replace) ── */
   function importGuests(guestsData, tagsData, merge) {
     if (!merge) {
@@ -388,6 +395,7 @@ const State = (() => {
     addTag, removeTag,
     serialize, deserialize, resetBoard, resetBoardKeepGuests, importGuests,
     setEventField, setSetting, setCanvasView,
-    saveLayoutOption, loadLayoutOption, deleteLayoutOption, getLayoutOptions, setLayoutOptions
+    saveLayoutOption, loadLayoutOption, deleteLayoutOption, getLayoutOptions, setLayoutOptions,
+    saveInferenceRules
   };
 })();
