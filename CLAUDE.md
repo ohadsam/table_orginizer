@@ -1203,3 +1203,6 @@ https://ohadsam.github.io/table_orginizer/
 ```
 
 Ensure `.nojekyll` exists at the repo root (it does) and GitHub Pages is configured to deploy from `main` / root in the repository settings.
+
+## Release: update the store "OS APPs and Downs"
+After every pushed version (bump `APP_VERSION` in `js/config.js`), update the owner's app store (`ohadsam/os_app_store`, https://ohadsam.github.io/os_app_store/) so it shows the latest version: run GitHub Actions -> "Sync catalog" -> Run workflow (`sync-catalog.yml`; it reads `APP_VERSION` from `js/config.js`), or edit the `seating` entry in the store's `web/data/apps.json` (version, `updated`, what's new he + en, highlights, screenshot `web/art/shots/seating/`). Say in the report that the store was updated.
